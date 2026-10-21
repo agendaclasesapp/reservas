@@ -1,0 +1,89 @@
+.lista {
+  display: grid;
+  gap: var(--e-3);
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.huecos {
+  display: grid;
+  gap: var(--e-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  min-inline-size: 0;
+}
+
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2);
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: var(--tactil-min);
+  padding: var(--e-2) var(--e-4);
+  border: var(--borde-ancho) solid var(--c-borde);
+  border-radius: var(--r-md);
+  background: var(--c-fondo);
+  color: var(--c-texto);
+  font: inherit;
+  text-align: start;
+}
+
+.hora {
+  font-size: var(--t-md);
+  font-weight: var(--peso-fuerte);
+}
+
+.libre {
+  border-color: var(--c-libre-borde);
+}
+
+.ocupado {
+  border-color: var(--c-ocupado-borde);
+  background: var(--c-ocupado-fondo);
+}
+
+.bloqueado {
+  border-color: var(--c-bloqueado-borde);
+  border-style: dotted;
+  background: var(--patron-bloqueado), var(--c-bloqueado-fondo);
+}
+
+.boton {
+  cursor: pointer;
+  transition: background-color var(--mov);
+}
+
+.boton:hover {
+  background: var(--c-libre-fondo);
+}
+
+.boton:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+@media (width >= 37.5rem) {
+  .huecos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boton {
+    transition: none;
+  }
+}

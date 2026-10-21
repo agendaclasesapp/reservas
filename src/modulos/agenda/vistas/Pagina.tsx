@@ -1,4 +1,6 @@
-// Página vacía de B01. El bolt del módulo la completa; rutas.tsx importa este archivo (default export).
+// Página de la agenda pública (B02, T02.2). rutas.tsx importa este archivo (default export).
+import { PaginaAgenda } from './PaginaAgenda';
+
 export default function Pagina() {
-  return <h1>Agenda</h1>;
+  return <PaginaAgenda />;
 }
