@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { crearRouter, rutas, RUTAS_MODULOS } from '../../../src/rutas';
 
@@ -28,7 +28,8 @@ describe('rutas hash de los 8 módulos (ADR-007, §4)', () => {
     async (path, titulo) => {
       montar(path);
       expect(await screen.findByRole('heading', { level: 1, name: titulo })).toBeDefined();
-      expect(document.title).toBe(`${titulo} · ReservaTuClase`);
+      // El título lo fija un useEffect de Layout después de pintar el h1 lazy: hay que esperarlo.
+      await waitFor(() => expect(document.title).toBe(`${titulo} · ReservaTuClase`));
     },
   );
 

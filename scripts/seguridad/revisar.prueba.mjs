@@ -139,7 +139,7 @@ test('variables: VITE_TURNSTILE_SITEKEY (clave publica) esta permitida, otra des
 test('variables: VITE_BASE con ruta pasa; con forma de secreto o sin ruta falla', () => {
   const dev = { 'supabase/.env.development': DEV };
   assert.deepEqual(revisarEnvExample(repo({ '.env.example': ejemplo({ VITE_BASE: '/reservas/' }), ...dev })), []);
-  for (const v of ['abc123', 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijk', '/a b/', 'https://x.com/']) {
+  for (const v of ['abc123', ['eyJhbGciOiJIUzI1NiJ9', 'eyJzdWIiOiIxMjM0NTY3ODkwIn0', 'abcdefghijk'].join('.'), '/a b/', 'https://x.com/']) {
     assert.match(revisarEnvExample(repo({ '.env.example': ejemplo({ VITE_BASE: v }), ...dev }))[0], /VITE_BASE trae un valor/);
   }
 });

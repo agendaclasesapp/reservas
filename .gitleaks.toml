@@ -36,7 +36,7 @@ description = "Token de acceso personal de Supabase (sbp_)"
 regex = '''\bsbp_[0-9a-f]{40}\b'''
 keywords = ["sbp_"]
 
-[allowlist]
+[[allowlists]]
 description = "Claves demo del stack local de Supabase CLI (iss = supabase-demo) y la clave publicable, publica por diseno"
 regexes = [
   '''eyJpc3MiOiJzdXBhYmFzZS1kZW1vIi[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+''',
@@ -45,3 +45,12 @@ regexes = [
 paths = [
   '''^\.gitleaks\.toml$''',
 ]
+
+# Historia ya publicada: el commit b26db40 trajo un JWT de ejemplo literal (falso, "sub":"1234567890") como
+# caso de prueba de revisar.prueba.mjs. En el arbol se armo en tiempo de ejecucion. No se reescribe la
+# historia; la excepcion se acota a ese commit y esa ruta (AND).
+[[allowlists]]
+description = "JWT de ejemplo falso en revisar.prueba.mjs, commit b26db40 (CA-35)"
+condition = "AND"
+commits = ["b26db40074853859e69abecc0ba35b48b79c3f2c"]
+paths = ['''^scripts/seguridad/revisar\.prueba\.mjs$''']
