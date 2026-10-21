@@ -1,0 +1,47 @@
+.pestanas {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-4);
+}
+
+.lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  border-block-end: var(--borde-fino) solid var(--c-borde);
+}
+
+.pestana {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--tactil-min);
+  min-inline-size: var(--tactil-min);
+  padding: var(--e-2) var(--e-4);
+  border-block-end: calc(var(--borde-ancho) * 2) solid transparent;
+  color: var(--c-texto-suave);
+  font: inherit;
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--mov);
+}
+
+.pestana:hover {
+  background: var(--c-superficie);
+}
+
+.pestana[data-selected] {
+  color: var(--c-primario);
+  border-block-end-color: var(--c-primario);
+  font-weight: var(--peso-fuerte);
+}
+
+.pestana[data-focus-visible] {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: calc(var(--foco-offset) * -1);
+}
+
+.panel[data-focus-visible] {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}

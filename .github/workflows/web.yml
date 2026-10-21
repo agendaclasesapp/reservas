@@ -1,0 +1,244 @@
+# Pipeline de la web (ADR-012; NFR-02, NFR-09, CA-35, CA-39, SEC-18 a SEC-23, SEC-31, H-008, H-023).
+# Push a main y pull request: secretos, workflows, calidad, bd y codeql; solo en main, publicar y verificar-publicado.
+name: web
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '23 5 * * 1' # CodeQL semanal (SEC-22); en la ejecucion programada solo corre codeql
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  SUPABASE_CLI: 2.121.0
+  # Valores PUBLICOS (no son secretos): el API del proyecto y su clave publicable ya van dentro del bundle.
+  # Conviene cargarlos como variables del repositorio (VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY); si faltan,
+  # se usan estos. Nunca va aqui la clave secreta ni la service_role.
+  PUBLICO_SUPABASE_URL: https://rmokypmznhobapyghfpi.supabase.co
+  PUBLICO_SUPABASE_CLAVE: sb_publishable_R-D1TybfWeMlP8RS7fszqQ_8mIOiBFn
+  URL_PUBLICA: https://agendaclasesapp.github.io/reservas/
+
+jobs:
+  secretos:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Instalar gitleaks (version y checksum fijados)
+        run: bash scripts/seguridad/instalar-gitleaks.sh
+      - name: Prueba de eficacia (los patrones falsos deben detectarse)
+        run: node scripts/seguridad/prueba-eficacia-gitleaks.mjs
+      - name: Gitleaks sobre todo el historial
+        run: gitleaks detect --source . --config .gitleaks.toml --redact --verbose
+
+  workflows:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: zizmor
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -m pip install --user zizmor==1.31.1
+          "$HOME/.local/bin/zizmor" --min-severity medium .github
+      - name: Reglas propias de workflows
+        run: node scripts/seguridad/revisar-workflows.mjs .
+
+  calidad:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Pruebas de los scripts de seguridad
+        run: node --test "scripts/seguridad/*.prueba.mjs"
+      - name: Variables VITE_* y .env.example
+        run: node scripts/seguridad/revisar-variables.mjs .
+      - name: npm audit (produccion)
+        run: node scripts/seguridad/auditar.mjs
+      - name: npm audit (todo el arbol, solo critica)
+        run: node scripts/seguridad/auditar.mjs --dev
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test:unit
+
+  dependency-review:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # fijado por SHA
+        with:
+          fail-on-severity: high
+
+  bd:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Arrancar Supabase local
+        run: npx --yes supabase@${SUPABASE_CLI} start -x studio,imgproxy,vector,logflare,storage-api,realtime,postgres-meta,supavisor
+      - name: Esquema y semilla
+        run: npx --yes supabase@${SUPABASE_CLI} db reset
+      - name: pgTAP
+        run: npx --yes supabase@${SUPABASE_CLI} test db
+      - name: Lint de la base
+        run: npx --yes supabase@${SUPABASE_CLI} db lint --level warning --fail-on error
+      - name: Exportar variables del stack local
+        run: |
+          npx --yes supabase@${SUPABASE_CLI} status -o env | sed -e 's/="\(.*\)"$/=\1/' > "$RUNNER_TEMP/status.env"
+          cat "$RUNNER_TEMP/status.env" >> "$GITHUB_ENV"
+          {
+            echo "VITE_SUPABASE_URL=$(grep '^API_URL=' "$RUNNER_TEMP/status.env" | cut -d= -f2-)"
+            echo "VITE_SUPABASE_ANON_KEY=$(grep '^ANON_KEY=' "$RUNNER_TEMP/status.env" | cut -d= -f2-)"
+            echo "MAILPIT_URL=http://127.0.0.1:54324"
+            echo "MAIL_SECRETO=$(grep '^MAIL_SECRETO=' .env.example | cut -d= -f2-)"
+            echo "SMTP_HOST=inbucket"
+            echo "SMTP_PORT=1025"
+            echo "SMTP_TLS=false"
+          } >> "$GITHUB_ENV"
+      - run: npm run test:integracion
+      - name: Parar el stack
+        if: always()
+        run: npx --yes supabase@${SUPABASE_CLI} stop --no-backup
+
+  codeql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          languages: javascript-typescript
+          build-mode: none
+      - uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          category: /language:javascript-typescript
+
+  publicar:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [secretos, workflows, calidad, bd, codeql]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.despliegue.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Instalar gitleaks
+        run: bash scripts/seguridad/instalar-gitleaks.sh
+      - name: Compilar (en CI no hay .env.local que Vite lea)
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || env.PUBLICO_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || env.PUBLICO_SUPABASE_CLAVE }}
+          VITE_BASE: /reservas/
+        run: npm run build
+      - name: Escanear dist/ (todo JWT decodificado, .map, .env, supabase/)
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || env.PUBLICO_SUPABASE_URL }}
+        run: node scripts/seguridad/escanear-dist.mjs dist
+      - name: Gitleaks sobre dist/
+        run: gitleaks detect --no-git --source dist --config .gitleaks.toml --redact --verbose
+      - name: Paginas legales publicadas tal cual (H-023)
+        run: |
+          cmp public/privacidad.html dist/privacidad.html
+          cmp public/condiciones.html dist/condiciones.html
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # fijado por SHA
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # fijado por SHA
+        with:
+          path: dist
+      - id: despliegue
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # fijado por SHA
+
+  verificar-publicado:
+    needs: publicar
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: Escanear el sitio publicado (con reintentos por la propagacion de Pages)
+        env:
+          SUPABASE_PROJECT_REF: rmokypmznhobapyghfpi
+        run: |
+          ok=0
+          for intento in 1 2 3 4 5 6; do
+            if node scripts/seguridad/escanear-dist.mjs --url "$URL_PUBLICA"; then ok=1; break; fi
+            echo "intento $intento fallido; espero 20 s"; sleep 20
+          done
+          [ "$ok" = 1 ]
+      - name: Paginas legales publicadas tal cual (H-023)
+        run: |
+          for pagina in privacidad condiciones; do
+            curl -fsSL --retry 5 --retry-delay 10 -o "$RUNNER_TEMP/$pagina.html" "${URL_PUBLICA}$pagina.html"
+            cmp "public/$pagina.html" "$RUNNER_TEMP/$pagina.html"
+          done

@@ -1,0 +1,29 @@
+node_modules/
+dist/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+*.log
+*.tsbuildinfo
+.vite/
+
+# Variables y secretos: nada de .env* entra al repositorio salvo el ejemplo y el perfil local (ADR-012)
+.env
+.env.*
+!.env.example
+supabase/.env
+supabase/.env.*
+!supabase/.env.development
+
+# Estado local de Supabase CLI
+supabase/.temp/
+supabase/.branches/
+
+# Auxiliares de agentes y spikes
+.pages-spike/
+spikes/**/node_modules/
+spikes/**/dist/
+spikes/**/.env.local
+spikes/**/.env.nube
+spikes/**/test-results/

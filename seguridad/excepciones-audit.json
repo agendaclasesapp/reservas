@@ -1,0 +1,4 @@
+{
+  "descripcion": "Excepciones de npm audit (SEC-22). Cada una: id GHSA, motivo, fechas aprobada y vence (maximo 30 dias) y quien la acepta (el humano, tambien en aprobacion/riesgos.md). Una excepcion vencida hace fallar el job de calidad.",
+  "excepciones": []
+}

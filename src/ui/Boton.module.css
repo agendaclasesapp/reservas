@@ -1,0 +1,60 @@
+.boton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--e-2);
+  min-block-size: var(--tactil-min);
+  min-inline-size: var(--tactil-min);
+  padding: var(--e-2) var(--e-4);
+  border: var(--borde-ancho) solid transparent;
+  border-radius: var(--r-md);
+  font: inherit;
+  font-weight: var(--peso-fuerte);
+  line-height: var(--interlineado-titulo);
+  cursor: pointer;
+  transition: background-color var(--mov);
+}
+
+.boton:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+.primario {
+  color: var(--c-sobre-primario);
+  background: var(--c-primario);
+}
+
+.primario:hover {
+  background: var(--c-primario-hover);
+}
+
+.secundario {
+  color: var(--c-primario);
+  background: var(--c-fondo);
+  border-color: var(--c-primario);
+}
+
+.secundario:hover {
+  background: var(--c-superficie);
+}
+
+.peligro {
+  color: var(--c-sobre-error);
+  background: var(--c-error);
+}
+
+.peligro:hover {
+  background: var(--c-error-hover);
+}
+
+.boton:disabled {
+  color: var(--c-texto-suave);
+  background: var(--c-superficie);
+  border-color: var(--c-borde);
+  cursor: not-allowed;
+}
+
+.boton[aria-busy='true'] {
+  cursor: progress;
+}

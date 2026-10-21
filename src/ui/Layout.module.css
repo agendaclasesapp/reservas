@@ -1,0 +1,64 @@
+.pagina {
+  display: flex;
+  flex-direction: column;
+  min-block-size: 100dvh;
+}
+
+.saltar {
+  position: absolute;
+  inset-block-start: var(--e-2);
+  inset-inline-start: var(--e-2);
+  z-index: 200;
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tactil-min);
+  padding: var(--e-2) var(--e-4);
+  color: var(--c-sobre-primario);
+  background: var(--c-primario);
+  border-radius: var(--r-md);
+  transform: translateY(-200%);
+}
+
+.saltar:focus {
+  transform: none;
+}
+
+.saltar:hover {
+  color: var(--c-sobre-primario);
+  background: var(--c-primario-hover);
+}
+
+.cabecera {
+  background: var(--c-superficie);
+  box-shadow: var(--s-1);
+}
+
+.cabeceraInterior {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2);
+  max-inline-size: var(--contenedor-max);
+  margin-inline: auto;
+  padding: var(--e-2) var(--e-4);
+}
+
+.marca {
+  margin: 0;
+  font-size: var(--t-md);
+  font-weight: var(--peso-fuerte);
+}
+
+.principal {
+  flex: 1;
+  inline-size: 100%;
+  max-inline-size: var(--contenedor-max);
+  margin-inline: auto;
+  padding: var(--e-6) var(--e-4);
+}
+
+.principal:focus,
+.principal h1:focus {
+  outline: none;
+}

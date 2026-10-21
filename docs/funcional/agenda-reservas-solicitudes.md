@@ -1,6 +1,6 @@
 ---
 titulo: Funcional · Agenda, reservas y solicitudes
-version: 0.2
+version: 0.3
 fecha: 2026-10-21
 publico: negocio y equipo
 ---
@@ -14,7 +14,8 @@ publico: negocio y equipo
 - **Anticipación mínima**: el alumno no puede pedir, mover ni cancelar clases que empiezan antes del plazo, y recibe el motivo; no limita al profesor (AGE-04, PRF-04). En un movimiento rige para origen y destino (DEC-07, opción por defecto).
 - Bloqueos de un hueco, un rango de horas o días completos, con motivo opcional; se rechazan si cubren una clase confirmada o solicitud pendiente, indicando cuáles; quitarlos libera los huecos (AGE-05, AGE-06).
 - Un único huso horario configurable para todo (AGE-08, DEC-08).
-- **Calendario público**: cualquiera ve cada hueco como libre, ocupado o bloqueado, sin nombres, observaciones ni motivos; un hueco con solicitud pendiente se ve ocupado (AGE-07, WEB-01).
+- **Calendario público**: cualquiera ve cada hueco como libre, ocupado o bloqueado, sin nombres, observaciones ni motivos; un hueco con solicitud pendiente se ve ocupado (AGE-07, WEB-01). Si una clase activa solapa en parte un hueco (por ejemplo tras cambiar la duración), ese hueco se ve ocupado; una clase que no solapa ningún hueco de la grilla vigente se agrega como ocupada con su inicio y fin (ADR-006, precisión tras S03).
+- **Invitación al visitante (CR-001, DEC-23, WEB-01, CA-46):** un visitante sin sesión que toca un hueco libre ve una invitación a ingresar, con un acceso a la pantalla de ingreso (WEB-02); no se crea ninguna solicitud ni se pide ningún dato. Un alumno aprobado que toca un hueco libre abre el formulario de solicitud.
 
 ## Reservas
 - Cada hueco admite una sola reserva pendiente o confirmada; ante dos pedidos simultáneos, el segundo ve que el hueco ya no está libre (RES-01).
@@ -36,8 +37,10 @@ publico: negocio y equipo
 - La solicitud no vence: si pasa el horario queda en el historial como «pendiente sin respuesta»; por defecto ya no se puede responder (SOL-08, DEC-09).
 - El alumno solo ve y gestiona lo suyo; sobre lo ajeno la operación se rechaza (SOL-09, NFR-01).
 
-## Topes anti-abuso (propuesta)
-El diseño prevé topes (solicitudes pendientes por alumno, mails por hora y por día, cuentas nuevas por hora) con el error `LIMITE_EXCEDIDO` (429), pero están **desactivados** hasta que se resuelva DEC-12; exige un pedido de cambio porque la spec no los incluye (ADR-016, SEC-10, SOL-01).
+## Tope de solicitudes pendientes (CR-001, DEC-12)
+- Un alumno no puede tener más de **5 solicitudes pendientes** a la vez, sumando reservas, movimientos y cancelaciones. Al pedir la sexta, el sistema la rechaza con un mensaje que dice el límite (error `LIMITE_EXCEDIDO`, 429) y no ocupa ningún hueco. Cuando el profesor responde una solicitud, el alumno vuelve a poder pedir (SOL-10, CA-41).
+- Los valores (5 pendientes; 10 fichas por hora, 20 mails por hora y 200 por día en los otros documentos) están fijos en la spec: cambiarlos exige un pedido de cambio (CR-001 §4).
+- Estado: aceptado por CR-001; se construye en B06 (reserva) y B08 (movimiento y cancelación). Todavía no está verificado.
 
 ## Bitácora de versiones
 
@@ -45,3 +48,4 @@ El diseño prevé topes (solicitudes pendientes por alumno, mails por hora y por
 | --- | --- | --- | --- | --- |
 | 0.1 | 2026-10-21 | inception | AGE-01..08, RES-01..06, SOL-01..09, WEB-01/04/05 | Primera versión |
 | 0.2 | 2026-10-21 | inception | SOL-01, SEC-10, DEC-12, ADR-016 | Topes anti-abuso como propuesta desactivada |
+| 0.3 | 2026-10-21 | construcción (hito spikes S01-S03 y CR-001) | CR-001, SOL-10, WEB-01, CA-41, CA-46, DEC-12, DEC-23, ADR-006 | Tope de 5 pendientes fijo; invitación al visitante; precisión de la agenda pública tras S03 |

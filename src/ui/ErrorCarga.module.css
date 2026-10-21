@@ -1,0 +1,19 @@
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--e-3);
+  padding: var(--e-4);
+  color: var(--c-error);
+  background: var(--c-error-fondo);
+  border: var(--borde-ancho) solid var(--c-error);
+  border-radius: var(--r-lg);
+}
+
+.mensaje {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--e-2);
+  margin: 0;
+  font-weight: var(--peso-fuerte);
+}

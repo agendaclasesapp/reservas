@@ -1,0 +1,89 @@
+/*
+ * Tokens del sistema de diseño de ReservaTuClase (NFR-05, NFR-06, NFR-09).
+ * Único lugar con valores literales de color, tamaño, sombra y movimiento (ADR-010).
+ * Contrastes calculados en .aidlc/reservatuclase/ux/web/sistema-diseno.md §1 y
+ * verificados por tests/unit/ui/tokens.test.ts (A11Y-06).
+ * Un solo tema claro. Breakpoints (las media queries no aceptan variables):
+ *   md >= 37.5rem (600 px) · lg >= 60rem (960 px)
+ */
+:root {
+  /* Color */
+  --c-fondo: #ffffff;
+  --c-superficie: #f3f5f7;
+  --c-texto: #1f2933;
+  --c-texto-suave: #52606d;
+  --c-borde: #6b7785;
+  --c-primario: #1d4ed8;
+  --c-primario-hover: #1e40af;
+  --c-sobre-primario: #ffffff;
+  --c-error: #b42318;
+  --c-error-hover: #912018;
+  --c-error-fondo: #fef3f2;
+  --c-sobre-error: #ffffff;
+  --c-aviso-texto: #78350f;
+  --c-aviso-fondo: #fffaeb;
+  --c-info-texto: #1e3a8a;
+  --c-info-fondo: #dbeafe;
+  --c-exito-texto: #14532d;
+  --c-exito-fondo: #dcfce7;
+  --c-libre-texto: #14532d;
+  --c-libre-fondo: #dcfce7;
+  --c-libre-borde: #166534;
+  --c-ocupado-texto: #1f2933;
+  --c-ocupado-fondo: #e4e7eb;
+  --c-ocupado-borde: #6b7785;
+  --c-bloqueado-texto: #78350f;
+  --c-bloqueado-fondo: #fef3c7;
+  --c-bloqueado-borde: #92400e;
+  --c-velo: rgb(31 41 51 / 55%);
+
+  /* Tipografía */
+  --f-base: system-ui, -apple-system, 'Segoe UI', roboto, sans-serif;
+  --t-xs: 0.875rem;
+  --t-base: 1rem;
+  --t-md: 1.125rem;
+  --t-lg: 1.25rem;
+  --t-xl: 1.5rem;
+  --t-2xl: 1.875rem;
+  --peso-normal: 400;
+  --peso-fuerte: 600;
+  --interlineado-cuerpo: 1.5;
+  --interlineado-titulo: 1.25;
+
+  /* Espaciado (escala de 4 px) */
+  --e-1: 0.25rem;
+  --e-2: 0.5rem;
+  --e-3: 0.75rem;
+  --e-4: 1rem;
+  --e-6: 1.5rem;
+  --e-8: 2rem;
+
+  /* Forma */
+  --r-sm: 0.25rem;
+  --r-md: 0.5rem;
+  --r-lg: 0.75rem;
+  --borde-ancho: 2px;
+  --borde-fino: 1px;
+  --s-1: 0 1px 3px rgb(31 41 51 / 20%);
+  --s-2: 0 8px 24px rgb(31 41 51 / 30%);
+  --patron-bloqueado: repeating-linear-gradient(
+    135deg,
+    transparent 0 0.4rem,
+    rgb(146 64 14 / 18%) 0.4rem 0.5rem
+  );
+
+  /* Áreas táctiles y foco (NFR-06, CA-38) */
+  --tactil-min: 2.75rem;
+  --foco-ancho: 3px;
+  --foco-offset: 2px;
+  --medida-minima: 1px;
+  --icono: 1.25rem;
+  --icono-grande: 2rem;
+
+  /* Layout */
+  --contenedor-max: 72rem;
+  --dialogo-max: 32rem;
+
+  /* Movimiento */
+  --mov: 150ms;
+}

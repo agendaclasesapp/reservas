@@ -1,0 +1,16 @@
+{
+  "descripcion": "Campos de `supabase config diff` cuyo `update` puede viajar en `config push` (ADR-012, H-022). Todo `update` fuera de esta lista bloquea el despliegue. Se amplia solo por pull request, con revision (agregar un campo es aceptar que el push lo cambie en el proyecto).",
+  "permitidos": [
+    "auth.site_url",
+    "auth.additional_redirect_urls",
+    "auth.email.otp_length",
+    "auth.email.otp_expiry",
+    "auth.email.max_frequency",
+    "auth.email.enable_confirmations",
+    "auth.email.template.confirmation.subject",
+    "auth.email.template.magic_link.subject",
+    "auth.rate_limit.sign_in_sign_ups",
+    "auth.rate_limit.token_verifications",
+    "auth.rate_limit.anonymous_users"
+  ]
+}

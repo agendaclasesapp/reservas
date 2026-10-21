@@ -1,0 +1,45 @@
+# Keep-alive (ADR-009, CA-40, NFR-08): tráfico real a la API y a la base cada 3 días y
+# reinicio del contador de inactividad de GitHub (60 días) al rehabilitar el workflow.
+# Quien edita el `cron` por última vez recibe el mail de ejecución fallida: lo edita el dueño (ops/).
+name: keepalive
+
+on:
+  schedule:
+    - cron: '17 9 */3 * *'
+  workflow_dispatch:
+    inputs:
+      clave:
+        description: 'Solo para provocar un fallo de prueba (CA-40): clave a usar en lugar de la publicable'
+        required: false
+        type: string
+
+permissions: {}
+
+concurrency:
+  group: keepalive
+  cancel-in-progress: false
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+    env:
+      # URL y clave publicable: públicas (van en el bundle). Nunca la clave secreta.
+      SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || 'https://rmokypmznhobapyghfpi.supabase.co' }}
+      CLAVE: ${{ inputs.clave || vars.VITE_SUPABASE_ANON_KEY || 'sb_publishable_R-D1TybfWeMlP8RS7fszqQ_8mIOiBFn' }}
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+    steps:
+      - name: Ping a la API y a la base (rpc/ping)
+        run: |
+          # La clave publicable no es JWT: solo cabecera apikey, nunca Authorization.
+          curl -fsS --retry 3 --retry-delay 5 --max-time 30 -X POST \
+            -H "apikey: ${CLAVE}" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            "${SUPABASE_URL}/rest/v1/rpc/ping"
+          echo
+      - name: Rehabilitar el workflow (reinicia el contador de inactividad)
+        run: gh api -X PUT "repos/${REPO}/actions/workflows/keepalive.yml/enable"

@@ -1,0 +1,48 @@
+.velo {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--e-2);
+  background: var(--c-velo);
+}
+
+.modal {
+  inline-size: 100%;
+  max-inline-size: var(--dialogo-max);
+  max-block-size: 100%;
+  overflow-y: auto;
+  background: var(--c-fondo);
+  border-radius: var(--r-lg);
+  box-shadow: var(--s-2);
+}
+
+.dialogo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-4);
+  padding: var(--e-6);
+}
+
+.dialogo:focus-visible {
+  outline: none;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--t-lg);
+  line-height: var(--interlineado-titulo);
+}
+
+.cuerpo {
+  min-inline-size: 0;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--e-2);
+}

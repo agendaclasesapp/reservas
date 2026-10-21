@@ -1,0 +1,47 @@
+# gitleaks 8.x (NFR-02, SEC-18, SEC-19). Reglas propias para los secretos de este proyecto, sobre las
+# reglas por defecto. Lo corre el job `secretos` de web.yml sobre todo el historial y, con --no-git,
+# sobre dist/. Cualquier hallazgo bloquea; un secreto confirmado se rota (ops/rotacion.md), no se exceptua.
+title = "ReservaTuClase"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "gmail-app-password"
+description = "Contrasena de aplicacion de Gmail (16 letras, con o sin espacios) asignada a una variable de Gmail"
+regex = '''(?i)(?:gmail|app[_ -]?pass(?:word)?)[a-z_ -]{0,20}["']?\s*[:=]\s*["']?([a-z]{4}(?: ?[a-z]{4}){3})["']?(?:[\s,;]|$)'''
+keywords = ["gmail", "app_pass", "app pass", "apppass"]
+
+[[rules]]
+id = "google-oauth-secret"
+description = "Secreto de cliente OAuth de Google (GOCSPX-)"
+regex = '''GOCSPX-[A-Za-z0-9_-]{20,}'''
+keywords = ["gocspx-"]
+
+[[rules]]
+id = "jwt-cualquiera"
+description = "Todo JWT (eyJ...): una clave service_role es base64 y su literal no aparece. Las claves demo del stack local estan permitidas abajo"
+regex = '''eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'''
+keywords = ["eyj"]
+
+[[rules]]
+id = "supabase-clave-secreta"
+description = "Clave secreta sb_secret_ de Supabase"
+regex = '''sb_secret_[A-Za-z0-9_-]{16,}'''
+keywords = ["sb_secret_"]
+
+[[rules]]
+id = "supabase-access-token"
+description = "Token de acceso personal de Supabase (sbp_)"
+regex = '''\bsbp_[0-9a-f]{40}\b'''
+keywords = ["sbp_"]
+
+[allowlist]
+description = "Claves demo del stack local de Supabase CLI (iss = supabase-demo) y la clave publicable, publica por diseno"
+regexes = [
+  '''eyJpc3MiOiJzdXBhYmFzZS1kZW1vIi[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+''',
+  '''sb_publishable_[A-Za-z0-9_-]{16,}''',
+]
+paths = [
+  '''^\.gitleaks\.toml$''',
+]

@@ -1,0 +1,62 @@
+/* Estilos globales mínimos (reinicio, tipografía base, foco visible). Solo usa tokens. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--f-base);
+  font-size: 100%;
+  line-height: var(--interlineado-cuerpo);
+  color: var(--c-texto);
+  background: var(--c-fondo);
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--t-base);
+  overflow-wrap: anywhere;
+}
+
+h1,
+h2,
+h3 {
+  line-height: var(--interlineado-titulo);
+  font-weight: var(--peso-fuerte);
+  margin-block: 0 var(--e-3);
+}
+
+h1 { font-size: var(--t-xl); }
+h2 { font-size: var(--t-lg); }
+h3 { font-size: var(--t-md); }
+
+a {
+  color: var(--c-primario);
+}
+
+a:hover {
+  color: var(--c-primario-hover);
+}
+
+:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+@media (width >= 37.5rem) {
+  h1 { font-size: var(--t-2xl); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

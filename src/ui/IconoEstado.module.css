@@ -1,0 +1,57 @@
+.estado {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-2);
+  padding: var(--e-1) var(--e-2);
+  border: var(--borde-ancho) solid transparent;
+  border-radius: var(--r-sm);
+  font-size: var(--t-xs);
+  font-weight: var(--peso-fuerte);
+  line-height: var(--interlineado-titulo);
+}
+
+.libre,
+.confirmada,
+.aprobada {
+  color: var(--c-libre-texto);
+  background: var(--c-libre-fondo);
+  border-color: var(--c-libre-borde);
+  border-style: solid;
+}
+
+.ocupado,
+.cancelada,
+.sinCuenta {
+  color: var(--c-ocupado-texto);
+  background: var(--c-ocupado-fondo);
+  border-color: var(--c-ocupado-borde);
+  border-style: solid;
+}
+
+.bloqueado {
+  color: var(--c-bloqueado-texto);
+  background: var(--patron-bloqueado), var(--c-bloqueado-fondo);
+  border-color: var(--c-bloqueado-borde);
+  border-style: dotted;
+}
+
+.pendiente {
+  color: var(--c-info-texto);
+  background: var(--c-info-fondo);
+  border-color: var(--c-info-texto);
+  border-style: solid;
+}
+
+.rechazada {
+  color: var(--c-error);
+  background: var(--c-error-fondo);
+  border-color: var(--c-error);
+  border-style: solid;
+}
+
+.pendienteSinRespuesta {
+  color: var(--c-aviso-texto);
+  background: var(--c-aviso-fondo);
+  border-color: var(--c-aviso-texto);
+  border-style: dashed;
+}

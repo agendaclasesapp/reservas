@@ -1,0 +1,21 @@
+.sinPermisos {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-2);
+  max-inline-size: var(--dialogo-max);
+}
+
+.titulo {
+  margin: 0;
+}
+
+.motivo,
+.destino {
+  margin: 0;
+}
+
+.enlace {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tactil-min);
+}

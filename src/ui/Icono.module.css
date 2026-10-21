@@ -1,0 +1,15 @@
+.icono {
+  inline-size: var(--icono);
+  block-size: var(--icono);
+  flex: none;
+  vertical-align: middle;
+}
+
+.grande {
+  inline-size: var(--icono-grande);
+  block-size: var(--icono-grande);
+}
+
+.contraste {
+  fill: var(--c-fondo);
+}

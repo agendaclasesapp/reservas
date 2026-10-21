@@ -1,0 +1,69 @@
+# E2E con Playwright contra Supabase local y el bundle servido por vite preview (ADR-012; CA-35, NFR-09).
+name: e2e
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SUPABASE_CLI: 2.121.0
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Arrancar Supabase local con esquema y semilla
+        run: |
+          npx --yes supabase@${SUPABASE_CLI} start -x studio,imgproxy,vector,logflare,storage-api,realtime,postgres-meta,supavisor
+          npx --yes supabase@${SUPABASE_CLI} db reset
+      - name: Exportar variables del stack local
+        run: |
+          npx --yes supabase@${SUPABASE_CLI} status -o env | sed -e 's/="\(.*\)"$/=\1/' > "$RUNNER_TEMP/status.env"
+          {
+            echo "VITE_SUPABASE_URL=$(grep '^API_URL=' "$RUNNER_TEMP/status.env" | cut -d= -f2-)"
+            echo "VITE_SUPABASE_ANON_KEY=$(grep '^ANON_KEY=' "$RUNNER_TEMP/status.env" | cut -d= -f2-)"
+            echo "MAILPIT_URL=http://127.0.0.1:54324"
+          } >> "$GITHUB_ENV"
+      - name: Compilar con la base de Pages (RTC_SITE_URL local es 127.0.0.1:5173/reservas/)
+        env:
+          VITE_BASE: /reservas/
+        run: npm run build
+      - name: Cache de navegadores de Playwright
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # fijado por SHA
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+      - name: Instalar chromium
+        run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+      - name: Informe si falla
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # fijado por SHA
+        with:
+          name: informe-e2e
+          path: |
+            test-results
+            playwright-report
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Parar el stack
+        if: always()
+        run: npx --yes supabase@${SUPABASE_CLI} stop --no-backup
