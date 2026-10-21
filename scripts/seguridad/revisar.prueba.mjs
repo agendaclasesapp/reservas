@@ -129,6 +129,21 @@ test('variables: otra VITE_* en src, workflow o .env.example falla', () => {
   assert.match(e.join('\n'), /VITE_SERVICE_KEY/);
 });
 
+test('variables: VITE_TURNSTILE_SITEKEY (clave publica) esta permitida, otra desconocida falla (SEC-20)', () => {
+  const ok = repo({ 'src/lib/vite-env.d.ts': 'readonly VITE_TURNSTILE_SITEKEY: string;' });
+  assert.deepEqual(revisarVite(ok), []);
+  const mal = repo({ 'src/lib/vite-env.d.ts': 'readonly VITE_TURNSTILE_SECRET: string;' });
+  assert.match(revisarVite(mal)[0], /VITE_TURNSTILE_SECRET/);
+});
+
+test('variables: VITE_BASE con ruta pasa; con forma de secreto o sin ruta falla', () => {
+  const dev = { 'supabase/.env.development': DEV };
+  assert.deepEqual(revisarEnvExample(repo({ '.env.example': ejemplo({ VITE_BASE: '/reservas/' }), ...dev })), []);
+  for (const v of ['abc123', 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijk', '/a b/', 'https://x.com/']) {
+    assert.match(revisarEnvExample(repo({ '.env.example': ejemplo({ VITE_BASE: v }), ...dev }))[0], /VITE_BASE trae un valor/);
+  }
+});
+
 test('variables: config.toml con literal de secreto falla; env() y vacio pasan', () => {
   const bueno = 'secret = "env(RTC_GOOGLE_SECRET)"\nclient_id = "env(X)"\nauth_token = ""\n# secret = "literal"\n';
   assert.deepEqual(revisarConfigToml(repo({ 'supabase/config.toml': bueno })), []);

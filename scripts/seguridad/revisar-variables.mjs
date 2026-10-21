@@ -2,7 +2,7 @@
 // Higiene de variables y secretos fuera de lugar (SEC-20, SEC-31, NFR-02). Node 22, sin dependencias.
 //   node scripts/seguridad/revisar-variables.mjs [raiz]
 // Falla (exit 1) ante:
-//  - una VITE_* distinta de VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY y VITE_BASE en workflows, .env.example,
+//  - una VITE_* distinta de VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_BASE y VITE_TURNSTILE_SITEKEY (clave publica) en workflows, .env.example,
 //    src/, index.html o vite.config.*;
 //  - un valor en .env.example fuera de la lista de valores locales publicos (los secretos van vacios), o un
 //    nombre obligatorio ausente, o un MAIL_SECRETO distinto del de supabase/.env.development;
@@ -12,7 +12,8 @@ import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export const VITE_PERMITIDAS = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'VITE_BASE'];
+export const VITE_PERMITIDAS = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'VITE_BASE', 'VITE_TURNSTILE_SITEKEY'];
+// VITE_TURNSTILE_SITEKEY: clave publica del sitio de Cloudflare Turnstile (ADR-016), publica por diseno.
 
 // Valores no secretos que .env.example puede traer (configuracion local del stack de Supabase CLI).
 export const VALORES_LOCALES = { VITE_BASE: '/', SMTP_HOST: 'inbucket', SMTP_PORT: '1025', SMTP_TLS: 'false' };
@@ -84,6 +85,8 @@ export function revisarEnvExample(raiz) {
     if (valor === '') continue;
     if (nombre === 'MAIL_SECRETO') {
       if (valor !== local.get('MAIL_SECRETO')) errores.push('.env.example: MAIL_SECRETO debe ser el valor de prueba de supabase/.env.development');
+    } else if (nombre === 'VITE_BASE' && /^\/(?:[A-Za-z0-9._~-]+\/)*$/.test(valor)) {
+      continue; // ruta base del sitio (ADR-007), no un secreto
     } else if (VALORES_LOCALES[nombre] !== valor) {
       errores.push(`.env.example: ${nombre} trae un valor (solo se admiten los locales publicos y MAIL_SECRETO de prueba; SEC-20)`);
     }
