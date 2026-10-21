@@ -1,0 +1,5 @@
+# Perfil de la CLI que apunta la API de gestion a scripts/api-simulada.mjs (H-005, sin proyecto real).
+name: simulado
+api_url: http://127.0.0.1:56499
+dashboard_url: http://127.0.0.1:56499
+project_host: simulado.local

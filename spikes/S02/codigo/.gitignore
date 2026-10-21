@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env.local
+test-results/
+playwright-report/
+supabase/.temp/
+supabase/.branches/
+supabase/.env
+.env.nube

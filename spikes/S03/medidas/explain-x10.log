@@ -1,0 +1,4 @@
+ Execution Time: 3.834 ms
+                 ->  Bitmap Index Scan on clase_sin_solape  (cost=0.00..4.68 rows=40 width=0) (actual time=0.025..0.025 rows=9 loops=1)
+ Execution Time: 0.484 ms
+NOTICE:  en_base ms: p50=0.544 p95=0.975 max=1.185

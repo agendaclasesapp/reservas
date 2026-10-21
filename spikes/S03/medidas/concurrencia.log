@@ -1,0 +1,31 @@
+== Caso 1: A inserta y espera 3 s antes del commit; B inserta un solape mientras A sigue abierta
+  B: B empieza 20:31:05.533261
+  B: ERROR:  conflicting key value violates exclusion constraint "clase_sin_solape"
+  B: DETAIL:  Key (profesor_id, tstzrange(inicio, fin))=(00000000-0000-0000-0000-000000000001, ["2026-05-16 10:30:00+00","2026-05-16 11:30:00+00")) conflicts with existing key (profesor_id, tstzrange(inicio, fin))=(00000000-0000-0000-0000-000000000001, ["2026-05-16 10:00:00+00","2026-05-16 11:00:00+00")).
+  A: BEGIN
+  A: INSERT 0 1
+  A: A inserto 20:31:04.227472
+  A: 
+  A: COMMIT
+  A: A commit 20:31:07.232668
+  B: B termina 20:31:08.271389
+activas en el hueco: 1
+== Caso 2: A hace rollback; B (que esperaba) entra
+  A: rollback
+  B: INSERT 0 1
+activas en el hueco: 1
+== Caso 3: 10 inserciones autocommit simultaneas del mismo hueco
+        1 ok
+        9 rechazada
+activas en el hueco: 1
+== Caso 4: un solape con estado cancelada no choca (la exclusión solo mira pendiente/confirmada)
+  insertada id 45015
+  INSERT 0 1
+== Caso 5: otro profesor en el mismo instante no choca
+  insertada id 45016
+  INSERT 0 1
+== Caso 6: clases contiguas [10,11) y [11,12) no se solapan
+  DELETE 3
+  insertada id 45017
+  insertada id 45018
+  INSERT 0 2

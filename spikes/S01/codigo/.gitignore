@@ -1,0 +1,7 @@
+# S01: secretos y valores locales generados; nunca se versionan
+.env
+*.env
+.env.*
+!.env.ejemplo
+supabase/.temp/
+supabase/.branches/

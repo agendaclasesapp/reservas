@@ -1,0 +1,3 @@
+llamadas=50 (+5 de calentamiento) dias distintos=50
+ms: min=4.2 p50=5.7 p95=7.8 max=10.7
+filas=324 estados={"ocupado":263,"libre":43,"bloqueado":18} claves=estado,fin,inicio bytes_max=847

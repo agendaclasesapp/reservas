@@ -1,0 +1,7 @@
+node_modules/
+app/dist/
+app/dist-v2/
+app/dist-diag/
+supabase/.branches/
+supabase/.temp/
+.env
