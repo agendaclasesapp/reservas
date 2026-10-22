@@ -98,7 +98,7 @@ jobs:
         run: node scripts/seguridad/auditar.mjs --dev
       - run: npm run lint
       - run: npm run typecheck
-      - run: npm run test:unit
+      - run: npm run test:unit -- --reporter=default --reporter=github-actions
 
   funciones:
     if: github.event_name != 'schedule'
@@ -174,7 +174,7 @@ jobs:
             echo "SMTP_PORT=1025"
             echo "SMTP_TLS=false"
           } >> "$GITHUB_ENV"
-      - run: npm run test:integracion
+      - run: npm run test:integracion -- --reporter=default --reporter=github-actions
       - name: Parar el stack
         if: always()
         run: npx --yes supabase@${SUPABASE_CLI} stop --no-backup
