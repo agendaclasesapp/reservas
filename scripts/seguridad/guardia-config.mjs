@@ -5,6 +5,7 @@
 // (la CLI 2.121 no acepta `-o json` en `config diff`: el formato va con `--output-format json`).
 // Falla (exit 1) si el diff trae `127.0.0.1` o `env(` (una variable sin definir se empuja como literal), si
 // trae un `update` de un campo que no esta en config-permitida.json, o si la salida no es un diff valido.
+// Falla tambien si RTC_TURNSTILE_SECRET del entorno es el secreto de prueba de Turnstile (H-181).
 // Los `remote_only` (SMTP, secreto de Google) no se tocan en el push y no se juzgan. Deja el diff en el
 // resumen del job (GITHUB_STEP_SUMMARY) para el revisor del environment `produccion`.
 import { appendFileSync, readFileSync } from 'node:fs';
@@ -13,6 +14,20 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const PROHIBIDOS = ['127.0.0.1', 'env('];
+// Secretos de PRUEBA de Turnstile (documentacion de Cloudflare): siempre pasan. En produccion anulan el CAPTCHA (H-181).
+export const SECRETOS_TURNSTILE_PRUEBA = [
+  '1x0000000000000000000000000000000AA',
+  '2x0000000000000000000000000000000AA',
+  '3x0000000000000000000000000000000AA',
+];
+
+/** H-181: falla si RTC_TURNSTILE_SECRET es un secreto de prueba conocido (la CLI lo carga de supabase/.env.development). */
+export function evaluarEntorno(env = process.env) {
+  const v = (env.RTC_TURNSTILE_SECRET ?? '').trim();
+  return SECRETOS_TURNSTILE_PRUEBA.includes(v)
+    ? ['RTC_TURNSTILE_SECRET es el secreto de PRUEBA de Turnstile (siempre pasa): un config push lo mandaria a produccion y anularia el CAPTCHA (H-181)']
+    : [];
+}
 
 /** Extrae el JSON de la salida de la CLI (puede traer lineas de texto antes). */
 export function parsearDiff(texto) {
@@ -84,6 +99,7 @@ function main(argv) {
     return 1;
   }
   const resultado = evaluarDiff(diff, cargarPermitidos(permitidosRuta), { ref });
+  resultado.errores.push(...evaluarEntorno());
   const texto = resumen(diff, resultado);
   if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, texto);
   if (resultado.errores.length > 0) {

@@ -50,6 +50,13 @@ jobs:
           done
           exit "$faltan"
 
+      - name: Sin secreto de prueba de Turnstile (H-181)
+        run: |
+          case "$RTC_TURNSTILE_SECRET" in
+            1x0000000000000000000000000000000AA|2x0000000000000000000000000000000AA|3x0000000000000000000000000000000AA)
+              echo "::error::RTC_TURNSTILE_SECRET es el secreto de prueba de Turnstile: anularia el CAPTCHA en produccion"; exit 1 ;;
+          esac
+
       - name: Enlazar el proyecto
         run: npx --yes "$SUPABASE_CLI" link --project-ref "$PROJECT_REF"
 

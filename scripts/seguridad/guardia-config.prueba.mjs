@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { cargarPermitidos, evaluarDiff, parsearDiff } from './guardia-config.mjs';
+import { cargarPermitidos, evaluarDiff, evaluarEntorno, parsearDiff } from './guardia-config.mjs';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const PAGES = 'https://agendaclasesapp.github.io/reservas/';
@@ -102,4 +102,28 @@ test('el comando sale con 0 con el diff esperado y con 1 ante cada violacion', (
   fuera.changes.push(cambio('auth.jwt_expiry', 'update', 100, 3600));
   assert.equal(correr(JSON.stringify(fuera)).status, 1);
   assert.equal(correr('basura').status, 1);
+});
+
+test('H-181: el secreto de prueba de Turnstile en el entorno bloquea; vacio o real no', () => {
+  for (const v of ['1x0000000000000000000000000000000AA', '2x0000000000000000000000000000000AA', '3x0000000000000000000000000000000AA', ' 1x0000000000000000000000000000000AA ']) {
+    assert.equal(evaluarEntorno({ RTC_TURNSTILE_SECRET: v }).length, 1, v);
+  }
+  assert.deepEqual(evaluarEntorno({ RTC_TURNSTILE_SECRET: '' }), []);
+  assert.deepEqual(evaluarEntorno({}), []);
+  assert.deepEqual(evaluarEntorno({ RTC_TURNSTILE_SECRET: '0x4AAAAAAAreal' }), []);
+});
+
+test('H-181: la guardia sale 1 con el secreto de prueba en el entorno', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'guardia-'));
+  try {
+    const f = join(dir, 'diff.json');
+    writeFileSync(f, JSON.stringify(diffDe([])));
+    const corre = (secret) => spawnSync(process.execPath, [join(AQUI, 'guardia-config.mjs'), f], { env: { ...process.env, RTC_TURNSTILE_SECRET: secret }, encoding: 'utf8' });
+    const r = corre('1x0000000000000000000000000000000AA');
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /PRUEBA de Turnstile/);
+    assert.equal(corre('').status, 0);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

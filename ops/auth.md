@@ -33,6 +33,16 @@
   `auth.captcha.provider`; cualquier `update` de `auth.captcha.secret` bloquea el despliegue.
   `supabase-deploy.yml` debe definir `RTC_TURNSTILE_SECRET: ''` en el `env` del job, como `RTC_GOOGLE_SECRET`.
 
+- **ADVERTENCIA (H-181): no correr `supabase config push` a mano.** La CLI carga sola
+  `supabase/.env.development`, que trae el secreto de PRUEBA de Turnstile (siempre pasa); un push manual desde
+  una máquina de desarrollo lo mandaría a producción y anularía el CAPTCHA. El único camino es `supabase-deploy`
+  (con `RTC_TURNSTILE_SECRET: ''`). Defensas: `guardia-config.mjs` y un paso previo del workflow fallan si
+  `RTC_TURNSTILE_SECRET` es un secreto de prueba conocido de Cloudflare. Si se empujó por error, repetir el
+  paso 5 de abajo (cargar la Secret Key real en el panel) y verificar con el paso 6b.
+- **Sitekey en producción (H-182):** si `vars.VITE_TURNSTILE_SITEKEY` no existe, `web.yml` publica la sitekey de
+  prueba y emite un `::warning::` visible en el run (no falla). Hay que cargarla (paso 4) **antes** de activar el
+  CAPTCHA en producción; si no, el widget de prueba daría tokens que el CAPTCHA real rechaza.
+
 ### Pasos del humano (antes de G4 y de abrir el ingreso por código a los alumnos)
 1. Entrá a https://dash.cloudflare.com > Turnstile > **Add widget** (cuenta gratuita).
 2. Nombre `ReservaTuClase`; **Hostname**: `agendaclasesapp.github.io` (solo ese dominio); modo **Managed**.
@@ -45,4 +55,7 @@
 6. Verificar: en `https://agendaclasesapp.github.io/reservas/` el widget aparece al elegir «código» y el código llega;
    con curl sin `captchaToken` a `/auth/v1/otp` Auth responde `captcha_failed` (400/422) y no nace usuario;
    `config diff` posterior no muestra `auth.captcha.secret`.
+6b. Verificación en producción (H-181): un pedido de código con el token dummy debe ser **rechazado**:
+    `curl -s -X POST "$SUPABASE_URL/auth/v1/otp" -H "apikey: $ANON_KEY" -H "Content-Type: application/json" -d '{"email":"nadie@example.com","create_user":false,"gotrue_meta_security":{"captcha_token":"XXXX.DUMMY.TOKEN.XXXX"}}'`
+    debe responder 400/422 `captcha_failed`. Si responde 200, el secreto de prueba quedó en producción: corregir ya.
 7. Si rotás la Secret Key: repetir el paso 5; no hay nada que cambiar en el repositorio.

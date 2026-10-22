@@ -61,6 +61,9 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
+          cache: npm
+      - name: Instalar dependencias (js-yaml para las reglas propias, H-186)
+        run: npm ci --ignore-scripts
       - name: zizmor
         env:
           GH_TOKEN: ${{ github.token }}
@@ -217,6 +220,13 @@ jobs:
       - run: npm ci
       - name: Instalar gitleaks
         run: bash scripts/seguridad/instalar-gitleaks.sh
+      - name: Aviso si falta la sitekey real de Turnstile (H-182)
+        env:
+          SITEKEY: ${{ vars.VITE_TURNSTILE_SITEKEY }}
+        run: |
+          if [ -z "$SITEKEY" ]; then
+            echo "::warning title=Turnstile::vars.VITE_TURNSTILE_SITEKEY no existe: se publica la sitekey de PRUEBA. Cargarla antes de activar el CAPTCHA en produccion (ops/auth.md)."
+          fi
       - name: Compilar (en CI no hay .env.local que Vite lea)
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || env.PUBLICO_SUPABASE_URL }}

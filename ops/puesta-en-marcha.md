@@ -38,6 +38,9 @@ migración ni `seed.sql`.
 Actions > supabase-deploy > Run workflow; apruébalo como revisor del environment tras mirar el
 `db push --dry-run` y el diff de configuración del resumen. Aplica migraciones (crea `public.ping` y la fila
 única de `profesor`), despliega la función si existe y empuja la configuración de Auth.
+**No corras `supabase config push` a mano (H-181):** la CLI carga `supabase/.env.development` con el secreto de
+PRUEBA de Turnstile y lo mandaría a producción, anulando el CAPTCHA. Solo `supabase-deploy`. Tras activar el
+CAPTCHA, verifica que un pedido de código con el token dummy sea rechazado (`ops/auth.md`, paso 6b).
 Hasta este paso `keepalive` falla con PGRST202 (H-025); CA-40 depende de él.
 
 ## 7. Alta del profesor (ADR-015), antes de su primer ingreso
