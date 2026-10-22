@@ -9,14 +9,21 @@ create temp table lista_rpc (rol text, funcion text) on commit drop;
 -- LISTA_RPC:INICIO (generado por tests/soporte/sincronizar-lista-rpc.mjs; no editar a mano)
 insert into lista_rpc (rol, funcion) values
   ('anon', 'agenda_publica'),
+  ('authenticated', 'alta_alumno'),
   ('authenticated', 'app_ahora'),
+  ('authenticated', 'aprobar_cuenta'),
   ('authenticated', 'completar_ficha'),
   ('anon', 'config_publica'),
+  ('authenticated', 'descartar_union'),
+  ('authenticated', 'editar_alumno'),
   ('authenticated', 'guardar_configuracion'),
   ('authenticated', 'guardar_grilla'),
   ('authenticated', 'guardar_persona_a_cargo'),
   ('anon', 'ping'),
-  ('authenticated', 'sesion_actual');
+  ('authenticated', 'rechazar_cuenta'),
+  ('authenticated', 'sesion_actual'),
+  ('authenticated', 'sugerencias_union'),
+  ('authenticated', 'unir_alumnos');
 -- LISTA_RPC:FIN
 
 -- Objetos propios del esquema (sin los de extensiones).

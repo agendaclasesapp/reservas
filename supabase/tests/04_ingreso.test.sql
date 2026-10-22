@@ -209,11 +209,13 @@ select pg_temp.usuario('a0000000-0000-0000-0000-0000000000a8', 'pgtap.ficha10@ex
 select pg_temp.como('a0000000-0000-0000-0000-0000000000a8', 'select public.completar_ficha(''Décima'', ''+598 99123456'', ''2000-01-01'', ''Amigos'')::text', 'f10');
 select is(current_setting('rtc.f10_est'), 'ok', 'CA-43: con 9 fichas recientes la décima pasa');
 select pg_temp.usuario('a0000000-0000-0000-0000-0000000000a9', 'pgtap.ficha11@example.test', true);
+-- H-200: las fichas anteriores sí encolan el mail al profesor (AVI-02); el conteo se toma justo antes del 429.
+create temp table _mails_f11 as select count(*) as n from public.mail_salida;
 select pg_temp.como('a0000000-0000-0000-0000-0000000000a9', 'select public.completar_ficha(''Undécima'', ''+598 99123456'', ''2000-01-01'', ''Amigos'')::text', 'f11');
 select is(current_setting('rtc.f11_est') || current_setting('rtc.f11_msg') || current_setting('rtc.f11_det'), 'PT429LIMITE_EXCEDIDO{"tope": "fichas", "limite": 10}',
   'CA-43: con 10 fichas en la última hora la 11 da 429 LIMITE_EXCEDIDO {"tope":"fichas","limite":10}');
 select is((select estado from public.alumno where user_id = 'a0000000-0000-0000-0000-0000000000a9'), 'ficha_incompleta', 'CA-43: la rechazada sigue en ficha_incompleta');
-select is((select count(*)::int from public.mail_salida), (select n::int from _mails_antes), 'CA-43: la ficha rechazada no encola mail al profesor');
+select is((select count(*)::int from public.mail_salida), (select n::int from _mails_f11), 'CA-43: la ficha rechazada no encola mail al profesor');
 update privado.reloj_prueba set ahora = '2026-11-02 15:56:00+00';
 select pg_temp.como('a0000000-0000-0000-0000-0000000000a9', 'select public.completar_ficha(''Undécima'', ''+598 99123456'', ''2000-01-01'', ''Amigos'')::text', 'f11b');
 select is(current_setting('rtc.f11b_est'), 'ok', 'CA-43: a los 61 minutos de las fichas anteriores la 11 se acepta');

@@ -1,4 +1,7 @@
-// Página vacía de B01. El bolt del módulo la completa; rutas.tsx importa este archivo (default export).
+// Página `#/lista` (WEB-07). rutas.tsx importa este archivo (default export).
+// B05 monta cuentas pendientes y alumnos; B07 suma solicitudes y clases.
+import { PaginaLista } from './PaginaLista';
+
 export default function Pagina() {
-  return <h1>Lista</h1>;
+  return <PaginaLista />;
 }

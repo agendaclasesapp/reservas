@@ -1,0 +1,12 @@
+.pagina {
+  display: grid;
+  gap: var(--e-6);
+}
+
+.titulo {
+  margin: 0;
+}
+
+.aviso {
+  min-inline-size: 0;
+}

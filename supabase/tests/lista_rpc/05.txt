@@ -1,0 +1,9 @@
+# B05 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
+# Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated.
+authenticated aprobar_cuenta
+authenticated rechazar_cuenta
+authenticated sugerencias_union
+authenticated unir_alumnos
+authenticated descartar_union
+authenticated alta_alumno
+authenticated editar_alumno

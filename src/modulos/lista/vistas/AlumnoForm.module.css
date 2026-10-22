@@ -1,0 +1,13 @@
+.form {
+  display: grid;
+  gap: var(--e-4);
+  justify-items: start;
+}
+
+.form > * {
+  max-inline-size: 100%;
+}
+
+.form > :not(button) {
+  inline-size: 100%;
+}

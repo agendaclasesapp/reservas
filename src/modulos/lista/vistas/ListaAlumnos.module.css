@@ -1,0 +1,105 @@
+.seccion {
+  display: grid;
+  gap: var(--e-3);
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-3);
+}
+
+.titulo {
+  margin: 0;
+}
+
+.tabla {
+  inline-size: 100%;
+  border-collapse: collapse;
+  color: var(--c-texto);
+  text-align: start;
+}
+
+.leyenda {
+  padding-block-end: var(--e-2);
+  color: var(--c-texto-suave);
+  font-size: var(--t-xs);
+  text-align: start;
+}
+
+.encabezado th {
+  padding: var(--e-2) var(--e-3);
+  border-block-end: var(--borde-ancho) solid var(--c-borde);
+  font-weight: var(--peso-fuerte);
+  text-align: start;
+}
+
+.celda {
+  padding: var(--e-3);
+  border-block-end: var(--borde-fino) solid var(--c-borde);
+  font-weight: var(--peso-normal);
+  text-align: start;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+th.celda {
+  font-weight: var(--peso-fuerte);
+}
+
+.detalle {
+  display: block;
+  margin-block-start: var(--e-1);
+  color: var(--c-texto-suave);
+  font-size: var(--t-xs);
+  font-weight: var(--peso-normal);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
+
+/* Pantallas angostas: cada fila es una tarjeta con la etiqueta de cada dato (reflujo a 320 px, NFR-06). */
+@media (width < 60rem) {
+  .encabezado {
+    position: absolute;
+    inline-size: var(--medida-minima);
+    block-size: var(--medida-minima);
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .tabla,
+  .tabla tbody,
+  .fila {
+    display: block;
+  }
+
+  .fila {
+    margin-block-end: var(--e-3);
+    padding: var(--e-2) var(--e-3);
+    border: var(--borde-fino) solid var(--c-borde);
+    border-radius: var(--r-md);
+    background: var(--c-fondo);
+  }
+
+  .celda {
+    display: grid;
+    grid-template-columns: minmax(6rem, 30%) minmax(0, 1fr);
+    gap: var(--e-2);
+    padding: var(--e-1) 0;
+    border: 0;
+  }
+
+  .celda::before {
+    content: attr(data-etiqueta);
+    color: var(--c-texto-suave);
+    font-size: var(--t-xs);
+    font-weight: var(--peso-fuerte);
+  }
+}

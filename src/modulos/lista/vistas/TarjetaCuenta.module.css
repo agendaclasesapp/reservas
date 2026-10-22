@@ -1,0 +1,38 @@
+.tarjeta {
+  display: grid;
+  gap: var(--e-3);
+  padding: var(--e-4);
+  border: var(--borde-fino) solid var(--c-borde);
+  border-radius: var(--r-md);
+  background: var(--c-superficie);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--t-md);
+  overflow-wrap: anywhere;
+}
+
+.ficha {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--e-3);
+  margin: 0;
+}
+
+.ficha dt {
+  font-size: var(--t-xs);
+  font-weight: var(--peso-fuerte);
+  color: var(--c-texto-suave);
+}
+
+.ficha dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
