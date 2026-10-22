@@ -32,6 +32,8 @@ export async function alumnoDe(userId: string) {
 /** Borra usuarios de prueba y lo que cuelga de ellos (por mail). */
 export async function borrarPorMail(mails: string[]): Promise<void> {
   if (mails.length === 0) return;
+  // B05 (502): completar la ficha avisa al profesor con `alumno_id`; esos mails cuelgan del alumno (FK) y del tope horario.
+  await sql('delete from public.mail_salida where alumno_id in (select id from public.alumno where lower(mail::text) = any($1::text[]))', [mails.map((m) => m.toLowerCase())]);
   await sql('delete from public.persona_a_cargo where alumno_id in (select id from public.alumno where lower(mail::text) = any($1::text[]))', [mails.map((m) => m.toLowerCase())]);
   await sql('delete from public.alumno where lower(mail::text) = any($1::text[])', [mails.map((m) => m.toLowerCase())]);
   await sql('delete from auth.users where lower(email) = any($1::text[])', [mails.map((m) => m.toLowerCase())]);
