@@ -1,11 +1,11 @@
 -- B04 · T04.4 · pgTAP de ingreso y ficha (CA-01, CA-02, CA-05 rama ALU-06, CA-43, ALU-13, SEC-06, SEC-09, SEC-10,
--- SEC-14, SEC-15, SEC-29; casos T-ALU-04, T-ALU-05, T-ALU-15, T-WEB-01): trigger `al_confirmar_usuario` (insert sin
+-- SEC-14, SEC-15, SEC-29, H-180; casos T-ALU-04, T-ALU-05, T-ALU-15, T-WEB-01): trigger `al_confirmar_usuario` (insert sin
 -- confirmar + UPDATE confirmado con full_name como lo hace GoTrue, insert ya confirmado, idempotencia, profesor,
 -- revinculación, sin vínculo con el mail sin confirmar), `sesion_actual`, `completar_ficha` (validaciones y tope con
 -- reloj fijo) y `guardar_persona_a_cargo`. Todo dentro de una transacción con rollback: el reloj de prueba y los
 -- datos vuelven solos. Datos sintéticos (@example.test). Las columnas de token van en '' como las deja GoTrue.
 begin;
-select plan(59);
+select plan(70);
 
 -- Ayuda: ejecuta una sentencia como `authenticated` con el sub dado y guarda estado, mensaje y detalle en GUC.
 create function pg_temp.como(p_sub uuid, p_sql text, p_clave text) returns void language plpgsql as $f$
@@ -217,6 +217,49 @@ select is((select count(*)::int from public.mail_salida), (select n::int from _m
 update privado.reloj_prueba set ahora = '2026-11-02 15:56:00+00';
 select pg_temp.como('a0000000-0000-0000-0000-0000000000a9', 'select public.completar_ficha(''Undécima'', ''+598 99123456'', ''2000-01-01'', ''Amigos'')::text', 'f11b');
 select is(current_setting('rtc.f11b_est'), 'ok', 'CA-43: a los 61 minutos de las fichas anteriores la 11 se acepta');
+
+-- K. Sin contraseñas (H-180, SEC-14, ALU-01, ADR-007, ADR-015): un preregistro con contraseña no sobrevive -------
+select has_trigger('auth', 'users', 'sin_contrasena', 'H-180: auth.users tiene el trigger sin_contrasena');
+select is((select prosecdef from pg_proc where oid = 'privado.sin_contrasena()'::regprocedure), true,
+  'H-180: privado.sin_contrasena es security definer');
+select is((select proconfig from pg_proc where oid = 'privado.sin_contrasena()'::regprocedure), array['search_path=""'],
+  'H-180: privado.sin_contrasena fija search_path vacío');
+select is(has_function_privilege('anon', 'privado.sin_contrasena()', 'execute')
+          or has_function_privilege('authenticated', 'privado.sin_contrasena()', 'execute'), false,
+  'H-180: anon y authenticated no ejecutan privado.sin_contrasena');
+-- Profesor antes de su primer ingreso: el atacante hace signUp con su mail y contraseña.
+update public.profesor set user_id = null, mail = 'pgtap.profesor2@example.test';
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password, created_at, updated_at,
+                        confirmation_token, recovery_token, email_change_token_new, email_change, raw_user_meta_data)
+values ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-0000000000b1', 'authenticated', 'authenticated',
+        'pgtap.profesor2@example.test', extensions.crypt('clave-del-atacante', extensions.gen_salt('bf')), now(), now(), '', '', '', '', '{}');
+select is((select encrypted_password from auth.users where id = 'a0000000-0000-0000-0000-0000000000b1'), '',
+  'H-180: el signUp con contraseña no guarda la contraseña');
+update auth.users set encrypted_password = extensions.crypt('otra-clave', extensions.gen_salt('bf')) where id = 'a0000000-0000-0000-0000-0000000000b1';
+select is((select encrypted_password from auth.users where id = 'a0000000-0000-0000-0000-0000000000b1'), '',
+  'H-180: repetir el signUp sin confirmar tampoco fija contraseña');
+-- La víctima confirma el mail con el código; GoTrue puede reescribir la fila entera con el hash que tenía en memoria.
+update auth.users set email_confirmed_at = now(), encrypted_password = extensions.crypt('clave-del-atacante', extensions.gen_salt('bf'))
+ where id = 'a0000000-0000-0000-0000-0000000000b1';
+select is((select (p.user_id = u.id) and u.encrypted_password = '' from public.profesor p, auth.users u
+            where u.id = 'a0000000-0000-0000-0000-0000000000b1'), true,
+  'H-180: al confirmar se vincula el profesor (ADR-015) y el usuario queda sin contraseña');
+update auth.users set encrypted_password = extensions.crypt('clave-nueva', extensions.gen_salt('bf')) where id = 'a0000000-0000-0000-0000-0000000000b1';
+select is((select encrypted_password from auth.users where id = 'a0000000-0000-0000-0000-0000000000b1'), '',
+  'H-180: después de confirmar tampoco se puede fijar contraseña (updateUser o admin)');
+-- Alumno dado de alta por el profesor (ALU-07) preregistrado con contraseña.
+insert into public.alumno (id, profesor_id, estado, nombre, mail) values
+  ('b0000000-0000-0000-0000-0000000000b2', (select id from public.profesor), 'aprobado', 'Alta preregistrada', 'pgtap.prereg@example.test');
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password, created_at, updated_at,
+                        confirmation_token, recovery_token, email_change_token_new, email_change, raw_user_meta_data)
+values ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-0000000000b2', 'authenticated', 'authenticated',
+        'pgtap.prereg@example.test', extensions.crypt('clave-del-atacante', extensions.gen_salt('bf')), now(), now(), '', '', '', '', '{}');
+update auth.users set email_confirmed_at = now() where id = 'a0000000-0000-0000-0000-0000000000b2';
+select is((select user_id from public.alumno where id = 'b0000000-0000-0000-0000-0000000000b2'), 'a0000000-0000-0000-0000-0000000000b2'::uuid,
+  'ALU-01: el alumno dado de alta se vincula al confirmar el mail');
+select is((select encrypted_password from auth.users where id = 'a0000000-0000-0000-0000-0000000000b2'), '',
+  'H-180: el alumno vinculado no conserva la contraseña del preregistro');
+select is((select count(*)::int from auth.users where encrypted_password <> ''), 0, 'H-180: ningún usuario de Auth tiene contraseña');
 
 select * from finish();
 rollback;
