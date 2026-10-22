@@ -1,14 +1,18 @@
 ---
 titulo: Funcional · Agenda, reservas y solicitudes
-version: 0.3
+version: 0.4
 fecha: 2026-10-21
 publico: negocio y equipo
 ---
 # Agenda, reservas y solicitudes
 
-> Describe el comportamiento **diseñado** (catálogo v1.0); nada está construido ni verificado todavía.
+> Estado por tema tras B02-B05: **construido y verificado** la agenda pública por día (AGE-01 semilla, AGE-07, AGE-08, WEB-01; CA-15, CA-16) y la configuración de grilla en la base. El resto (reservas, solicitudes, bloqueos, gestión directa) sigue **diseñado**, sin construir ni verificar.
 
 ## Agenda y disponibilidad
+**Agenda pública por día (B02, verificado; WEB-01, CA-15, CA-16).** La pantalla de inicio (`#/`) muestra los huecos de un día en el huso del profesor, sin iniciar sesión. Abre en «hoy» según el huso del profesor, aunque el navegador esté en otro huso (con el navegador en Asia/Tokyo abre el lunes 2 y no el martes 3). Cada hueco se ve libre, ocupado o bloqueado; no aparecen nombres, observaciones ni motivos. Con la grilla inicial (lunes a viernes, 08:00-13:00 y 14:00-18:00, creada por la migración) y clases de 60 min un lunes tiene 9 huecos; con 90 min son 08:00, 09:30 y 11:00 más dos de la tarde. Un día sin huecos (por ejemplo un domingo) dice «No hay huecos este día». El día se elige con un campo de fecha y se guarda en la dirección (`?d=AAAA-MM-DD`); un `d` ausente, mal formado o fuera de los días válidos vuelve a hoy sin mensaje. Mientras carga se anuncia «Cargando los huecos del día…» y, si falla la red, hay un error con «Reintentar».
+
+**Configuración en la base (B02, sin pantalla todavía).** `guardar_configuracion` (duración, anticipación, huso) y `guardar_grilla` (tramos semanales) existen como operaciones del profesor; su pantalla (WEB-08) llega en un bolt posterior.
+
 - El profesor define la grilla semanal (uno o más tramos por día; inicial lunes a viernes 08:00-13:00 y 14:00-18:00) y una duración única de clase; los huecos salen consecutivos desde el inicio de cada tramo y un resto menor que la duración no genera hueco (AGE-01, AGE-02).
 - Cambiar grilla o duración no altera clases confirmadas ni solicitudes pendientes (AGE-03; series: DEC-06).
 - **Anticipación mínima**: el alumno no puede pedir, mover ni cancelar clases que empiezan antes del plazo, y recibe el motivo; no limita al profesor (AGE-04, PRF-04). En un movimiento rige para origen y destino (DEC-07, opción por defecto).
@@ -49,3 +53,4 @@ publico: negocio y equipo
 | 0.1 | 2026-10-21 | inception | AGE-01..08, RES-01..06, SOL-01..09, WEB-01/04/05 | Primera versión |
 | 0.2 | 2026-10-21 | inception | SOL-01, SEC-10, DEC-12, ADR-016 | Topes anti-abuso como propuesta desactivada |
 | 0.3 | 2026-10-21 | construcción (hito spikes S01-S03 y CR-001) | CR-001, SOL-10, WEB-01, CA-41, CA-46, DEC-12, DEC-23, ADR-006 | Tope de 5 pendientes fijo; invitación al visitante; precisión de la agenda pública tras S03 |
+| 0.4 | 2026-10-22 | B02 | AGE-01, AGE-07, AGE-08, WEB-01, CA-15, CA-16 | Agenda pública construida y verificada; semilla de grilla; operaciones de configuración |

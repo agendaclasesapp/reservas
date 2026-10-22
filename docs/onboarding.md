@@ -1,7 +1,7 @@
 ---
 titulo: Onboarding · ReservaTuClase
-version: 0.4
-fecha: 2026-10-21
+version: 0.5
+fecha: 2026-10-22
 publico: equipo nuevo
 ---
 # Onboarding · ReservaTuClase
@@ -53,6 +53,12 @@ Los mails salen al buzón de prueba local (Mailpit); ahí se ve el código de in
 | `npm run build` y luego `npm run test:e2e` | Sí | Playwright en chromium contra el bundle servido por `preview` (puerto 4173 por defecto, `RTC_PREVIEW_PORT`) |
 | `npm run seguridad:dist` | No (necesita `dist/`) | Escaneo de credenciales en lo compilado |
 
+**Notas para correr las pruebas (B02 a B05):**
+- **CAPTCHA de prueba.** El pedido de código exige el desafío. En local y en CI se usan las claves de prueba públicas de Cloudflare que ya trae `.env.example`; el E2E de ingreso necesita salida a internet porque carga el script de Turnstile.
+- **Reiniciar el stack.** `[auth.captcha]` de `supabase/config.toml` solo entra con `npx supabase stop` y `npx supabase start`; si el ingreso no pide desafío, el stack se levantó antes de ese cambio. Tras editar la Edge Function `enviar-mail` en Windows también hay que reiniciar el runtime. Después de un `db reset`, las pruebas de integración parten de una base limpia.
+- **Evidencia de UI.** Para que el E2E deje capturas y `caso.md`, exportá `AIDLC_EVIDENCIAS` apuntando a la carpeta `calidad/evidencias/ui` del workspace (no a su carpeta padre) y, si hace falta, `AIDLC_NAVEGADOR=chromium`. Ejemplo: `AIDLC_EVIDENCIAS=.aidlc/reservatuclase/calidad/evidencias/ui npx playwright test tests/e2e/cuentas.spec.ts --project=chromium`.
+- Si `supabase status` falla mientras un contenedor se reinicia, las pruebas aceptan `RTC_ANON_KEY` explícita.
+
 **Producción:** proyecto Supabase Free, Gmail 465 desde la cuenta dedicada `agendaclasesapp@gmail.com` (`GMAIL_USER`, `GMAIL_APP_PASSWORD` como secretos, la contraseña sin espacios; DEC-15), web en `https://agendaclasesapp.github.io/reservas/` (DEC-14). El despliegue de la función va sin Docker (`--use-api`), la conexión a la base por el pooler de sesión `aws-1-sa-east-1` y `config push` detrás del guardia de `config diff` (ADR-012). Operación y secretos en `ops/` (ADR-012). Guías de producción: `ops/puesta-en-marcha.md`, `ops/auth.md`, `ops/mails.md`, `ops/rotacion.md`, `ops/incidentes.md` y `ops/verificar-repo.md`; política de seguridad en `SECURITY.md`.
 
 **Puesta en marcha en producción (diseñado):** antes del primer ingreso del profesor hay que correr a mano `privado.configurar_profesor` con su mail, porque el repositorio es público y no lleva datos personales (ADR-015). Revisar cada semana `privado.ejecucion_proceso` (`ops/operacion.md`).
@@ -99,3 +105,4 @@ Por área, según los perfiles del ciclo: requisitos (funcional), diseño técni
 | 0.2 | 2026-10-21 | inception | ADR-007, ADR-014..016, DEC-12 | Reglas nuevas, paso manual de puesta en marcha, plan de casos |
 | 0.3 | 2026-10-21 | construcción (hito spikes S01-S03 y CR-001) | CR-001, DEC-12..15, DEC-22, ADR-005, 007, 012, 017 | SMTP local, URL de la función, cuenta y sitio de producción, despliegue sin Docker, topes y CAPTCHA fijos, decisiones cerradas |
 | 0.4 | 2026-10-21 | B01 | SEC-12, SEC-13, SEC-16, SEC-20, ADR-007, 012, 016, 017 | Arranque local (`npx supabase`, `.env.example`, scripts), cómo correr cada suite, enlaces a `ops/` y `tecnica/plataforma.md` |
+| 0.5 | 2026-10-22 | B02-B05 | SEC-16, CA-44 | Notas para correr las pruebas: CAPTCHA de prueba, reinicio del stack, `AIDLC_EVIDENCIAS` |
