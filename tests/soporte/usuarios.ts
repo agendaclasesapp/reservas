@@ -6,6 +6,7 @@ import { createClient, type SupportedStorage } from '@supabase/supabase-js';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { sql } from './bd';
+import { TOKEN_CAPTCHA } from './captcha';
 import { esperarMail, mailUnico } from './correo';
 import { entorno, RAIZ } from './entorno';
 
@@ -63,7 +64,7 @@ export async function ingresarPorCodigo(mail: string): Promise<{ accessToken: st
   const c = clienteAnon();
   for (let intento = 0; intento < 2; intento++) {
     const antes = await contarMails(mail);
-    const r = await c.auth.signInWithOtp({ email: mail, options: { shouldCreateUser: true } });
+    const r = await c.auth.signInWithOtp({ email: mail, options: { shouldCreateUser: true, captchaToken: TOKEN_CAPTCHA } });
     if (r.error?.status === 429 && intento === 0) {
       // max_frequency = 60s por mail: una repetición dentro del minuto espera a que venza.
       await new Promise((res) => setTimeout(res, 62_000));

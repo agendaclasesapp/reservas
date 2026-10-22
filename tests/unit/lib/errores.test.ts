@@ -21,13 +21,20 @@ const errorRpc = (message: string, details: unknown = null, code = 'PT400') => (
 
 describe('errores.ts: catálogo de contratos.md §1', () => {
   it('SEC_17_cada_codigo_del_catalogo_tiene_texto_propio', () => {
-    expect(CODIGOS_ERROR).toHaveLength(16);
+    expect(CODIGOS_ERROR).toHaveLength(17);
     for (const codigo of CODIGOS_ERROR) {
       const t = traducirError(errorRpc(codigo));
       expect(t.codigo).toBe(codigo);
       expect(t.mensaje).not.toBe(MENSAJE_GENERICO);
       expect(t.mensaje).not.toContain(codigo);
     }
+  });
+
+  it('ALU_02_ficha_ya_completa_409_tiene_su_texto', () => {
+    expect(traducirError(errorRpc('FICHA_YA_COMPLETA', null, 'PT409'))).toEqual({
+      codigo: 'FICHA_YA_COMPLETA',
+      mensaje: 'Tu ficha ya está completa.',
+    });
   });
 
   it('SEC_17_codigo_desconocido_da_mensaje_generico', () => {

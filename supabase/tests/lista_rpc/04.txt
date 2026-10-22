@@ -1,0 +1,5 @@
+# B04 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
+# Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated.
+authenticated sesion_actual
+authenticated completar_ficha
+authenticated guardar_persona_a_cargo

@@ -32,6 +32,10 @@ export function jwtFalso(role: string, extra: Record<string, unknown> = {}): str
 
 const VALOR_REAL = (v: string) => {
   const t = v.trim().replace(/^["']|["']$/g, '');
+  // No es literal: llamada a función o lectura del entorno (p. ej. claveDeServicioLocal(), process.env.X).
+  if (/[()]/.test(t) || /^(process\.env|import\.meta\.env|Deno\.env)\b/.test(t)) return false;
+  // Texto evidentemente de prueba, separado por guiones: «clave-invalida-de-prueba».
+  if (/(^|[-_])(prueba|test|dummy|fake|falso|ficticio|invalida?)([-_]|$)/i.test(t)) return false;
   return t.length >= 8 && !/^(env\(|\$\{|\{\{|<|\*{3,}|x{4,}|changeme|cambiar|tu[-_ ])/i.test(t) && !/secrets\./.test(t);
 };
 

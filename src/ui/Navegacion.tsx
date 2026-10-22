@@ -3,9 +3,20 @@ import { Boton } from './Boton';
 import { Icono } from './Icono';
 import estilos from './Navegacion.module.css';
 
-export type EstadoCuentaNavegacion = 'sinCuenta' | 'pendiente' | 'aprobada' | 'rechazada';
+/**
+ * Estado de la cuenta del alumno: los mismos valores que `sesion_actual().estado` (contratos.md §3, ADR-013).
+ * `ficha_incompleta` = ingresó pero no completó la ficha (navegación reducida, F-03); `sin_cuenta` es el alumno
+ * que el profesor cargó sin mail (no inicia sesión). H-036.
+ */
+export type EstadoCuentaNavegacion =
+  | 'ficha_incompleta'
+  | 'pendiente'
+  | 'aprobado'
+  | 'rechazado'
+  | 'sin_cuenta'
+  | 'borrado';
 
-/** Quién navega. `sinCuenta` = ingresó pero no completó la ficha (navegación reducida, F-03). */
+/** Quién navega. */
 export type UsuarioNavegacion =
   | { rol: 'profesor' }
   | { rol: 'alumno'; estado: EstadoCuentaNavegacion };
@@ -35,9 +46,19 @@ const CONFIGURACION: Enlace = { texto: 'Configuración', ruta: '/configuracion' 
 function enlacesPara(usuario: UsuarioNavegacion | undefined): ReadonlyArray<Enlace> {
   if (!usuario) return [AGENDA, INGRESAR];
   if (usuario.rol === 'profesor') return [PANEL, LISTA, CONFIGURACION];
-  if (usuario.estado === 'sinCuenta') return [FICHA];
-  if (usuario.estado === 'aprobada') return [AGENDA, MIS_CLASES, FICHA];
-  return [AGENDA, FICHA];
+  switch (usuario.estado) {
+    case 'ficha_incompleta':
+      return [FICHA];
+    case 'aprobado':
+      return [AGENDA, MIS_CLASES, FICHA];
+    case 'pendiente':
+    case 'rechazado':
+      return [AGENDA, FICHA];
+    case 'sin_cuenta':
+    case 'borrado':
+      // Sin acceso a la ficha (la guarda muestra «Sin permisos»): solo la agenda pública.
+      return [AGENDA];
+  }
 }
 
 /**

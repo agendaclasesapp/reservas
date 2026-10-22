@@ -45,6 +45,8 @@ jobs:
       - name: Compilar con la base de Pages (RTC_SITE_URL local es 127.0.0.1:5173/reservas/)
         env:
           VITE_BASE: /reservas/
+          # Sitekey de PRUEBA de Cloudflare (siempre pasa); el secreto de prueba lo lee `supabase start` de supabase/.env.development.
+          VITE_TURNSTILE_SITEKEY: 1x00000000000000000000AA
         run: npm run build
       - name: Cache de navegadores de Playwright
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # fijado por SHA

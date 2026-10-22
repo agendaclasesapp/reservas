@@ -16,7 +16,9 @@ export const VITE_PERMITIDAS = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', '
 // VITE_TURNSTILE_SITEKEY: clave publica del sitio de Cloudflare Turnstile (ADR-016), publica por diseno.
 
 // Valores no secretos que .env.example puede traer (configuracion local del stack de Supabase CLI).
-export const VALORES_LOCALES = { VITE_BASE: '/', SMTP_HOST: 'inbucket', SMTP_PORT: '1025', SMTP_TLS: 'false' };
+export const VALORES_LOCALES = { VITE_BASE: '/', SMTP_HOST: 'inbucket', SMTP_PORT: '1025', SMTP_TLS: 'false',
+  // Claves de PRUEBA publicas de Cloudflare Turnstile (siempre pasan): unico valor admitido para estas dos (ADR-016).
+  VITE_TURNSTILE_SITEKEY: '1x00000000000000000000AA', RTC_TURNSTILE_SECRET: '1x0000000000000000000000000000000AA' };
 
 export const NOMBRES_OBLIGATORIOS = [
   'VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'VITE_BASE', 'SUPABASE_PROJECT_REF',

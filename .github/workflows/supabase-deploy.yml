@@ -32,6 +32,8 @@ jobs:
       RTC_REDIRECT_URL: ${{ vars.RTC_REDIRECT_URL }}
       RTC_GOOGLE_CLIENT_ID: ${{ vars.RTC_GOOGLE_CLIENT_ID }}
       RTC_GOOGLE_SECRET: ''
+      # Igual con el CAPTCHA: vacío, la CLI no manda la clave secreta de Turnstile (se carga en el panel, ADR-016).
+      RTC_TURNSTILE_SECRET: ''
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

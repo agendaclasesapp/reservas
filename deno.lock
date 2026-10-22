@@ -1,0 +1,72 @@
+{
+  "version": "4",
+  "specifiers": {
+    "npm:@types/node@*": "22.5.4",
+    "npm:@types/nodemailer@6.4.17": "6.4.17",
+    "npm:nodemailer@6.9.16": "6.9.16"
+  },
+  "npm": {
+    "@types/node@22.5.4": {
+      "integrity": "sha512-FDuKUJQm/ju9fT/SeX/6+gBzoPzlVCzfzmGkwKvRHQVxi4BntVbyIwf6a4Xn62mrvndLiml6z/UBXIdEVjQLXg==",
+      "dependencies": [
+        "undici-types"
+      ]
+    },
+    "@types/nodemailer@6.4.17": {
+      "integrity": "sha512-I9CCaIp6DTldEg7vyUTZi8+9Vo0hi1/T8gv3C89yk1rSAAzoKQ8H8ki/jBYJSFoH/BisgLP8tkZMlQ91CIquww==",
+      "dependencies": [
+        "@types/node"
+      ]
+    },
+    "nodemailer@6.9.16": {
+      "integrity": "sha512-psAuZdTIRN08HKVd/E8ObdV6NO7NTBY3KsC30F7M4H1OnmLCUNaS56FpYxyb26zWLSyYF9Ozch9KYHhHegsiOQ=="
+    },
+    "undici-types@6.19.8": {
+      "integrity": "sha512-ve2KP6f/JnbPBFyobGHuerC9g1FYGn/F8n1LWTwNxCEzd6IfqTwUQcNXgEtmmQ6DlRrC1hrSrBnCZPokRrDHjw=="
+    }
+  },
+  "workspace": {
+    "packageJson": {
+      "dependencies": [
+        "npm:@axe-core/playwright@^4.14.0",
+        "npm:@date-fns/tz@^1.5.0",
+        "npm:@eslint/js@^9.39.5",
+        "npm:@hookform/resolvers@^5.9.2",
+        "npm:@internationalized/date@^3.12.4",
+        "npm:@playwright/test@^1.56.0",
+        "npm:@supabase/postgrest-js@2.118.0",
+        "npm:@supabase/supabase-js@2.118.0",
+        "npm:@testing-library/dom@^10.4.0",
+        "npm:@testing-library/jest-dom@^7.0.1",
+        "npm:@testing-library/react@^16.3.3",
+        "npm:@testing-library/user-event@^14.6.8",
+        "npm:@types/node@^22.20.5",
+        "npm:@types/pg@^8.23.1",
+        "npm:@types/react-dom@^19.3.0",
+        "npm:@types/react@^19.3.0",
+        "npm:@vitejs/plugin-react@^6.1.2",
+        "npm:@vitest/coverage-v8@^5.0.5",
+        "npm:date-fns@^4.4.0",
+        "npm:eslint-plugin-jsx-a11y@^6.10.2",
+        "npm:eslint-plugin-react-hooks@^7.1.1",
+        "npm:eslint-plugin-react@^7.37.5",
+        "npm:eslint@^9.39.5",
+        "npm:globals@^17.13.0",
+        "npm:jsdom@^29.1.1",
+        "npm:pg@^8.23.1",
+        "npm:react-aria-components@^1.22.1",
+        "npm:react-dom@^19.3.1",
+        "npm:react-hook-form@^7.90.0",
+        "npm:react-router@^7.18.4",
+        "npm:react@^19.3.1",
+        "npm:supabase@2.121.0",
+        "npm:typescript-eslint@^8.72.0",
+        "npm:typescript@~5.9.3",
+        "npm:vite@^8.3.5",
+        "npm:vitest-axe@0.1",
+        "npm:vitest@^5.0.5",
+        "npm:zod@^4.6.7"
+      ]
+    }
+  }
+}

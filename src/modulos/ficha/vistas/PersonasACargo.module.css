@@ -1,0 +1,51 @@
+.personas {
+  display: grid;
+  gap: var(--e-3);
+}
+
+.personas > h2 {
+  margin: 0;
+}
+
+.lista {
+  display: grid;
+  gap: var(--e-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.persona {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-3);
+  padding: var(--e-3) var(--e-4);
+  border: var(--borde-fino) solid var(--c-borde);
+  border-radius: var(--r-md);
+}
+
+.nombre,
+.nacimiento {
+  margin: 0;
+}
+
+.nombre {
+  font-weight: var(--peso-fuerte);
+}
+
+.nacimiento {
+  font-size: var(--t-xs);
+  color: var(--c-texto-suave);
+}
+
+.formulario {
+  display: grid;
+  gap: var(--e-4);
+  justify-items: start;
+}
+
+.formulario > :not(button) {
+  inline-size: 100%;
+}

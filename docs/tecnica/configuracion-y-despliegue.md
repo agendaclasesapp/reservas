@@ -1,12 +1,12 @@
 ---
 titulo: Técnica · Configuración, despliegue y operación local
-version: 0.1
+version: 0.2
 fecha: 2026-10-21
 publico: equipo técnico, operación
 ---
 # Configuración, despliegue y operación local
 
-> Estado: **diseñado y medido en spikes** (S01, S02, S03; código descartable en `spikes/`). El producto en sí todavía no está construido: lo que sigue es lo que los spikes comprobaron y los ADR dejaron fijado para B01 en adelante. Ningún valor secreto aparece en este documento ni debe aparecer en el repositorio (NFR-02).
+> Estado: **diseñado y medido en spikes; la base de B01 ya está construida (ver `plataforma.md`)** (S01, S02, S03; código descartable en `spikes/`). El producto en sí todavía no está construido: lo que sigue es lo que los spikes comprobaron y los ADR dejaron fijado para B01 en adelante. Ningún valor secreto aparece en este documento ni debe aparecer en el repositorio (NFR-02).
 
 ## 1. Entornos
 
@@ -36,10 +36,10 @@ btree_gist, pg_cron y pg_net se crean en el stack local sin plan B (S03; `spikes
 
 | Secreto | Dónde vive | Cómo se carga |
 | --- | --- | --- |
-| `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `MAIL_SECRETO` | Secretos de Edge Functions y Vault de Supabase | A mano, por quien opera (guía prevista `ops/mails.md`) |
+| `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `MAIL_SECRETO` | Secretos de Edge Functions y Vault de Supabase | A mano, por quien opera (`ops/mails.md`) |
 | Secreto OAuth de Google | Panel de Supabase Auth | A mano; no se declara en `config.toml` |
 | SMTP de Auth | Panel de Supabase Auth | A mano; el límite `rate_limit.email_sent` también se fija y verifica en el panel (`ops/auth.md`) |
-| Clave secreta del CAPTCHA (Turnstile) | Secreto de Supabase | A mano (CR-001, T04.3); la clave pública viaja en la web |
+| Clave secreta del CAPTCHA (Turnstile) | Panel de Supabase | A mano (CR-001, T04.3; `ops/auth.md`, `ops/mails.md`); la clave pública es la variable del repositorio `VITE_TURNSTILE_SITEKEY` |
 | `SUPABASE_ACCESS_TOKEN`, `SUPABASE_DB_PASSWORD` | Secretos de GitHub | Para `supabase-deploy.yml` |
 
 Reglas: la contraseña de aplicación de Gmail se carga **sin espacios** y se verifica sin verla, comparando el SHA-256 del valor con el digest que muestra `secrets list` (H-018, ADR-012). La cuenta de envío es la dedicada de DEC-15. Los valores locales van en `supabase/.env.development` (versionado, solo valores ficticios o `127.0.0.1`) y **nunca** en `supabase/.env`; `.env*` está en `.gitignore` salvo esa excepción (ADR-012).
@@ -51,7 +51,7 @@ Pasos: `supabase link`, `db push`, despliegue de la función, `config push` (env
 - **Función sin Docker:** `supabase functions deploy enviar-mail --project-ref <ref> --no-verify-jwt --use-api`. El workflow no carga secretos de la función: hace `secrets list` y falla si falta `GMAIL_USER`, `GMAIL_APP_PASSWORD` o `MAIL_SECRETO`.
 - **Conexión a la base del proyecto:** por el pooler de sesión `aws-1-sa-east-1.pooler.supabase.com:5432`, usuario `postgres.<ref>`. El host directo es solo IPv6 y el pooler `aws-0` no conoce el proyecto (S01). El host va como variable del environment.
 - **Guardia de `config push`** (S02, H-005, H-022): la CLI 2.121 manda la sección entera y cambia todo lo que `config.toml` no declare igual que el proyecto; una variable `env()` sin definir se empuja como el literal `env(...)`. Por eso el workflow define `RTC_SITE_URL`, `RTC_REDIRECT_URL` y `RTC_GOOGLE_CLIENT_ID` (variables del environment) y deja `RTC_GOOGLE_SECRET` vacía. Antes del push corre `scripts/seguridad/guardia-config.mjs`, que ejecuta `config diff -o json` y falla si la salida contiene `127.0.0.1` o `env(`, o si trae un `update` de un campo fuera de `scripts/seguridad/config-permitida.json`; el diff queda en el resumen del job para el revisor.
-- `config.toml` iguala a los valores del proyecto los campos que no son de la app (pooler, `storage.vector`, MFA TOTP). Con CR-001 suma `[auth.captcha]` (B04).
+- `config.toml` iguala a los valores del proyecto los campos que no son de la app (pooler, `storage.vector`, MFA TOTP). `[auth.captcha]` ya está declarado (CR-001). El guardia usa `config diff --output-format json`. Resto de la plataforma: `plataforma.md`.
 - El workflow no escribe `supabase/.env` ni ningún `.env*`; `npm run build` en CI corre sin `.env.local`.
 
 ## 6. Ingreso (S02)
@@ -71,3 +71,4 @@ La agenda pública se lee con `@supabase/postgrest-js` (clave anon, sin sesión)
 | Versión | Fecha | Bolt | IDs | Cambio |
 | --- | --- | --- | --- | --- |
 | 0.1 | 2026-10-21 | construcción (hito spikes S01-S03 y CR-001) | ADR-005, 006, 007, 012, 017, DEC-14, DEC-15, DEC-17, CR-001, H-018, H-020, H-022 | Primera versión: lo medido en los spikes y lo fijado en los ADR |
+| 0.2 | 2026-10-21 | B01 y B04 (parte documental de T04.3) | ADR-012, ADR-016, DEC-13 | `[auth.captcha]` declarado, secreto de Turnstile a mano, variable `VITE_TURNSTILE_SITEKEY`, guardia con salida JSON; enlaces a `ops/` |

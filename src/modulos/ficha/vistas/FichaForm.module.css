@@ -1,0 +1,18 @@
+.ficha {
+  display: grid;
+  gap: var(--e-4);
+  max-inline-size: var(--dialogo-max);
+  justify-items: start;
+}
+
+.ficha > * {
+  max-inline-size: 100%;
+}
+
+.ficha > :not(button) {
+  inline-size: 100%;
+}
+
+.intro {
+  margin: 0;
+}

@@ -33,6 +33,13 @@ describe('CA-35 eficacia del detector propio (secreto sembrado)', () => {
       expect(escanearTexto('sembrado.txt', texto).length).toBeGreaterThan(0);
     });
   }
+  it('CA-35_no_marca_valores_de_prueba_ni_no_literales_pero_si_los_reales', () => {
+    expect(escanearTexto('f.ts', "GMAIL_APP_PASSWORD: 'clave-invalida-de-prueba',")).toEqual([]);
+    expect(escanearTexto('f.ts', 'SUPABASE_SERVICE_ROLE_KEY: claveDeServicioLocal(),')).toEqual([]);
+    expect(escanearTexto('f.ts', 'SERVICE_ROLE_KEY = process.env.X')).toEqual([]);
+    expect(escanearTexto('f.ts', `SERVICE_ROLE_KEY: '${jwtFalso('service_role')}'`).length).toBeGreaterThan(0);
+    expect(escanearTexto('f.ts', `GMAIL_APP_PASSWORD: '${'qwer'.repeat(4)}',`).length).toBeGreaterThan(0);
+  });
   it('CA-35_no_marca_la_anon_ni_las_referencias_por_env', () => {
     expect(escanearTexto('a.js', `x="${jwtFalso('anon', { ref: REF })}"`)).toEqual([]);
     expect(escanearTexto('config.toml', 'GMAIL_APP_PASSWORD = "env(GMAIL_APP_PASSWORD)"')).toEqual([]);

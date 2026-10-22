@@ -11,6 +11,8 @@
     "auth.email.template.magic_link.subject",
     "auth.rate_limit.sign_in_sign_ups",
     "auth.rate_limit.token_verifications",
-    "auth.rate_limit.anonymous_users"
+    "auth.rate_limit.anonymous_users",
+    "auth.captcha.enabled",
+    "auth.captcha.provider"
   ]
 }

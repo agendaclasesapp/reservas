@@ -1,0 +1,15 @@
+.pagina {
+  display: grid;
+  gap: var(--e-4);
+  max-inline-size: var(--dialogo-max);
+}
+
+.pagina > h1 {
+  margin: 0;
+}
+
+.nota {
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--c-texto-suave);
+}

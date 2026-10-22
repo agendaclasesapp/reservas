@@ -1,0 +1,15 @@
+.desafio {
+  display: grid;
+  gap: var(--e-2);
+}
+
+.titulo {
+  margin: 0;
+  font-weight: var(--peso-fuerte);
+}
+
+/* Reserva la altura del widget para que no desplace el formulario al cargar (CLS). */
+.widget {
+  min-block-size: calc(var(--tactil-min) * 1.5);
+  max-inline-size: 100%;
+}

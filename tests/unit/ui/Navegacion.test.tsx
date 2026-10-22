@@ -22,15 +22,17 @@ describe('Navegacion (C-13, NFR-05, NFR-06)', () => {
   });
 
   it('alumno aprobado: Agenda, Mis clases, Mi ficha y Salir', () => {
-    render(<Navegacion ruta="/" usuario={{ rol: 'alumno', estado: 'aprobada' }} onSalir={() => undefined} />);
+    render(<Navegacion ruta="/" usuario={{ rol: 'alumno', estado: 'aprobado' }} onSalir={() => undefined} />);
     expect(textos()).toEqual(['Agenda', 'Mis clases', 'Mi ficha', 'Salir']);
     expect(screen.getByRole('link', { name: 'Mis clases' }).getAttribute('href')).toBe('#/mis-clases');
   });
 
   it.each<[NavegacionProps['usuario'], string[]]>([
     [{ rol: 'alumno', estado: 'pendiente' }, ['Agenda', 'Mi ficha']],
-    [{ rol: 'alumno', estado: 'rechazada' }, ['Agenda', 'Mi ficha']],
-    [{ rol: 'alumno', estado: 'sinCuenta' }, ['Mi ficha']],
+    [{ rol: 'alumno', estado: 'rechazado' }, ['Agenda', 'Mi ficha']],
+    [{ rol: 'alumno', estado: 'ficha_incompleta' }, ['Mi ficha']],
+    [{ rol: 'alumno', estado: 'sin_cuenta' }, ['Agenda']],
+    [{ rol: 'alumno', estado: 'borrado' }, ['Agenda']],
     [{ rol: 'profesor' }, ['Panel', 'Lista', 'Configuración']],
   ])('usuario %j ve %j', (usuario, esperado) => {
     render(<Navegacion ruta="/ficha" usuario={usuario} />);
@@ -38,7 +40,7 @@ describe('Navegacion (C-13, NFR-05, NFR-06)', () => {
   });
 
   it('marca la ruta actual con aria-current="page" y solo esa', () => {
-    render(<Navegacion ruta="/mis-clases" usuario={{ rol: 'alumno', estado: 'aprobada' }} />);
+    render(<Navegacion ruta="/mis-clases" usuario={{ rol: 'alumno', estado: 'aprobado' }} />);
     expect(screen.getByRole('link', { name: 'Mis clases' }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('link', { name: 'Agenda' }).hasAttribute('aria-current')).toBe(false);
     expect(screen.getByRole('link', { name: 'Mi ficha' }).hasAttribute('aria-current')).toBe(false);
@@ -87,7 +89,7 @@ describe('Navegacion (C-13, NFR-05, NFR-06)', () => {
       <Layout
         rutaActual="/mis-clases"
         titulo="Mis clases"
-        navegacion={<Navegacion ruta="/mis-clases" usuario={{ rol: 'alumno', estado: 'aprobada' }} onSalir={() => undefined} />}
+        navegacion={<Navegacion ruta="/mis-clases" usuario={{ rol: 'alumno', estado: 'aprobado' }} onSalir={() => undefined} />}
       >
         <h1>Mis clases</h1>
       </Layout>,
@@ -101,7 +103,7 @@ describe('Navegacion (C-13, NFR-05, NFR-06)', () => {
     const { container } = render(
       <>
         <Navegacion ruta="/" etiqueta="Visitante" />
-        <Navegacion ruta="/ficha" etiqueta="Alumno" usuario={{ rol: 'alumno', estado: 'aprobada' }} onSalir={() => undefined} />
+        <Navegacion ruta="/ficha" etiqueta="Alumno" usuario={{ rol: 'alumno', estado: 'aprobado' }} onSalir={() => undefined} />
         <Navegacion ruta="/panel" etiqueta="Profesor" usuario={{ rol: 'profesor' }} onSalir={() => undefined} />
       </>,
     );

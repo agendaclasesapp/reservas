@@ -1,8 +1,30 @@
 // Tabla de rutas hash de todos los módulos (ADR-007; GitHub Pages no reescribe direcciones, §4).
 // Cada módulo se carga diferido desde src/modulos/<m>/vistas/Pagina.tsx (default export).
+// Las guardas de src/estado deciden qué se ve en cada ruta (ficha obligatoria, CA-02; rutas por rol).
 import type { ComponentType } from 'react';
-import { createHashRouter, Navigate, Outlet, useLocation, useMatches, type RouteObject } from 'react-router';
+import {
+  createHashRouter,
+  Navigate,
+  Outlet,
+  useLocation,
+  useMatches,
+  useNavigate,
+  type RouteObject,
+} from 'react-router';
+import {
+  cerrarSesion,
+  destinoSinPermisos,
+  GuardaDeRuta,
+  motivoSinPermisos,
+  refrescarSesion,
+  usuarioNavegacion,
+  useSesion,
+} from './estado';
+import { Cargando } from './ui/Cargando';
+import { ErrorCarga } from './ui/ErrorCarga';
 import { Layout } from './ui/Layout';
+import { Navegacion } from './ui/Navegacion';
+import { SinPermisos } from './ui/SinPermisos';
 import './ui/tokens.css';
 import './ui/base.css';
 
@@ -47,13 +69,32 @@ interface Manejador {
 
 function Raiz() {
   const { pathname } = useLocation();
+  const navegar = useNavigate();
+  const sesion = useSesion();
   const titulo = useMatches()
     .map((m) => (m.handle as Manejador | undefined)?.titulo)
     .filter((t): t is string => t !== undefined)
     .at(-1);
+  const salir = () => {
+    void cerrarSesion()
+      .catch(() => undefined)
+      .then(() => navegar('/', { replace: true }));
+  };
   return (
-    <Layout rutaActual={pathname} titulo={titulo}>
-      <Outlet />
+    <Layout
+      rutaActual={pathname}
+      titulo={titulo}
+      navegacion={<Navegacion usuario={usuarioNavegacion(sesion)} ruta={pathname} onSalir={salir} />}
+    >
+      <GuardaDeRuta
+        esperando={<Cargando />}
+        sinPermisos={(estado) => (
+          <SinPermisos motivo={motivoSinPermisos(pathname, estado)} destino={destinoSinPermisos(estado)} />
+        )}
+        error={(mensaje) => <ErrorCarga mensaje={mensaje} onReintentar={() => void refrescarSesion()} />}
+      >
+        <Outlet />
+      </GuardaDeRuta>
     </Layout>
   );
 }

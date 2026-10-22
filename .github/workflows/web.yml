@@ -24,8 +24,11 @@ env:
   # se usan estos. Nunca va aqui la clave secreta ni la service_role.
   PUBLICO_SUPABASE_URL: https://rmokypmznhobapyghfpi.supabase.co
   PUBLICO_SUPABASE_CLAVE: sb_publishable_R-D1TybfWeMlP8RS7fszqQ_8mIOiBFn
+  # Clave publica de PRUEBA de Cloudflare Turnstile (siempre pasa): evita que el build falle si falta la variable del
+  # repositorio VITE_TURNSTILE_SITEKEY. PENDIENTE DEL HUMANO: cargar la sitekey real (ops/auth.md); con la de prueba
+  # el CAPTCHA de produccion rechazaria todo pedido de codigo.
+  PUBLICO_TURNSTILE_SITEKEY: 1x00000000000000000000AA
   URL_PUBLICA: https://agendaclasesapp.github.io/reservas/
-
 jobs:
   secretos:
     if: github.event_name != 'schedule'
@@ -93,6 +96,30 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run test:unit
+
+  funciones:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    env:
+      DENO: 2.1.4 # misma version que el edge runtime de Supabase (H-112)
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: deno check (funcion y servidor local de las pruebas)
+        run: npx --yes deno@${DENO} check --node-modules-dir=none supabase/functions/enviar-mail/*.ts tests/integracion/mails/servidor-local.ts
+      - name: deno lint
+        run: npx --yes deno@${DENO} lint supabase/functions/enviar-mail/ tests/integracion/mails/servidor-local.ts
+      - name: deno fmt --check
+        run: npx --yes deno@${DENO} fmt --line-width 120 --check supabase/functions/enviar-mail/
+      - name: deno test (sin permisos: --no-prompt)
+        run: npx --yes deno@${DENO} test --no-prompt --node-modules-dir=none supabase/functions/enviar-mail/
 
   dependency-review:
     if: github.event_name == 'pull_request'
@@ -169,7 +196,7 @@ jobs:
 
   publicar:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: [secretos, workflows, calidad, bd, codeql]
+    needs: [secretos, workflows, calidad, funciones, bd, codeql]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -194,6 +221,7 @@ jobs:
         env:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || env.PUBLICO_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || env.PUBLICO_SUPABASE_CLAVE }}
+          VITE_TURNSTILE_SITEKEY: ${{ vars.VITE_TURNSTILE_SITEKEY || env.PUBLICO_TURNSTILE_SITEKEY }}
           VITE_BASE: /reservas/
         run: npm run build
       - name: Escanear dist/ (todo JWT decodificado, .map, .env, supabase/)

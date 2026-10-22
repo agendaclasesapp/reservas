@@ -6,6 +6,7 @@ export const CODIGOS_ERROR = [
   'NO_AUTENTICADO',
   'PROHIBIDO',
   'FICHA_INCOMPLETA',
+  'FICHA_YA_COMPLETA',
   'CUENTA_NO_APROBADA',
   'NO_ENCONTRADO',
   'HUECO_NO_LIBRE',
@@ -43,6 +44,8 @@ export const MENSAJES: Readonly<Record<CodigoError, string>> = {
   NO_AUTENTICADO: 'Tenés que ingresar para hacer esto.',
   PROHIBIDO: 'No tenés permiso para hacer esto.',
   FICHA_INCOMPLETA: 'Completá tu ficha para continuar.',
+  // 409 de completar_ficha sobre una ficha ya completa (B04; pendiente de entrar a contratos.md §1).
+  FICHA_YA_COMPLETA: 'Tu ficha ya está completa.',
   CUENTA_NO_APROBADA: 'Tu cuenta no está aprobada, así que todavía no podés hacer solicitudes.',
   NO_ENCONTRADO: 'No encontramos lo que buscás. Puede que ya no exista.',
   HUECO_NO_LIBRE: 'Ese horario ya no está libre. Elegí otro.',

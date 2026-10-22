@@ -16,13 +16,18 @@ values
   ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-0000000000c1', 'authenticated', 'authenticated', 'pgtap.sinfila@example.test', now(), now(), now(), '', '', '', ''),
   ('00000000-0000-0000-0000-000000000000', 'a0000000-0000-0000-0000-0000000000d1', 'authenticated', 'authenticated', 'pgtap.sinconfirmar@example.test', null, now(), now(), '', '', '', '');
 
+-- Desde B04 el disparador de ingreso crea una fila `alumno` por cada usuario confirmado. Aquí el profesor y el usuario
+-- «sin fila» no deben tenerla: se borran; las de A y B se reemplazan más abajo con `on conflict`.
+delete from public.alumno where user_id in ('a0000000-0000-0000-0000-00000000000a', 'a0000000-0000-0000-0000-0000000000c1');
+
 -- El profesor del seed (si existe) pasa a ser el usuario de prueba durante esta transacción.
 update public.profesor set user_id = 'a0000000-0000-0000-0000-00000000000a', mail = 'pgtap.profesor@example.test', nombre = 'Profesor pgTAP';
 
 insert into public.alumno (id, profesor_id, user_id, estado, nombre, mail) values
   ('b0000000-0000-0000-0000-0000000000a1', (select id from public.profesor), 'a0000000-0000-0000-0000-0000000000a1', 'aprobado', 'Alumno A', 'pgtap.alumno.a@example.test'),
   ('b0000000-0000-0000-0000-0000000000b1', (select id from public.profesor), 'a0000000-0000-0000-0000-0000000000b1', 'aprobado', 'Alumno B', 'pgtap.alumno.b@example.test'),
-  ('b0000000-0000-0000-0000-0000000000d1', (select id from public.profesor), 'a0000000-0000-0000-0000-0000000000d1', 'aprobado', 'Alumno sin confirmar', 'pgtap.sinconfirmar@example.test');
+  ('b0000000-0000-0000-0000-0000000000d1', (select id from public.profesor), 'a0000000-0000-0000-0000-0000000000d1', 'aprobado', 'Alumno sin confirmar', 'pgtap.sinconfirmar@example.test')
+on conflict (user_id) do update set id = excluded.id, estado = excluded.estado, nombre = excluded.nombre, mail = excluded.mail;
 
 insert into public.persona_a_cargo (id, profesor_id, alumno_id, nombre) values
   ('c0000000-0000-0000-0000-0000000000a1', (select id from public.profesor), 'b0000000-0000-0000-0000-0000000000a1', 'Hija de A'),

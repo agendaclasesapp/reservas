@@ -1,0 +1,40 @@
+.pagina {
+  display: grid;
+  gap: var(--e-4);
+  max-inline-size: var(--dialogo-max);
+}
+
+.intro {
+  margin: 0;
+}
+
+.opcion {
+  display: grid;
+  gap: var(--e-3);
+  justify-items: start;
+}
+
+.opcion > h2,
+.reenvio > h3 {
+  margin: 0;
+}
+
+.formulario {
+  display: grid;
+  gap: var(--e-4);
+  inline-size: 100%;
+  justify-items: start;
+}
+
+.formulario > * {
+  max-inline-size: 100%;
+}
+
+.reenvio {
+  display: grid;
+  gap: var(--e-3);
+  justify-items: start;
+  inline-size: 100%;
+  padding-block-start: var(--e-4);
+  border-block-start: var(--borde-fino) solid var(--c-borde);
+}

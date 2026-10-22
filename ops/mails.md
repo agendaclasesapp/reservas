@@ -18,6 +18,49 @@ supabase-deploy solo hace `secrets list` y falla si falta un nombre; nunca los c
 ## Vault de producción
 `url_funcion_mail` y `mail_secreto` se cargan a mano en el SQL Editor (nunca por migración ni `seed.sql`).
 
+## Pasos del humano para producción (B03, T03.3; AVI-07, SEC-11, SEC-30, H-018, H-019)
+Nada de esto lo ejecuta el pipeline ni un agente. Proyecto `rmokypmznhobapyghfpi`, casilla de DEC-15.
+
+1. **Contraseña de aplicación (H-018).** En la cuenta de Google de la casilla: Seguridad > Contraseñas de
+   aplicación. Debe quedar **una sola** vigente: revocá las anteriores (la del spike incluida) y creá una nueva.
+   Google la muestra en bloques de 4 con espacios: quitalos (16 letras seguidas).
+2. **Nuevo `MAIL_SECRETO`.** El de S01 estuvo en la máquina de desarrollo: no se reutiliza. Generá uno de 32 bytes
+   aleatorios (`openssl rand -hex 32`); el mismo valor va en el paso 3 y en el Vault (paso 5).
+3. **Secretos de Edge Functions** (sin espacios ni comillas; no los pegues en archivos ni en el historial del shell
+   compartido):
+
+        npx supabase@2.121.0 secrets set GMAIL_USER=<casilla> --project-ref rmokypmznhobapyghfpi
+        npx supabase@2.121.0 secrets set GMAIL_APP_PASSWORD=<16 letras sin espacios> --project-ref rmokypmznhobapyghfpi
+        npx supabase@2.121.0 secrets set MAIL_SECRETO=<valor del paso 2> --project-ref rmokypmznhobapyghfpi
+        npx supabase@2.121.0 secrets set SMTP_HOST=smtp.gmail.com SMTP_PORT=465 SMTP_TLS=true --project-ref rmokypmznhobapyghfpi
+
+4. **Verificar por digest, sin ver los valores.** `secrets list` muestra el SHA-256 de cada uno; tiene que igualar
+   el de lo que cargaste:
+
+        npx supabase@2.121.0 secrets list --project-ref rmokypmznhobapyghfpi
+        printf %s "<valor>" | sha256sum
+
+   Si `GMAIL_APP_PASSWORD` no coincide, tiene espacios o un salto de línea: volvé a cargarla (`printf %s`, no `echo`).
+5. **Vault** (SQL Editor; nunca por migración ni `seed.sql`):
+
+        select vault.create_secret('https://rmokypmznhobapyghfpi.supabase.co/functions/v1/enviar-mail', 'url_funcion_mail');
+        select vault.create_secret('<valor del paso 2>', 'mail_secreto');
+
+   Si ya existen, `vault.update_secret(id, nuevo_valor)` (el id sale de `select id, name from vault.secrets`).
+6. **Función (H-019).** En el proyecto sigue la función `enviar-mail` del spike S01 con otro código y
+   `clave_invalida`/`entorno`: reemplazala o, para estar seguro, borrala antes:
+
+        npx supabase@2.121.0 functions delete enviar-mail --project-ref rmokypmznhobapyghfpi   # opcional, antes
+        npx supabase@2.121.0 functions deploy enviar-mail --no-verify-jwt --use-api --project-ref rmokypmznhobapyghfpi
+
+   `verify_jwt` desactivado (la llama `pg_net` con el secreto, sin JWT; es la única función así, SEC-30). Comprobá en
+   el panel (Edge Functions > enviar-mail > Details) que *Verify JWT* está apagado y que la fecha de despliegue es de hoy.
+7. **Rotación de `MAIL_SECRETO`** (también ante sospecha de filtración): repetir los pasos 2, 3 (solo
+   `MAIL_SECRETO`), 4 y 5 con `vault.update_secret`. Entre un paso y otro la función responde 401 y los mails
+   quedan `pendiente`; el barrido (`barrer_mails`) los reintenta.
+8. **Prueba de humo.** Encolá un mail de prueba desde la app y comprobá que llega con la casilla como remitente;
+   con una contraseña inválida la fila queda `fallido` con motivo y se ve en «Mails fallidos» (CA-33, CA-34).
+
 ## Local y CI
 Mailpit/Inbucket recibe todo; `MAIL_SECRETO` de prueba en `supabase/.env.development`. Nada sale a Gmail.
 

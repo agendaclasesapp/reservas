@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, test } from 'node:test';
+import { cargarPermitidos, evaluarDiff } from './guardia-config.mjs';
 import { revisarWorkflow } from './revisar-workflows.mjs';
 import { revisarConfigToml, revisarEnvExample, revisarPago, revisarTodo, revisarVite } from './revisar-variables.mjs';
 
@@ -99,9 +100,11 @@ afterEach(() => {
   while (temporales.length > 0) rmSync(temporales.pop(), { recursive: true, force: true });
 });
 
-const NOMBRES = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'VITE_BASE', 'SUPABASE_PROJECT_REF', 'SUPABASE_ACCESS_TOKEN', 'SUPABASE_DB_PASSWORD', 'GMAIL_USER', 'GMAIL_APP_PASSWORD', 'MAIL_SECRETO', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_TLS', 'RTC_SITE_URL', 'RTC_REDIRECT_URL', 'RTC_GOOGLE_CLIENT_ID', 'RTC_GOOGLE_SECRET'];
+const NOMBRES = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY', 'VITE_BASE', 'SUPABASE_PROJECT_REF', 'SUPABASE_ACCESS_TOKEN', 'SUPABASE_DB_PASSWORD', 'GMAIL_USER', 'GMAIL_APP_PASSWORD', 'MAIL_SECRETO', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_TLS', 'RTC_SITE_URL', 'RTC_REDIRECT_URL', 'RTC_GOOGLE_CLIENT_ID', 'RTC_GOOGLE_SECRET', 'VITE_TURNSTILE_SITEKEY', 'RTC_TURNSTILE_SECRET'];
+const PRUEBA_SITEKEY = '1x00000000000000000000AA';
+const PRUEBA_SECRETO = '1x0000000000000000000000000000000AA';
 const ejemplo = (cambios = {}) =>
-  NOMBRES.map((n) => `${n}=${cambios[n] ?? { VITE_BASE: '/', MAIL_SECRETO: 'prueba-local', SMTP_HOST: 'inbucket', SMTP_PORT: '1025', SMTP_TLS: 'false' }[n] ?? ''}`).join('\n');
+  NOMBRES.map((n) => `${n}=${cambios[n] ?? { VITE_BASE: '/', MAIL_SECRETO: 'prueba-local', SMTP_HOST: 'inbucket', SMTP_PORT: '1025', SMTP_TLS: 'false', VITE_TURNSTILE_SITEKEY: PRUEBA_SITEKEY, RTC_TURNSTILE_SECRET: PRUEBA_SECRETO }[n] ?? ''}`).join('\n');
 const DEV = 'MAIL_SECRETO=prueba-local\n';
 
 test('variables: un .env.example correcto pasa', () => {
@@ -163,4 +166,41 @@ test('variables: tokens o acciones de pago en workflows fallan (SEC-31)', () => 
 
 test('variables: revisarTodo de un repo vacio falla', () => {
   assert.ok(revisarTodo(repo({ 'x.txt': '1' })).length > 0);
+});
+
+test('variables: Turnstile en .env.example solo con las claves de PRUEBA de Cloudflare; el secreto real falla (ADR-016, SEC-13)', () => {
+  const dev = { 'supabase/.env.development': DEV };
+  assert.deepEqual(revisarEnvExample(repo({ '.env.example': ejemplo(), ...dev })), []);
+  const vacia = revisarEnvExample(repo({ '.env.example': ejemplo({ RTC_TURNSTILE_SECRET: '' }), ...dev }));
+  assert.deepEqual(vacia, []);
+  const real = revisarEnvExample(repo({ '.env.example': ejemplo({ RTC_TURNSTILE_SECRET: '0x4AAAAAAAreal_secreto_de_produccion' }), ...dev }));
+  assert.match(real[0], /RTC_TURNSTILE_SECRET trae un valor/);
+  const sitekey = revisarEnvExample(repo({ '.env.example': ejemplo({ VITE_TURNSTILE_SITEKEY: '0x4AAAAAAAreal' }), ...dev }));
+  assert.match(sitekey[0], /VITE_TURNSTILE_SITEKEY trae un valor/);
+});
+
+test('variables: config.toml con [auth.captcha] y secret = env() pasa; con el secreto literal falla (SEC-13)', () => {
+  const toml = (secret) => `[auth.captcha]
+enabled = true
+provider = "turnstile"
+secret = "${secret}"
+`;
+  assert.deepEqual(revisarConfigToml(repo({ 'supabase/config.toml': toml('env(RTC_TURNSTILE_SECRET)') })), []);
+  assert.match(revisarConfigToml(repo({ 'supabase/config.toml': toml('0x4AAAAAAAliteral') }))[0], /secret debe ser env/);
+});
+
+// CAPTCHA y `config push` (ADR-012, ADR-016, SEC-13). Forma real de `config diff --output-format json` (CLI 2.121,
+// API simulada): `auth.captcha.secret` figura en `masked` (no se compara ni viaja si RTC_TURNSTILE_SECRET esta vacia).
+test('config diff: activar el CAPTCHA (enabled y provider) pasa la guardia; su secreto nunca como update (SEC-13)', () => {
+  const cambio = (path, clase, local, remote) => ({ path: path.split('.'), class: clase, declared: true, local, remote });
+  const diffDe = (changes) => ({ schema_version: 1, target: { project_ref: 'rmokypmznhobapyghfpi' }, scope: { present: ['auth'], missing: [] }, changes, masked: [['auth', 'captcha', 'secret']], unmanaged: [] });
+  const permitidos = cargarPermitidos();
+  const activar = diffDe([cambio('auth.captcha.enabled', 'update', true, false), cambio('auth.captcha.provider', 'update', 'turnstile', 'hcaptcha')]);
+  assert.deepEqual(evaluarDiff(activar, permitidos).errores, []);
+  const yaIgual = diffDe([]);
+  assert.deepEqual(evaluarDiff(yaIgual, permitidos).errores, []);
+  const conSecreto = diffDe([cambio('auth.captcha.secret', 'update', '1x0000000000000000000000000000000AA', 'hash')]);
+  assert.deepEqual(evaluarDiff(conSecreto, permitidos).errores, ['update fuera de config-permitida.json: auth.captcha.secret']);
+  const literal = diffDe([cambio('auth.captcha.secret', 'local_only', 'env(RTC_TURNSTILE_SECRET)', null)]);
+  assert.ok(evaluarDiff(literal, permitidos).errores.some((e) => e.includes('env(')));
 });

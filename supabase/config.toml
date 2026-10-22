@@ -213,11 +213,13 @@ token_verifications = 20
 # Number of Web3 logins that can be made in a 5 minute interval per IP address.
 web3 = 30
 
-# Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
-# [auth.captcha]
-# enabled = true
-# provider = "hcaptcha"
-# secret = ""
+# CAPTCHA del pedido de codigo (ADR-016, WEB-02, CA-44, SEC-13): Cloudflare Turnstile. Local y CI: el secreto de
+# PRUEBA de Cloudflare sale de supabase/.env.development. Produccion: la clave secreta se carga solo en el panel
+# de Supabase (ops/auth.md); supabase-deploy.yml define RTC_TURNSTILE_SECRET="" para que `config push` no la mande.
+[auth.captcha]
+enabled = true
+provider = "turnstile"
+secret = "env(RTC_TURNSTILE_SECRET)"
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.
@@ -446,5 +448,5 @@ enabled = true
 # Se activa en B03, cuando exista supabase/functions/enviar-mail/index.ts: con el bloque declarado y sin
 # el codigo, `supabase start` falla. La funcion se llama desde pg_net con el secreto MAIL_SECRETO, sin JWT
 # (ADR-005, S01) y es la unica con verify_jwt = false (SEC-30).
-# [functions.enviar-mail]
-# verify_jwt = false
+[functions.enviar-mail]
+verify_jwt = false

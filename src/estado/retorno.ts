@@ -16,6 +16,8 @@ export interface Retorno {
   /** Error del proveedor o del canje, para mostrarlo como texto (B04). */
   error: string | null;
   ruta: string | null;
+  /** H-020: había una sesión guardada de un usuario que ya no existe y se cerró al abrir. */
+  sesionCerrada?: boolean;
 }
 
 export const SIN_RETORNO: Retorno = Object.freeze({ procesado: false, canjeado: false, error: null, ruta: null });

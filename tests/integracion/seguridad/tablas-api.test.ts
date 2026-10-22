@@ -7,9 +7,16 @@ import { entorno } from '../../soporte/entorno';
 import { rest, rpc, sesionDe, type Rol } from '../../soporte/usuarios';
 
 let tablas: string[] = [];
+// Primera columna real de cada tabla o vista: el filtro y el cuerpo del PATCH usan una columna que existe, para que la
+// prueba compruebe el permiso (401/403) y no el esquema (400).
+const primeraColumna = new Map<string, string>();
 
 beforeAll(async () => {
   tablas = (await sql<{ relname: string }>("select c.relname from pg_class c join pg_namespace n on n.oid = c.relnamespace where n.nspname = 'public' and c.relkind in ('r','p','v') order by 1")).map((f) => f.relname);
+  const cols = await sql<{ table_name: string; column_name: string }>(
+    "select distinct on (table_name) table_name, column_name from information_schema.columns where table_schema = 'public' order by table_name, ordinal_position",
+  );
+  for (const c of cols) primeraColumna.set(c.table_name, c.column_name);
   for (const r of ['alumno', 'profesor'] as Rol[]) await sesionDe(r);
   await sesionDe('alumnoB');
 }, 300_000);
@@ -34,10 +41,11 @@ describe('SEC-03 la escritura directa falla para todos los roles', () => {
     const malas: string[] = [];
     for (const rol of ['anon', 'alumno', 'profesor'] as Rol[]) {
       for (const t of tablas) {
+        const col = primeraColumna.get(t) ?? 'id';
         for (const [metodo, ruta, cuerpo] of [
           ['POST', t, {}],
-          ['PATCH', `${t}?id=not.is.null`, { nombre: 'x' }],
-          ['DELETE', `${t}?id=not.is.null`, undefined],
+          ['PATCH', `${t}?${col}=not.is.null`, { [col]: null }],
+          ['DELETE', `${t}?${col}=not.is.null`, undefined],
         ] as const) {
           const r = await rest(rol, metodo, ruta, cuerpo);
           if (![401, 403].includes(r.status)) malas.push(`${rol} ${metodo} ${t}: ${r.status}`);
