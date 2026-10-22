@@ -102,7 +102,9 @@ describe('CA-42 / AVI-08 / SEC-10 tope de mails con la función real', () => {
 
   it('CA-42_con_200_en_24_h_el_201_nace_fallido_TOPE_y_el_200_pasa', async () => {
     const previo = await cuentaDelTope();
-    expect(previo.hora, 'el stack tiene mails vivos en la hora').toBe(0);
+    // H-251: independiente del estado del stack. Los mails vivos que dejan otras pruebas (B04/B05) cuentan en la hora;
+    // basta que el 200 (y el 201) no choquen con el tope horario, de modo que el 201 solo falle por el tope diario.
+    expect(previo.hora, 'el stack tiene demasiados mails vivos en la hora para aislar el tope diario').toBeLessThanOrEqual(18);
     expect(previo.dia).toBeLessThanOrEqual(199);
     // 199 en el día, hace 3 h (no cuentan para la hora).
     await sql(
