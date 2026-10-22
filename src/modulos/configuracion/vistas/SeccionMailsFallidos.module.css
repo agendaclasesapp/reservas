@@ -1,0 +1,15 @@
+.seccion {
+  display: grid;
+  gap: var(--e-3);
+  margin-block-start: var(--e-6);
+}
+
+.seccion h2 {
+  margin: 0;
+  font-size: var(--t-xl);
+}
+
+.ayuda {
+  margin: 0;
+  color: var(--c-texto-suave);
+}

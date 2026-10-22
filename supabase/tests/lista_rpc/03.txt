@@ -1,0 +1,5 @@
+# B03 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
+# Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated.
+# B03 no agrega RPC: `privado.encolar_mail`, `privado.disparar_mail`, `privado.barrer_mails` y los
+# triggers de `mail_salida` no son ejecutables por anon ni authenticated; el registro de WEB-08 se lee
+# por la vista `v_mails_fallidos` (RLS de `mail_salida`).

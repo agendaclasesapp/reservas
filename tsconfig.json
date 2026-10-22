@@ -14,5 +14,6 @@
     "forceConsistentCasingInFileNames": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests"],
+  "exclude": ["supabase/functions", "tests/integracion/mails/servidor-local.ts"]
 }
