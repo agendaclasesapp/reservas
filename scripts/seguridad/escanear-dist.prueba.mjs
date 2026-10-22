@@ -113,6 +113,17 @@ test('--url: sitio limpio pasa, sigue los chunks y sondea .map y .env', async ()
   assert.deepEqual(await escanearUrl(BASE, { ref: REF }, pedir), []);
 });
 
+test('--url: "assets/otro.js" del mapa de precarga se resuelve contra la base del sitio, no es 404', async () => {
+  const pedir = sitio({
+    'index.html': '<script type="module" src="/reservas/assets/index-1.js"></script>',
+    'assets/index-1.js': 'const m=["assets/otro.js","assets/estilo.css"];import("./chunk-2.js")',
+    'assets/chunk-2.js': 'export default 1',
+    'assets/otro.js': 'export default 2',
+    'assets/estilo.css': 'a{}',
+  });
+  assert.deepEqual(await escanearUrl(BASE, { ref: REF }, pedir), []);
+});
+
 test('--url: un secreto en un chunk cargado de forma diferida falla', async () => {
   const pedir = sitio({
     'index.html': '<script type="module" src="/reservas/assets/index-1.js"></script>',

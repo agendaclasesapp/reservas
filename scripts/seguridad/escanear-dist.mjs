@@ -131,7 +131,8 @@ export async function escanearUrl(base, opciones = {}, pedir = fetch) {
       if (!cita || !/\.(?:js|mjs|css|html)(?:[?#].*)?$/.test(cita)) continue;
       let destino;
       try {
-        destino = new URL(cita, url);
+        // Vite deja en el mapa de precarga rutas "assets/X.js" relativas a la base del sitio, no al archivo.
+        destino = new URL(cita, /^assets\//.test(cita) ? raiz : url);
       } catch {
         continue;
       }
