@@ -11,7 +11,11 @@
 //  - SUPABASE_ACCESS_TOKEN / SUPABASE_DB_PASSWORD fuera de supabase-deploy.yml.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
+
+// Parser YAML real (js-yaml, ya presente en el arbol por dependencias transitivas; no se agrega dependencia).
+const jsYaml = createRequire(import.meta.url)('js-yaml');
 
 const SHA = /^[0-9a-f]{40}$/;
 
@@ -70,6 +74,12 @@ function disparadores(lineas) {
 
 export function revisarWorkflow(nombre, texto) {
   const errores = [];
+  try {
+    jsYaml.load(texto);
+  } catch (e) {
+    const linea = e.mark ? e.mark.line + 1 : 1;
+    return [`${nombre}:${linea}: YAML invalido: ${e.reason ?? e.message}`];
+  }
   const lineas = texto.split(/\r?\n/);
   const donde = (n) => `${nombre}:${n}`;
 

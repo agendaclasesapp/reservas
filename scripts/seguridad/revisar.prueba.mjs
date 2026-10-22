@@ -39,6 +39,12 @@ test('workflows: uno bien hecho no tiene hallazgos', () => {
   assert.deepEqual(revisarWorkflow('web.yml', BUENO), []);
 });
 
+test('workflows: un YAML que no parsea falla con archivo y linea (name: a: b)', () => {
+  const r = revisarWorkflow('web.yml', BUENO.replace('      - run: npm ci', '      - name: a: b\n        run: npm ci'));
+  assert.equal(r.length, 1);
+  assert.match(r[0], /^web\.yml:\d+: YAML invalido/);
+});
+
 test('workflows: pull_request_target falla', () => {
   assert.equal(revisarWorkflow('web.yml', BUENO.replace('push:', 'pull_request_target:')).length, 1);
 });

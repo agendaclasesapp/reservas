@@ -118,7 +118,7 @@ jobs:
         run: npx --yes deno@${DENO} lint supabase/functions/enviar-mail/ tests/integracion/mails/servidor-local.ts
       - name: deno fmt --check
         run: npx --yes deno@${DENO} fmt --line-width 120 --check supabase/functions/enviar-mail/
-      - name: deno test (sin permisos: --no-prompt)
+      - name: "deno test (sin permisos: --no-prompt)"
         run: npx --yes deno@${DENO} test --no-prompt --node-modules-dir=none supabase/functions/enviar-mail/
 
   dependency-review:
