@@ -114,7 +114,8 @@ select throws_ok($$select privado.encolar_mail('clase_creada', 'b3999999-0000-00
 -- D. Disparo solo para pendiente (AVI-08) ----------------------------------------------------------------------
 select is((select count(*)::int from net.http_request_queue q where convert_from(q.body, 'UTF8')::jsonb = jsonb_build_object('ids', jsonb_build_array(current_setting('rtc.id1')))), 1,
   'AVI-07: la fila pendiente deja una llamada en la cola de pg_net con solo ids');
-select is((select count(*)::int from net.http_request_queue q where convert_from(q.body, 'UTF8') ~* 'pgtap3|Bcc|cuerpo'), 0,
+-- H-270: `Bcc` como palabra entera; sin \m..\M el patrón coincidía con un uuid al azar que contuviera «bcc» (flaky, ~1 de cada 50).
+select is((select count(*)::int from net.http_request_queue q where convert_from(q.body, 'UTF8') ~* 'pgtap3|\mbcc\M|cuerpo'), 0,
   'SEC-17: la cola de pg_net no lleva destinatario, asunto ni cuerpo');
 
 -- E. Tope por hora (CA-42, AVI-08) -----------------------------------------------------------------------------
