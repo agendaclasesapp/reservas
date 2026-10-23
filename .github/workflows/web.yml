@@ -158,7 +158,35 @@ jobs:
       - name: Esquema y semilla
         run: npx --yes supabase@${SUPABASE_CLI} db reset
       - name: pgTAP
-        run: npx --yes supabase@${SUPABASE_CLI} test db
+        run: |
+          set -o pipefail
+          salida="$RUNNER_TEMP/pgtap.log"
+          if npx --yes supabase@${SUPABASE_CLI} test db 2>&1 | tee "$salida"; then
+            exit 0
+          fi
+          # Anotaciones publicas por cada prueba fallida
+          archivo=""
+          while IFS= read -r linea; do
+            case "$linea" in
+              *.test.sql*) archivo="$(printf '%s' "$linea" | grep -oE '[A-Za-z0-9_./-]+\.test\.sql' | head -n1)" ;;
+            esac
+            case "$linea" in
+              "not ok"*)
+                msg="$(printf '%s' "$linea" | tr -d '\r%')"
+                if [ -n "$archivo" ]; then
+                  echo "::error file=$archivo::$msg"
+                else
+                  echo "::error::$msg"
+                fi ;;
+            esac
+          done < "$salida"
+          {
+            echo '### pgTAP: diagnostico de fallos'
+            echo '```'
+            grep -E '^#   ' "$salida" | head -n 40
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 1
       - name: Lint de la base
         run: npx --yes supabase@${SUPABASE_CLI} db lint --level warning --fail-on error
       - name: Exportar variables del stack local
