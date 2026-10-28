@@ -87,7 +87,8 @@ describe('Agenda de un profesor: nombre y enlace (AGE-09, SEC-16)', () => {
     expect(screen.queryByRole('list')).toBeNull();
     expect(screen.queryByLabelText('Elegir día')).toBeNull();
     expect(screen.queryByRole('alert')).toBeNull();
-    expect(obtenerAgenda).not.toHaveBeenCalled();
+    // NFR-04 (CA-36): el día sale en paralelo con la configuración y su respuesta se descarta sin mostrarse.
+    expect(obtenerAgenda).toHaveBeenCalledTimes(1);
     await sinViolacionesAxe(container);
   });
 });
@@ -103,7 +104,8 @@ describe('Agenda de un profesor inactivo (AGE-11)', () => {
     expect(screen.queryByLabelText('Elegir día')).toBeNull();
     expect(screen.queryByRole('list')).toBeNull();
     expect(screen.queryByRole('link', { name: 'Ir a Mis clases' })).toBeNull();
-    expect(obtenerAgenda).not.toHaveBeenCalled();
+    // NFR-04 (CA-36): el día sale en paralelo con la configuración y su respuesta se descarta sin mostrarse.
+    expect(obtenerAgenda).toHaveBeenCalledTimes(1);
     expect(pedirAcceso).not.toHaveBeenCalled();
     await sinViolacionesAxe(container);
   });

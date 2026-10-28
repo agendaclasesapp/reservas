@@ -270,7 +270,8 @@ describe('Quien no pide clases no ve huecos interactivos (PRF-07, AGE-11)', () =
     );
     expect(await screen.findByText('Ana Pérez no toma reservas por ahora')).toBeTruthy();
     expect(screen.queryByRole('button', HUECO_LIBRE)).toBeNull();
-    expect(obtenerAgenda).not.toHaveBeenCalled();
+    // NFR-04 (CA-36): el día sale en paralelo con la configuración y su respuesta se descarta sin mostrarse.
+    expect(obtenerAgenda).toHaveBeenCalledTimes(1);
   });
 });
 

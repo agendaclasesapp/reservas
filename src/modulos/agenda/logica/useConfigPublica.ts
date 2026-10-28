@@ -19,7 +19,11 @@ function claveDe(slug: string): string {
   return normalizarSlug(slug) ?? slug;
 }
 
-function cargar(slug: string, obtener: ObtenerConfig): Promise<ConfigPublica> {
+/**
+ * Lee la configuración del `slug` una sola vez por slug (la comparte con `useConfigPublica`). La usa también
+ * la precarga de la agenda (NFR-04) para pedirla a la vez que el día.
+ */
+export function cargarConfigPublica(slug: string, obtener: ObtenerConfig): Promise<ConfigPublica> {
   const clave = claveDe(slug);
   const existente = caches.get(clave);
   if (existente) return existente.promesa;
@@ -35,6 +39,11 @@ function cargar(slug: string, obtener: ObtenerConfig): Promise<ConfigPublica> {
   );
   caches.set(clave, nueva);
   return nueva.promesa;
+}
+
+/** La configuración ya leída del `slug`, o `null` si todavía no llegó (o no se pidió). */
+export function configPublicaEnCache(slug: string): ConfigPublica | null {
+  return caches.get(claveDe(slug))?.valor ?? null;
 }
 
 /** Solo para pruebas: olvida la configuración leída de todos los profesores. */
@@ -65,7 +74,7 @@ export function useConfigPublica(
   useEffect(() => {
     if (slug === null) return;
     let vigente = true;
-    cargar(slug, obtener).then(
+    cargarConfigPublica(slug, obtener).then(
       (config) => {
         if (vigente) setResultado({ clave, config, error: null });
       },
@@ -82,7 +91,7 @@ export function useConfigPublica(
     if (slug !== null) caches.delete(claveDe(slug));
     setVersion((v) => v + 1);
   }, [slug]);
-  const enCache = slug === null ? null : (caches.get(claveDe(slug))?.valor ?? null);
+  const enCache = slug === null ? null : configPublicaEnCache(slug);
 
   return useMemo<ConfigPublicaCargada>(() => {
     if (resultado && resultado.clave === clave) {

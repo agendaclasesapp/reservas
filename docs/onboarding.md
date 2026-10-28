@@ -1,7 +1,7 @@
 ---
 titulo: Onboarding · Agenda Clases App
-version: 0.9
-fecha: 2026-10-26
+version: 0.10
+fecha: 2026-10-28
 publico: equipo nuevo
 ---
 # Onboarding · Agenda Clases App
@@ -92,6 +92,8 @@ Los mails salen al buzón de prueba local (Mailpit); ahí se ve el código de in
 - Los mails de un profesor salen con su nombre y Reply-To; los de la aplicación y los códigos de ingreso, como «Agenda Clases App» (ADR-019, CR-003).
 - Las decisiones DEC-01..23 están cerradas en G1: ver `.aidlc/reservatuclase/analisis/decisiones-abiertas.md` (la tabla de arriba es la vigente). Los cambios que trajeron están en `.aidlc/reservatuclase/cambios/CR-001.md`.
 
+- **Accesibilidad y celular (B12).** Todo control táctil mide al menos 44 px (`--tactil-min`); un enlace que va solo en su renglón usa `EnlaceAccion` de `src/ui/`, no un `<a>` suelto. Las pruebas `accesibilidad.spec.ts` y `celular.spec.ts` fallan si una pantalla nueva rompe axe, desborda a 360 px o tiene controles chicos. Detalle y verificación manual pendiente en `tecnica/plataforma.md` §9.
+
 ## 7. Glosario
 
 Enlace del profesor, vínculo, serie (clases que se repiten cada semana o cada quince días), solicitud pendiente (pedido de clase que espera respuesta), profesor inactivo (pausa), Administrador, Agenda Clases App, grilla semanal (tramos horarios por día), tramo, hueco (espacio de una clase), libre/ocupado/bloqueado, bloqueo, anticipación mínima, titular, persona a cargo, alumno sin cuenta, alumno pendiente, ficha, reserva, serie, solicitud, alcance («solo esta clase» / «de acá en adelante»), unión de alumnos, teléfono normalizado, RLS, registro de mails fallidos. Definiciones completas: `.aidlc/reservatuclase/analisis/glosario.md`.
@@ -113,3 +115,4 @@ Por área, según los perfiles del ciclo: requisitos (funcional), diseño técni
 | 0.7 | 2026-10-23 | B15, B06 | ADM-02, ADM-05, SOL-10, ADR-021, DEC-38 | Estado de los bolts construidos, alta de profesores desde `#/admin`, secreto `url_sitio`, despliegue por tramos, glosario |
 | 0.8 | 2026-10-23 | B07, B08, B09, B11 | ALU-10, AVI-05, AVI-06, DEC-39, SEC-28 | Estado de los bolts construidos, retención y runbook de operación |
 | 0.9 | 2026-10-26 | B10, B11 | AGE-08, DEC-39, ADR-022 | Huso por reserva y DEC-39 cerrada |
+| 0.10 | 2026-10-28 | B12 | NFR-05, NFR-06, CA-37, CA-38 | Regla de accesibilidad y uso en celular |

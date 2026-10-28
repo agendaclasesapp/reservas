@@ -1,10 +1,12 @@
 // Hook de la agenda pública de un día de un profesor (AGE-07, AGE-09, ADR-006, ADR-017, ADR-020). No espera
 // la sesión: lee por el cliente REST anónimo. Una respuesta de otro día o de otro profesor que llega tarde
-// se descarta.
+// se descarta. La primera lectura usa la precarga del mismo día si la hay (NFR-04, `precarga.ts`); `recargar`
+// siempre vuelve a pedir.
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { traducirError, type ErrorTraducido } from '../../../lib/errores';
 import type { Dia } from '../../../lib/fechas';
 import { obtenerAgendaPublica } from './api';
+import { tomarPrecargaAgenda } from './precarga';
 import type { AgendaDia, Hueco, ObtenerAgenda } from './tipos';
 
 interface Resultado {
@@ -26,20 +28,19 @@ export function useAgendaDia(slug: string, dia: Dia, obtener: ObtenerAgenda = ob
 
   useEffect(() => {
     let vigente = true;
-    Promise.resolve()
-      .then(() => obtener(slug, dia))
-      .then(
-        (huecos) => {
-          if (vigente) setResultado({ clave, huecos, error: null });
-        },
-        (e: unknown) => {
-          if (vigente) setResultado({ clave, huecos: SIN_HUECOS, error: traducirError(e) });
-        },
-      );
+    const precargada = version === 0 ? tomarPrecargaAgenda(slug, dia, obtener) : null;
+    (precargada ?? Promise.resolve().then(() => obtener(slug, dia))).then(
+      (huecos) => {
+        if (vigente) setResultado({ clave, huecos, error: null });
+      },
+      (e: unknown) => {
+        if (vigente) setResultado({ clave, huecos: SIN_HUECOS, error: traducirError(e) });
+      },
+    );
     return () => {
       vigente = false;
     };
-  }, [clave, dia, obtener, slug]);
+  }, [clave, dia, obtener, slug, version]);
 
   const recargar = useCallback(() => setVersion((v) => v + 1), []);
 

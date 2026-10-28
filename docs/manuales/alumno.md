@@ -1,7 +1,7 @@
 ---
 titulo: Manual de usuario · Agenda Clases App · Alumno y visitante
-version: 0.5
-fecha: 2026-10-26
+version: 0.6
+fecha: 2026-10-28
 publico: alumnos y visitantes
 ---
 # Manual de usuario · Agenda Clases App · Alumno y visitante
@@ -101,6 +101,10 @@ Si pasan **6 meses** desde tu última clase con cualquier profesor (y no tenés 
 
 > DEC-39 (cerrada, opción a): si el proceso de borrado estuvo parado más de 7 días, la primera corrida al volver puede borrar sin aviso previo a quien venció en el medio; el control es la revisión manual del runbook antes de reactivarlo.
 
+## Si lo usás desde el celular o con teclado
+
+Todas las pantallas se pueden usar en un celular de 360 píxeles de ancho sin desplazar de costado, y con el teclado (Tab para avanzar, Enter para abrir, Escape para cerrar un diálogo; el foco vuelve a donde estabas). Los botones y enlaces tienen al menos 44 píxeles de alto; el estado de cada hueco de la agenda (libre, ocupado, bloqueado) se lee en texto, no solo por el color. Verificado con Chromium; en Safari y Firefox y con lector de pantalla la comprobación manual está pendiente, así que si algo no se ve o no responde ahí, avisalo. Fuente: NFR-05, NFR-06, CA-37, CA-38.
+
 ## Bitácora de versiones
 
 | Versión | Fecha | Bolt | IDs | Cambio |
@@ -110,3 +114,4 @@ Si pasan **6 meses** desde tu última clase con cualquier profesor (y no tenés 
 | 0.3 | 2026-10-23 | B06 | SOL-01, SOL-10, WEB-01, WEB-04, CA-41, CA-46, ADM-05 | Pedir una clase suelta o una serie, vista previa de fechas salteadas, tope de 10, visitante sin sesión, pedidos anulados por pausa |
 | 0.4 | 2026-10-23 | B07, B08, B11 | SOL-02, SOL-03, SOL-07, SOL-10, WEB-05, RES-06, AVI-05, AVI-06, ALU-10, ALU-11, DEC-39 | Mis clases, Mover, Avisar que no voy, recordatorio, retención y borrado |
 | 0.5 | 2026-10-26 | B11 | ALU-10, AVI-06, DEC-39 | DEC-39 cerrada: se acepta el borrado sin aviso tras una parada larga |
+| 0.6 | 2026-10-28 | B12 | NFR-05, NFR-06, CA-37, CA-38 | Uso en celular y con teclado; navegadores verificados |

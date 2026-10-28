@@ -1,7 +1,7 @@
 ---
 titulo: Técnica · Plataforma (B01)
-version: 0.4
-fecha: 2026-10-23
+version: 0.5
+fecha: 2026-10-28
 publico: equipo técnico
 ---
 # Plataforma (B01)
@@ -93,6 +93,19 @@ Los topes anti-abuso y el error `LIMITE_EXCEDIDO` están en ADR-016 y contratos 
 
 Desde B11 los jobs `recordatorios` (cada 15 minutos) y `retencion` (03:30 UTC) están en `cron.job` y llaman a `call privado.correr_proceso('<nombre>')` (ADR-008). Cada corrida deja una fila en `privado.ejecucion_proceso` (nombre, ahora, inicio, fin, ok, error, cantidades); si falla queda `ok = false` con SQLSTATE y mensaje y `cron.job_run_details` la marca `failed` con `PROCESO_FALLIDO`. `barrer_mails` y `extender_series` siguen con `select privado.<fn>()`. La revisión semanal, el riesgo de una retención parada y la depuración manual de la tabla están en `ops/operacion.md`; el detalle técnico en `solicitudes-gestion-y-retencion-b07-b11.md` §5. Despliegue en un ambiente propio: `despliegue/otro/README.md`.
 
+## 9. Accesibilidad y uso en celular (B12)
+
+Todas las pantallas se verificaron contra WCAG 2.1 AA (NFR-05, CA-37) y a 360 x 740 px y por teclado (NFR-06, CA-38).
+
+- **Componente `EnlaceAccion`** (`src/ui/EnlaceAccion.tsx`, exportado en `src/ui/index.ts`; H-404). Es un `<a>` con `display: inline-flex`, `align-items: center` y `min-block-size: var(--tactil-min)` (44 px, token de `src/ui/tokens.css`). Se usa para los enlaces que están solos en su renglón, no dentro de una oración: «Ver la agenda de {profesor}» en `#/ficha` y `#/mis-clases`, y «Ver la agenda» en Mis clases vacío. Los enlaces dentro de un texto quedan como están (excepción de WCAG 2.5.5).
+- **Botón sin fundido de fondo.** `Boton.module.css` ya no anima `background-color`: axe medía el contraste a mitad de la transición y daba un falso positivo intermitente en «Pedir clase». Se pierde el fundido de 150 ms al pasar el puntero o al deshabilitarse.
+- **Pruebas.** `tests/e2e/accesibilidad.spec.ts`: 38 pruebas, 61 estados auditados con axe (wcag2a, wcag2aa, wcag21a, wcag21aa), 0 violaciones, sin reglas desactivadas; incluye que cada hueco de la agenda dice su estado en texto y que no depende solo del color (`forced-colors`, escala de grises). `tests/e2e/celular.spec.ts`: 91 pruebas en 360 px; sin desplazamiento horizontal, todo control de al menos 44 x 44 px, recorrido con Tab con foco visible, y en los diálogos entrada y salida del foco con Enter y Escape. Evidencia en `calidad/evidencias/ui/WEB-A11Y-B12/` y `WEB-360-B12/`. Con `RTC_SIN_BUILD=1`, `RTC_REUSAR=1` y `RTC_CONSERVAR=1` se itera `celular.spec.ts` sin recompilar ni rehacer los datos.
+- **No cubierto por las pruebas:** 320 px (zoom 400 %), espaciado de texto, lector de pantalla y adopción de un mail ya registrado en el alta de `#/admin`.
+- **Pendiente del humano antes de G3:** verificación manual en Safari y Firefox (escritorio y móvil) de `#/`, `#/p/<slug>` con el diálogo «Pedir clase», `#/mis-clases`, `#/ficha`, `#/panel` con las acciones de un hueco, `#/configuracion` («Tu enlace») y `#/admin` (alta e Inactivar): foco visible, tamaño táctil y botón sin parpadeo de fondo; y prueba con lector de pantalla. Las pruebas automáticas corrieron solo en Chromium.
+- **Entorno de pruebas (H-405, abierto):** si `turno.py` corta por tiempo, quedan procesos de Playwright y `vite preview` huérfanos contra la misma base y buzón y dan fallos falsos; esperar a que terminen antes de volver a correr.
+
+Fuente: handoffs `handoff-tester-a11y.md`, `handoff-tester-celular.md`, `handoff-tester-2.md` y `handoff-ux-web.md` de B12.
+
 ## Bitácora de versiones
 
 | Versión | Fecha | Bolt | IDs | Cambio |
@@ -101,3 +114,4 @@ Desde B11 los jobs `recordatorios` (cada 15 minutos) y `retencion` (03:30 UTC) e
 | 0.2 | 2026-10-23 | B14 | ADR-018 | Nota de puesta en marcha con Administrador y slug |
 | 0.3 | 2026-10-23 | B15 | ADR-018, ADR-021, ADM-02 | `configurar_profesor` con tres argumentos tras la contracción, funciones sin slug eliminadas, secreto opcional `url_sitio` |
 | 0.4 | 2026-10-23 | B07, B11 | ADR-008, SEC-28, ALU-10, AVI-05 | Procesos programados y su registro de corridas; enlace a la guía de despliegue del cliente |
+| 0.5 | 2026-10-28 | B12 | NFR-05, NFR-06, CA-37, CA-38, H-404, H-405 | Accesibilidad y uso en celular: `EnlaceAccion`, botón sin transición, pruebas y verificación manual pendiente |

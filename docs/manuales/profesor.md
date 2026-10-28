@@ -1,7 +1,7 @@
 ---
 titulo: Manual de usuario · Agenda Clases App · Profesor
-version: 0.5
-fecha: 2026-10-26
+version: 0.6
+fecha: 2026-10-28
 publico: profesor
 ---
 # Manual de usuario · Agenda Clases App · Profesor
@@ -96,6 +96,10 @@ Tu enlace pasa a decir que no tomás reservas por ahora; nadie te pide acceso ni
 ## Revisar los mails fallidos
 En **Configuración**, la sección «Mails fallidos» lista fecha (en tu huso), destinatario, tipo y motivo de cada mail que no salió: tope de envío superado, envío sin confirmar, dirección inválida o un error del servidor de correo (con pista cuando son las credenciales). La operación que originó el mail se completó igual. No se muestran asunto ni cuerpo. Los mails que mandás a tus alumnos (respuestas, clases creadas, movidas o canceladas y el recordatorio del día anterior a cada clase confirmada) salen con tu nombre y con tu mail en «Responder a». Cada profesor puede encolar 20 mails por hora y 200 por día, y toda la aplicación 400 por día: pasado un tope el mail queda fallido con motivo «tope» (AVI-08). Estado: construida y verificada con pruebas automáticas; la prueba con la casilla Gmail real está pendiente de G3. Fuente: handoff de UX y de pruebas de B03 (NFR-07, CA-34).
 
+## Si lo usás desde el celular o con teclado
+
+Todas las pantallas, también el panel, la lista, la configuración y los bloqueos, se pueden usar en un celular de 360 píxeles de ancho sin desplazar de costado, y con el teclado (Tab para avanzar, Enter para abrir, Escape para cerrar un diálogo; el foco vuelve a donde estabas). Los botones y enlaces tienen al menos 44 píxeles de alto; el estado de cada hueco de la agenda (libre, ocupado, bloqueado) se lee en texto, no solo por el color. Verificado con Chromium; en Safari y Firefox y con lector de pantalla la comprobación manual está pendiente, así que si algo no se ve o no responde ahí, avisalo. Fuente: NFR-05, NFR-06, CA-37, CA-38.
+
 ## Bitácora de versiones
 
 | Versión | Fecha | Bolt | IDs | Cambio |
@@ -105,3 +109,4 @@ En **Configuración**, la sección «Mails fallidos» lista fecha (en tu huso), 
 | 0.3 | 2026-10-23 | B15, B06 | ADM-02, ADM-05, DEC-38, AVI-04, CA-63 | Alta por el Administrador, aviso al sumar un mail, pausa que anula pendientes |
 | 0.4 | 2026-10-23 | B07, B08, B09, B11 | SOL-04..08, PRF-01..06, AVI-01, AVI-04, AVI-05, ALU-10, ALU-12, WEB-06, WEB-07, CA-52, CA-55, CA-57 | Responder solicitudes, cambios y avisos de ausencia, panel con agenda del día y gestión directa, borrar alumno, remitente de mails |
 | 0.5 | 2026-10-26 | B10 | AGE-03, AGE-05, AGE-06, AGE-08, WEB-08, ADR-022 | Bloquear horarios y configurar la agenda (grilla, duración, anticipación, huso) |
+| 0.6 | 2026-10-28 | B12 | NFR-05, NFR-06, CA-37, CA-38 | Uso en celular y con teclado; navegadores verificados |

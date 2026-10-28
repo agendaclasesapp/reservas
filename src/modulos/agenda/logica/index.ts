@@ -7,6 +7,8 @@
 //   diaEnLimites(dia, limites)               -> boolean
 //   obtenerAgendaPublica(slug, dia, cliente?) -> Promise<Hueco[]>  (rpc agenda_publica por postgrest-js)
 //   obtenerConfigPublica(slug, cliente?)     -> Promise<ConfigPublica>
+//   precargarAgendaPublica(slug, diaPedido, opciones?) -> void  (NFR-04: config y día a la vez, sin esperarse)
+//   precargarDesdeHash(location.hash)        -> void  (lo llama src/main.tsx si la dirección es `#/p/<slug>`)
 //   MENSAJE_ENLACE_NO_VALIDO                 -> texto de AGE-09 para un slug que no es de ningún profesor
 //
 // Los instantes llegan en UTC; se muestran con formatearHora(instante, config.zona_horaria) de src/lib/fechas.
@@ -34,5 +36,14 @@ export {
   obtenerAgendaPublica,
   obtenerConfigPublica,
 } from './api';
+export {
+  VIGENCIA_PRECARGA_MS,
+  diaSupuesto,
+  precargarAgendaPublica,
+  precargarDesdeHash,
+  reiniciarPrecargaAgenda,
+  tomarPrecargaAgenda,
+  type OpcionesPrecarga,
+} from './precarga';
 export { useAgendaDia } from './useAgendaDia';
 export { reiniciarConfigPublica, useConfigPublica } from './useConfigPublica';

@@ -17,6 +17,7 @@ import {
   diaEnLimites,
   limitesAgenda,
   MENSAJE_ENLACE_NO_VALIDO,
+  precargarAgendaPublica,
   useAgendaDia,
   useConfigPublica,
   type ConfigPublicaActiva,
@@ -206,6 +207,15 @@ export function PaginaAgenda({ slug, pedirAcceso, solicitud, obtenerConfig, obte
   const configuracion = useConfigPublica(slug, obtenerConfig);
   const relacion = relacionConProfesor(useSesion(), slug);
   const config = configuracion.estado === 'listo' ? configuracion.config : null;
+
+  // NFR-04 (CA-36): mientras llega la configuración, el día ya se pide; la agenda usa esa respuesta si el día
+  // coincide y, si no, pide el suyo (profesor inactivo o enlace no válido: se descarta sin mostrarse).
+  const [parametros] = useSearchParams();
+  const diaPedido = parametros.get(PARAMETRO_DIA);
+  const esperandoConfig = configuracion.estado === 'cargando';
+  useEffect(() => {
+    if (esperandoConfig) precargarAgendaPublica(slug, diaPedido, { obtenerConfig, obtenerAgenda, ahora });
+  }, [ahora, diaPedido, esperandoConfig, obtenerAgenda, obtenerConfig, slug]);
 
   // Tras «Pedir acceso» el formulario desaparece y aparece el estado pendiente: el foco pasa a ese aviso.
   const avisoRef = useRef<HTMLDivElement>(null);
