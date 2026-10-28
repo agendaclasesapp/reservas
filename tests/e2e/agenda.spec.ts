@@ -58,6 +58,12 @@ test.beforeAll(async () => {
   await limpiar();
   const profesor = await profesorId(SLUG_A);
   await sql("update public.profesor set zona_horaria = 'America/Montevideo', duracion_min = 60 where id = $1", [profesor]);
+  // H-460: otras pruebas (reservas, movimientos...) pueden dejar clases de este profesor el lunes 2; la agenda
+  // espera ese día con un único ocupado y el índice clase_sin_solape rechaza el hueco de las 10:00. Se vacía el día.
+  await sql(
+    "delete from public.clase where profesor_id = $1 and inicio < '2026-11-03 00:00-03' and fin > '2026-11-02 00:00-03'",
+    [profesor],
+  );
   await sql(
     "insert into public.alumno (id, estado, nombre, mail, creado_por) values ($1, 'completa', 'Alumno Agenda E2E', 'agenda.e2e@example.test', $2)",
     [id(1), profesor],
