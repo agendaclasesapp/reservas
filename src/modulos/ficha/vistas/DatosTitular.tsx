@@ -1,5 +1,5 @@
-// Datos del titular de la cuenta, solo lectura (WEB-03, ALU-02): nombre, mail, teléfono, fecha de nacimiento
-// y cómo llegó al profesor.
+// Datos del titular de la cuenta, solo lectura (WEB-03, ALU-02): nombre, mail, teléfono y fecha de nacimiento.
+// «Cómo llegaste» no es de la persona: va en el vínculo con cada profesor (ALU-14).
 import type { MiFicha } from '../logica';
 import { formatearNacimiento } from './formato';
 import estilos from './DatosTitular.module.css';
@@ -30,10 +30,6 @@ export function DatosTitular({ ficha }: DatosTitularProps) {
         <div>
           <dt>Fecha de nacimiento</dt>
           <dd>{formatearNacimiento(ficha.fecha_nacimiento)}</dd>
-        </div>
-        <div>
-          <dt>Cómo llegaste al profesor</dt>
-          <dd>{texto(ficha.como_llego)}</dd>
         </div>
       </dl>
     </section>

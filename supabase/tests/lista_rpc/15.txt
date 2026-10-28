@@ -1,0 +1,6 @@
+# B15 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
+# Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated. Las sobrecargas comparten línea.
+# T15.1: RPC `[Adm]`; las ejecuta `authenticated` y el rol (Administrador) se comprueba adentro (403, SEC-06).
+authenticated alta_profesor
+authenticated listar_profesores
+authenticated cambiar_estado_profesor

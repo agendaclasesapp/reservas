@@ -1,0 +1,22 @@
+.seccion {
+  display: grid;
+  gap: var(--e-3);
+  margin-block-start: var(--e-6);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--t-xl);
+}
+
+.form {
+  display: grid;
+  gap: var(--e-4);
+  max-inline-size: var(--dialogo-max);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}

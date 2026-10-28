@@ -1,0 +1,30 @@
+.texto {
+  margin: 0;
+}
+
+/* Un enlace con aspecto de botón primario: lleva a otra pantalla, por eso es un `<a>`. */
+.ingresar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-block-size: var(--tactil-min);
+  min-inline-size: var(--tactil-min);
+  padding: var(--e-2) var(--e-4);
+  border: var(--borde-ancho) solid var(--c-primario);
+  border-radius: var(--r-md);
+  background: var(--c-primario);
+  color: var(--c-sobre-primario);
+  font-weight: var(--peso-fuerte);
+  text-decoration: none;
+}
+
+.ingresar:hover {
+  background: var(--c-primario-hover);
+  border-color: var(--c-primario-hover);
+}
+
+.ingresar:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}

@@ -112,7 +112,9 @@ port = 54324
 smtp_port = 54325
 pop3_port = 54326
 # admin_email = "admin@email.com"
-# sender_name = "Admin"
+# Nombre del servicio como remitente de los códigos de Auth (AVI-07, ADR-019). Solo local: en producción el
+# SMTP de Auth vive en el panel (ops/mails.md); no se declara [auth.email.smtp] aquí porque `config push` lo empujaría.
+sender_name = "Agenda Clases App"
 
 [storage]
 enabled = true
@@ -446,7 +448,7 @@ enabled = true
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
 
 # Se activa en B03, cuando exista supabase/functions/enviar-mail/index.ts: con el bloque declarado y sin
-# el codigo, `supabase start` falla. La funcion se llama desde pg_net con el secreto MAIL_SECRETO, sin JWT
-# (ADR-005, S01) y es la unica con verify_jwt = false (SEC-30).
+# el codigo, `supabase start` falla. La funcion se llama desde pg_net firmada con HMAC (x-mail-ts, x-mail-firma; clave MAIL_SECRETO), sin JWT
+# (ADR-005, S01, H-130) y es la unica con verify_jwt = false (SEC-30).
 [functions.enviar-mail]
 verify_jwt = false

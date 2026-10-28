@@ -40,7 +40,8 @@ export type FalloLista = {
 export type ResultadoCuenta = ({ ok: true } & RespuestaCuenta) | FalloLista;
 export type ResultadoSugerencias = { ok: true; sugerencias: Sugerencia[] } | FalloLista;
 export type ResultadoUnion = { ok: true; cuentaId: string } | FalloLista;
-export type ResultadoAlta = { ok: true; alumnoId: string; estado: EstadoAlumno } | FalloLista;
+/** `asociado`: el mail era de una persona existente y quedó asociada sin tocar su ficha (DEC-29 b). */
+export type ResultadoAlta = { ok: true; alumnoId: string; estado: EstadoAlumno; asociado: boolean } | FalloLista;
 export type ResultadoEdicion = { ok: true; alumnoId: string } | FalloLista;
 
 function propiedad(objeto: unknown, clave: string): unknown {
@@ -64,7 +65,11 @@ function campoDe(detalles: unknown): CampoLista | null {
   return (CAMPOS_LISTA as readonly string[]).includes(sinPrefijo) ? (sinPrefijo as CampoLista) : null;
 }
 
-/** Traduce el error; los dos 409 propios de B05 con su texto, el resto con el catálogo (SEC-17). */
+/**
+ * Traduce el error; los dos 409 propios de B05 con su texto, `PROFESOR_INACTIVO` con el de PRF-08 y el resto
+ * con el catálogo (SEC-17). `MAIL_YA_REGISTRADO` con `alumno_id` dice que ya es alumna suya; sin él no dice de
+ * quién es el mail (DEC-31).
+ */
 export function falloLista(error: unknown): FalloLista {
   const message = propiedad(error, 'message');
   if (message === CUENTA_NO_PENDIENTE || message === UNION_NO_VALIDA) {
@@ -73,10 +78,15 @@ export function falloLista(error: unknown): FalloLista {
   const { codigo, mensaje } = traducirError(error);
   const detalles = codigo === 'DATOS_INVALIDOS' || codigo === 'MAIL_YA_REGISTRADO' ? detallesDe(error) : null;
   const existente = propiedad(detalles, 'alumno_id');
+  const yaEsAlumno = codigo === 'MAIL_YA_REGISTRADO' && typeof existente === 'string';
   return {
     ok: false,
     codigo,
-    mensaje,
+    mensaje: codigo === 'PROFESOR_INACTIVO'
+      ? MENSAJES_LISTA.profesorInactivo
+      : yaEsAlumno
+        ? MENSAJES_LISTA.mailYaEsTuAlumno
+        : mensaje,
     campo: codigo === 'DATOS_INVALIDOS' ? campoDe(detalles) : null,
     alumnoExistenteId: codigo === 'MAIL_YA_REGISTRADO' && typeof existente === 'string' ? existente : null,
   };
@@ -179,14 +189,41 @@ function argumentosFicha(datos: AlumnoEntrada) {
   };
 }
 
-const esquemaAlta = z.object({ alumno_id: z.string(), estado: z.enum(['aprobado', 'sin_cuenta']) });
+const esquemaAlta = z.object({
+  alumno_id: z.string(),
+  estado: z.enum(['aprobado', 'sin_cuenta']),
+  asociado: z.boolean(),
+});
 
-/** Alta (ALU-07, ALU-08): con mail, cuenta aprobada; sin mail, alumno sin cuenta. */
+/**
+ * Alta (ALU-07, ALU-08, DEC-29 b, DEC-31): con mail nuevo, persona aprobada; con el mail de una persona que ya
+ * existe, la asocia aprobada sin tocar su ficha (`asociado: true`); sin mail, alumno sin cuenta. Con el
+ * profesor inactivo, 409 `PROFESOR_INACTIVO` (PRF-08).
+ */
 export function altaAlumno(datos: AlumnoEntrada, deps: DependenciasLista): Promise<ResultadoAlta> {
   return llamar(deps, 'alta_alumno', argumentosFicha(datos), (data) => {
     const r = esquemaAlta.parse(data);
-    return { alumnoId: r.alumno_id, estado: r.estado };
+    return { alumnoId: r.alumno_id, estado: r.estado, asociado: r.asociado };
   });
+}
+
+/**
+ * PRF-08: qué puede hacer el profesor en la lista según esté activo. Inactivo, no aprueba accesos ni da de
+ * alta; sigue rechazando, uniendo y editando lo que ya tiene (la base decide igual).
+ */
+export function permisosLista(profesorActivo: boolean): {
+  aprobar: boolean;
+  rechazar: boolean;
+  alta: boolean;
+  editar: boolean;
+  unir: boolean;
+} {
+  return { aprobar: profesorActivo, rechazar: true, alta: profesorActivo, editar: true, unir: true };
+}
+
+/** DEC-32: la ficha se edita solo si `v_alumnos.editable` (la cargó él, sin usuario y sin otro profesor). */
+export function puedeEditar(alumno: AlumnoLista): boolean {
+  return alumno.editable;
 }
 
 /**

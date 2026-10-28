@@ -45,9 +45,18 @@
 }
 
 .marca {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
   margin: 0;
   font-size: var(--t-md);
   font-weight: var(--peso-fuerte);
+}
+
+.icono {
+  flex: none;
+  inline-size: var(--icono-marca);
+  block-size: var(--icono-marca);
 }
 
 .principal {

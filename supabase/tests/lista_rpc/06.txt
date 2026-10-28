@@ -1,0 +1,6 @@
+# B06 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
+# Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated.
+# T06.1: `previsualizar_serie(p_profesor_id, p_inicio, p_frecuencia)` [U,P] y
+# `solicitar_reserva(p_profesor_id, p_inicio, p_tipo, p_frecuencia, p_persona_a_cargo_id, p_observacion)` [U].
+authenticated previsualizar_serie
+authenticated solicitar_reserva

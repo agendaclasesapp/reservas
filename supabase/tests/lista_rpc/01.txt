@@ -1,5 +1,9 @@
 # B01 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
 # Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated.
+# B14 · T14.1 no agrega funciones a `public`: las nuevas viven en `privado` (mi_profesor_id, es_administrador,
+# exigir_profesor_activo, configurar_profesor de tres argumentos, configurar_administrador...). De ellas solo
+# `privado.mi_profesor_id()` la ejecuta authenticated (la usa la RLS, como es_profesor y mi_alumno_id).
+# `config_publica()` sin slug sigue aquí hasta que T14.2 la pase a 14-transicion.txt y sume `config_publica(p_slug)`.
 anon ping
 anon config_publica
 authenticated app_ahora

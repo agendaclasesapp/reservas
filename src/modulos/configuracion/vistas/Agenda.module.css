@@ -1,0 +1,124 @@
+.agenda {
+  display: grid;
+  gap: var(--e-2);
+  min-inline-size: 0;
+}
+
+.seccion {
+  display: grid;
+  gap: var(--e-3);
+  margin-block-start: var(--e-6);
+  min-inline-size: 0;
+}
+
+.seccion h2 {
+  margin: 0;
+  font-size: var(--t-xl);
+}
+
+.seccion h3 {
+  margin: 0;
+  font-size: var(--t-md);
+}
+
+.formulario {
+  display: grid;
+  gap: var(--e-3);
+  justify-items: start;
+  max-inline-size: var(--dialogo-max);
+}
+
+.formularioAncho {
+  display: grid;
+  gap: var(--e-4);
+  min-inline-size: 0;
+}
+
+.formulario > * {
+  inline-size: 100%;
+}
+
+.formulario > button,
+.formularioAncho > button {
+  inline-size: auto;
+}
+
+.ayuda {
+  margin: 0;
+  color: var(--c-texto-suave);
+}
+
+.nota {
+  margin: 0;
+  color: var(--c-texto-suave);
+  font-size: var(--t-xs);
+}
+
+.campo {
+  display: grid;
+  gap: var(--e-1);
+  min-inline-size: 0;
+}
+
+.etiqueta {
+  font-weight: var(--peso-fuerte);
+}
+
+.entrada {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: var(--tactil-min);
+  padding: var(--e-2) var(--e-3);
+  border: var(--borde-ancho) solid var(--c-borde);
+  border-radius: var(--r-md);
+  color: var(--c-texto);
+  background: var(--c-fondo);
+  font: inherit;
+}
+
+.entrada:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+.conError {
+  border-color: var(--c-error);
+  background: var(--c-error-fondo);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--t-xs);
+  font-weight: var(--peso-fuerte);
+  color: var(--c-error);
+}
+
+/* Resultado de guardar: región siempre montada para que el éxito se anuncie sin mover el foco. */
+.resultado {
+  margin: 0;
+  min-block-size: calc(var(--t-base) * var(--interlineado-cuerpo));
+  color: var(--c-exito-texto);
+  font-weight: var(--peso-fuerte);
+}
+
+.previa {
+  display: grid;
+  gap: var(--e-2);
+  padding: var(--e-3) var(--e-4);
+  border-radius: var(--r-md);
+  background: var(--c-superficie);
+}
+
+.previaLista {
+  display: grid;
+  gap: var(--e-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (width >= 37.5rem) {
+  .previaLista {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

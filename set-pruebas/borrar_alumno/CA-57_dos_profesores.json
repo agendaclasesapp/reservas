@@ -1,0 +1,17 @@
+{
+  "id": "CA-57",
+  "titulo": "A borra a una alumna con cuenta que también es de B: sus clases futuras con A se cancelan, cuenta y lo de B siguen",
+  "prueba": "tests/integracion/retencion/borrado.test.ts::CA-57_A_borra_a_Cora_sus_clases_futuras_con_A_se_cancelan_y_la_cuenta_la_ficha_y_lo_de_B_siguen",
+  "request": {
+    "metodo": "POST",
+    "url": "{{api_url}}/rest/v1/rpc/borrar_alumno",
+    "cabeceras": {
+      "apikey": "{{anon_key}}",
+      "Authorization": "Bearer {{token}}"
+    },
+    "cuerpo": {
+      "p_alumno_id": "{{alumno_id}}"
+    }
+  },
+  "notas": "token del profesor A; p_alumno_id de una persona con cuenta aprobada con A y con B. Esperado 200 {clases_canceladas:2, solicitudes_anuladas:0}"
+}

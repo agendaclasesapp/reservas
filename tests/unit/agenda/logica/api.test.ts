@@ -8,12 +8,17 @@ import {
   leerConfigPublica,
   leerHuecos,
   limitesAgenda,
+  MENSAJE_ENLACE_NO_VALIDO,
   obtenerAgendaPublica,
   obtenerConfigPublica,
-  type ConfigPublica,
+  type ConfigPublicaActiva,
 } from '../../../../src/modulos/agenda/logica';
 
-const CONFIG: ConfigPublica = {
+const SLUG = 'ana-perez';
+const CONFIG: ConfigPublicaActiva = {
+  profesor_id: 'p-ana',
+  nombre: 'Ana Pérez',
+  activo: true,
   zona_horaria: 'America/Montevideo',
   duracion_min: 60,
   anticipacion_horas: 24,
@@ -61,16 +66,40 @@ describe('leerHuecos (AGE-07, SEC-07)', () => {
   });
 });
 
-describe('obtenerAgendaPublica (ADR-017)', () => {
-  it('AGE_07_pide_agenda_publica_con_p_dia_y_devuelve_los_huecos', async () => {
+describe('obtenerAgendaPublica (ADR-017, ADR-020)', () => {
+  it('AGE_09_pide_agenda_publica_con_p_slug_y_p_dia_y_devuelve_los_huecos', async () => {
     const { cliente, rpc } = clienteFalso({ data: HUECOS, error: null });
-    await expect(obtenerAgendaPublica('2026-11-02', cliente)).resolves.toEqual(HUECOS);
-    expect(rpc).toHaveBeenCalledWith('agenda_publica', { p_dia: '2026-11-02' });
+    await expect(obtenerAgendaPublica(SLUG, '2026-11-02', cliente)).resolves.toEqual(HUECOS);
+    expect(rpc).toHaveBeenCalledWith('agenda_publica', { p_slug: SLUG, p_dia: '2026-11-02' });
+  });
+
+  it('AGE_09_el_slug_va_recortado_y_en_minusculas_como_lo_compara_la_base', async () => {
+    const { cliente, rpc } = clienteFalso({ data: [], error: null });
+    await obtenerAgendaPublica(' Ana-Perez ', '2026-11-02', cliente);
+    expect(rpc).toHaveBeenCalledWith('agenda_publica', { p_slug: SLUG, p_dia: '2026-11-02' });
+  });
+
+  it.each(['ab', 'admin', 'con espacio', '-ana', 'ana-', 'a'.repeat(31), 'ana_perez', ''])(
+    'AGE_09_un_slug_que_no_puede_ser_de_un_profesor_%s_da_404_sin_llamar_a_la_base',
+    async (slug) => {
+      const { cliente, rpc } = clienteFalso({ data: HUECOS, error: null });
+      const error: unknown = await obtenerAgendaPublica(slug, '2026-11-02', cliente).catch((e: unknown) => e);
+      expect(traducirError(error).codigo).toBe('NO_ENCONTRADO');
+      expect(rpc).not.toHaveBeenCalled();
+    },
+  );
+
+  it('AGE_11_relanza_el_409_de_profesor_inactivo', async () => {
+    const error409 = { code: 'PT409', message: 'PROFESOR_INACTIVO', details: null };
+    const { cliente } = clienteFalso({ data: null, error: error409 });
+    const error: unknown = await obtenerAgendaPublica(SLUG, '2026-11-02', cliente).catch((e: unknown) => e);
+    expect(error).toBe(error409);
+    expect(traducirError(error).codigo).toBe('PROFESOR_INACTIVO');
   });
 
   it('SEC_09_un_dia_mal_formado_da_DATOS_INVALIDOS_sin_llamar_a_la_base', async () => {
     const { cliente, rpc } = clienteFalso({ data: [], error: null });
-    const error: unknown = await obtenerAgendaPublica('2026-02-30', cliente).catch((e: unknown) => e);
+    const error: unknown = await obtenerAgendaPublica(SLUG, '2026-02-30', cliente).catch((e: unknown) => e);
     expect(traducirError(error).codigo).toBe('DATOS_INVALIDOS');
     expect(rpc).not.toHaveBeenCalled();
   });
@@ -78,7 +107,7 @@ describe('obtenerAgendaPublica (ADR-017)', () => {
   it('SEC_09_relanza_el_422_de_p_dia_fuera_de_rango', async () => {
     const error422 = { code: 'PT422', message: 'DATOS_INVALIDOS', details: '{"campo":"p_dia"}' };
     const { cliente } = clienteFalso({ data: null, error: error422 });
-    await expect(obtenerAgendaPublica('2030-01-01', cliente)).rejects.toBe(error422);
+    await expect(obtenerAgendaPublica(SLUG, '2030-01-01', cliente)).rejects.toBe(error422);
   });
 
   it('ADR_017_usa_el_cliente_rest_anonimo_contra_rpc_agenda_publica', async () => {
@@ -90,20 +119,45 @@ describe('obtenerAgendaPublica (ADR-017)', () => {
       { supabaseUrl: 'http://127.0.0.1:54321', supabaseAnonKey: 'clave-anon-de-prueba' },
       fetchFalso,
     );
-    await expect(obtenerAgendaPublica('2026-11-02', cliente)).resolves.toEqual(HUECOS);
+    await expect(obtenerAgendaPublica(SLUG, '2026-11-02', cliente)).resolves.toEqual(HUECOS);
     const [url, init] = fetchFalso.mock.calls[0]!;
     expect(String(url)).toBe('http://127.0.0.1:54321/rest/v1/rpc/agenda_publica');
     expect(init?.method).toBe('POST');
-    expect(JSON.parse(String(init?.body))).toEqual({ p_dia: '2026-11-02' });
+    expect(JSON.parse(String(init?.body))).toEqual({ p_slug: SLUG, p_dia: '2026-11-02' });
     expect(new Headers(init?.headers).get('apikey')).toBe('clave-anon-de-prueba');
   });
 });
 
-describe('config pública (AGE-02, AGE-08)', () => {
-  it('AGE_08_lee_el_huso_y_la_duracion_del_profesor', async () => {
-    const { cliente, rpc } = clienteFalso({ data: { ...CONFIG, extra: 'x' }, error: null });
-    await expect(obtenerConfigPublica(cliente)).resolves.toEqual(CONFIG);
-    expect(rpc).toHaveBeenCalledWith('config_publica');
+describe('config pública (AGE-02, AGE-08, AGE-09, AGE-11)', () => {
+  it('AGE_09_lee_nombre_huso_y_duracion_del_profesor_del_slug_y_descarta_lo_demas', async () => {
+    const { cliente, rpc } = clienteFalso({ data: { ...CONFIG, extra: 'x', mail: 'ana@example.com' }, error: null });
+    await expect(obtenerConfigPublica(SLUG, cliente)).resolves.toEqual(CONFIG);
+    expect(rpc).toHaveBeenCalledWith('config_publica', { p_slug: SLUG });
+  });
+
+  it('AGE_11_inactivo_solo_id_nombre_y_activo_false_sin_agenda', () => {
+    const inactivo = { profesor_id: 'p-ana', nombre: 'Ana Pérez', activo: false, zona_horaria: 'UTC', duracion_min: 60 };
+    expect(leerConfigPublica(inactivo)).toEqual({ profesor_id: 'p-ana', nombre: 'Ana Pérez', activo: false });
+  });
+
+  it('SEC_16_el_nombre_del_profesor_llega_como_texto_sin_tocar', () => {
+    const nombre = '<b>Ana</b> & "co"';
+    expect(leerConfigPublica({ ...CONFIG, nombre }).nombre).toBe(nombre);
+  });
+
+  it('AGE_09_rechaza_una_config_sin_profesor_nombre_o_activo', () => {
+    expect(() => leerConfigPublica({ ...CONFIG, profesor_id: '' })).toThrow(ErrorRespuestaInvalida);
+    expect(() => leerConfigPublica({ ...CONFIG, nombre: 3 })).toThrow(ErrorRespuestaInvalida);
+    expect(() => leerConfigPublica({ ...CONFIG, activo: 'si' })).toThrow(ErrorRespuestaInvalida);
+    expect(() => leerConfigPublica({ profesor_id: 'p', nombre: 'A', activo: false, extra: 1 })).not.toThrow();
+  });
+
+  it('AGE_09_un_slug_invalido_da_404_sin_llamar_y_el_texto_es_el_de_la_spec', async () => {
+    const { cliente, rpc } = clienteFalso({ data: CONFIG, error: null });
+    const error: unknown = await obtenerConfigPublica('reservas', cliente).catch((e: unknown) => e);
+    expect(traducirError(error).codigo).toBe('NO_ENCONTRADO');
+    expect(rpc).not.toHaveBeenCalled();
+    expect(MENSAJE_ENLACE_NO_VALIDO).toBe('Enlace no válido, pedile el enlace a tu profesor');
   });
 
   it('AGE_08_rechaza_una_config_sin_huso_o_con_duracion_cero', () => {
@@ -117,7 +171,7 @@ describe('config pública (AGE-02, AGE-08)', () => {
   it('AGE_08_propaga_el_error_de_la_base', async () => {
     const fallo = { message: 'Failed to fetch' };
     const { cliente } = clienteFalso({ data: null, error: fallo });
-    await expect(obtenerConfigPublica(cliente)).rejects.toBe(fallo);
+    await expect(obtenerConfigPublica(SLUG, cliente)).rejects.toBe(fallo);
   });
 });
 

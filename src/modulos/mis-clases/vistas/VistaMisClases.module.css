@@ -1,0 +1,31 @@
+.pagina {
+  display: grid;
+  gap: var(--e-6);
+}
+
+.titulo,
+.subtitulo {
+  margin: 0;
+}
+
+.clases {
+  display: grid;
+  gap: var(--e-3);
+}
+
+.grupo {
+  display: grid;
+  gap: var(--e-3);
+}
+
+.grupo > h3 {
+  margin: 0;
+}
+
+.lista {
+  display: grid;
+  gap: var(--e-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

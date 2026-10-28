@@ -1,0 +1,33 @@
+.selector {
+  display: grid;
+  gap: var(--e-3);
+}
+
+.dia {
+  margin: 0;
+  font-size: var(--t-xl);
+  line-height: var(--interlineado-titulo);
+  text-transform: capitalize;
+}
+
+.controles {
+  display: grid;
+  gap: var(--e-3);
+}
+
+.botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
+
+.calendario {
+  min-inline-size: 0;
+}
+
+@media (width >= 37.5rem) {
+  .controles {
+    grid-template-columns: auto 1fr;
+    align-items: end;
+  }
+}

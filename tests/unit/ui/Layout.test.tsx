@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Layout } from '../../../src/ui/Layout';
@@ -40,15 +40,34 @@ describe('Layout (A11Y-11, A11Y-12, A11Y-13)', () => {
         <h1>Agenda</h1>
       </Layout>,
     );
-    expect(document.title).toBe('Agenda · ReservaTuClase');
+    expect(document.title).toBe('Agenda · Agenda Clases App');
     rerender(
       <Layout titulo="Mis clases">
         <h1>Mis clases</h1>
       </Layout>,
     );
-    expect(document.title).toBe('Mis clases · ReservaTuClase');
+    expect(document.title).toBe('Mis clases · Agenda Clases App');
     rerender(<Layout>{null}</Layout>);
-    expect(document.title).toBe('ReservaTuClase');
+    expect(document.title).toBe('Agenda Clases App');
+  });
+
+  it('WEB-12 / CA-65: el encabezado muestra el nombre en texto y el ícono decorativo (alt vacío) bajo la base', async () => {
+    const { container } = render(
+      <Layout titulo="Agenda">
+        <h1>Agenda</h1>
+      </Layout>,
+    );
+    const cabecera = screen.getByRole('banner');
+    expect(within(cabecera).getByText('Agenda Clases App')).toBeTruthy();
+    const icono = cabecera.querySelector('img');
+    expect(icono).not.toBeNull();
+    expect(icono?.getAttribute('alt')).toBe('');
+    expect(icono?.getAttribute('src')).toBe(`${import.meta.env.BASE_URL}icono-192.png`);
+    expect(icono?.getAttribute('width')).toBe('40');
+    expect(icono?.getAttribute('height')).toBe('40');
+    // Decorativo: el lector de pantalla no lo anuncia, y el nombre no se repite.
+    expect(within(cabecera).queryByRole('img')).toBeNull();
+    await sinViolacionesAxe(container);
   });
 
   it('al cambiar de ruta mueve el foco al h1; en el primer render no lo roba', () => {

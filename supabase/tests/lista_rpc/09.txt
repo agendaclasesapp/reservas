@@ -1,0 +1,9 @@
+# B09 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
+# Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated.
+# T09.1: `agenda_profesor(p_dia)`, `contadores()`, `crear_clase(...)`, `mover_clase(...)` y `cancelar_clase(...)`,
+# todas [P]: las ejecuta `authenticated` y el rol (profesor) se comprueba adentro (403, SEC-06).
+authenticated agenda_profesor
+authenticated contadores
+authenticated crear_clase
+authenticated mover_clase
+authenticated cancelar_clase

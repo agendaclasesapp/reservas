@@ -21,8 +21,15 @@ export function evaluarAuth(c, { sitio }) {
   exige(!JSON.stringify(c).includes('127.0.0.1') && !JSON.stringify(c).includes('localhost'), 'la configuracion contiene 127.0.0.1 o localhost');
   exige(!JSON.stringify(c).includes('env('), 'la configuracion contiene env( sin resolver');
   exige(c.smtp_max_frequency === 60, `smtp_max_frequency = ${c.smtp_max_frequency}, se esperaba 60`);
+  // H-290, CA-65, AVI-07: el SMTP de Auth vive en el panel (no en config.toml); el Sender name es un paso manual.
+  exige(
+    c.smtp_sender_name === 'Agenda Clases App',
+    `smtp_sender_name = ${JSON.stringify(c.smtp_sender_name)}, se esperaba "Agenda Clases App": falta el paso manual del panel (Authentication > SMTP Settings > Sender name y Save), ver ops/mails.md (H-290, CA-65)`,
+  );
   exige(c.rate_limit_anonymous_users >= 1, 'rate_limit_anonymous_users debe ser >= 1');
-  exige(typeof c.rate_limit_sign_in_sign_ups === 'number', 'falta rate_limit_sign_in_sign_ups explicito');
+  // La API de gestion no tiene `rate_limit_sign_in_sign_ups`: el [auth.rate_limit] sign_in_sign_ups del config.toml
+  // viaja como `rate_limit_otp` (y token_verifications como `rate_limit_verify`). H-280.
+  exige(['rate_limit_otp', 'rate_limit_sign_in_sign_ups'].some((k) => typeof c[k] === 'number'), 'falta el limite de ingresos (rate_limit_otp) explicito');
   exige(['rate_limit_verify', 'rate_limit_otp', 'rate_limit_token_verifications'].some((k) => typeof c[k] === 'number'), 'falta el limite de verificaciones de codigo');
   exige(c.external_google_enabled === true, 'Google no esta habilitado');
   exige(c.external_anonymous_users_enabled !== true, 'los ingresos anonimos deben estar apagados');

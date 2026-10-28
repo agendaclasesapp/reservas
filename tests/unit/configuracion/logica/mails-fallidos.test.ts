@@ -5,6 +5,8 @@ import {
   MOTIVO_DESTINATARIO_INVALIDO,
   MOTIVO_SIN_CONFIRMACION,
   MOTIVO_TOPE,
+  MOTIVO_TOPE_GLOBAL,
+  esTopeGlobal,
   TIPOS_MAIL,
   VISTA_MAILS_FALLIDOS,
   clasificarMotivo,
@@ -64,6 +66,15 @@ describe('leerMailsFallidos', () => {
 describe('clasificarMotivo', () => {
   it('AVI_08_TOPE_es_tope', () => {
     expect(clasificarMotivo(MOTIVO_TOPE)).toBe('tope');
+    expect(esTopeGlobal(MOTIVO_TOPE)).toBe(false);
+  });
+
+  it('AVI_08_TOPE_GLOBAL_es_tope_y_se_distingue_del_del_profesor', () => {
+    expect(MOTIVO_TOPE_GLOBAL).toBe('TOPE_GLOBAL');
+    expect(clasificarMotivo(MOTIVO_TOPE_GLOBAL)).toBe('tope');
+    expect(esTopeGlobal(MOTIVO_TOPE_GLOBAL)).toBe(true);
+    expect(esTopeGlobal(null)).toBe(false);
+    expect(clasificarMotivo('TOPE_GLOBAL ')).toBe('envio');
   });
 
   it('NFR_07_SIN_CONFIRMACION_y_errores_smtp_se_distinguen', () => {
@@ -85,8 +96,10 @@ describe('clasificarMotivo', () => {
 });
 
 describe('esquemaMailFallido', () => {
-  it('NFR_07_acepta_los_nueve_tipos_del_contrato_y_exige_uuid', () => {
-    expect(TIPOS_MAIL).toHaveLength(9);
+  it('NFR_07_acepta_los_once_tipos_del_contrato_y_exige_uuid', () => {
+    // B14 (ADR-019, contratos.md §4): suma `alumno_sumado` (AVI-04) y `profesor_alta`.
+    expect(TIPOS_MAIL).toHaveLength(11);
+    expect(TIPOS_MAIL).toEqual(expect.arrayContaining(['alumno_sumado', 'profesor_alta']));
     for (const tipo of TIPOS_MAIL) expect(esquemaMailFallido.safeParse({ ...FILA, tipo }).success).toBe(true);
     expect(esquemaMailFallido.safeParse({ ...FILA, id: 'x' }).success).toBe(false);
   });

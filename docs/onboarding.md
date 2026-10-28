@@ -1,20 +1,20 @@
 ---
-titulo: Onboarding · ReservaTuClase
-version: 0.5
-fecha: 2026-10-22
+titulo: Onboarding · Agenda Clases App
+version: 0.12
+fecha: 2026-10-28
 publico: equipo nuevo
 ---
-# Onboarding · ReservaTuClase
+# Onboarding · Agenda Clases App
 
-> Estado: **B01 (plataforma) construido**. La web y la base tienen su estructura, scripts y pipeline; las funciones de los módulos se suman por bolt. Lo marcado «(diseñado)» aún no existe.
+> Estado: **construidos B01 a B05, B14 (varios profesores), B15 (Administrador) y B06 (pedir clases)**. Lo marcado «(diseñado)» aún no existe. Desde el último hito también están construidos B07 (responder solicitudes, Mis clases), B08 (mover y avisar que no voy), B09 (panel del profesor y gestión directa) y B11 (retención, recordatorios y borrado de alumnos); falta B10 (bloqueos).
 
 ## 1. Qué es
 
-Aplicación web gratuita para un profesor de tenis. Cualquiera ve los huecos libres de la agenda; los alumnos aprobados piden, mueven o cancelan clases; el profesor confirma cada pedido y es el único que ve quién ocupa cada hueco. Hay un solo profesor, pero todo dato queda asociado a un profesor para sumar más en el futuro (spec §1). Fuera de alcance: pagos, WhatsApp, feriados automáticos, app instalable, dominio propio.
+**Agenda Clases App** (el nombre visible del producto desde CR-003; el slug interno sigue siendo `reservatuclase`) es una aplicación web gratuita para profesores de tenis. Cada profesor tiene su enlace (`#/p/<slug>`); cualquiera que lo abre ve los huecos libres de su agenda; los alumnos aprobados por ese profesor piden, mueven o cancelan clases; el profesor confirma cada pedido y es el único que ve quién ocupa cada hueco. Hay varios profesores (CR-002): una persona tiene una sola cuenta y un vínculo con cada profesor, y un Administrador, el dueño del servicio, da de alta y pausa profesores (spec §1; ver `funcional/varios-profesores.md` y `tecnica/varios-profesores-b14.md`). Fuera de alcance: pagos, WhatsApp, feriados automáticos, app instalable, dominio propio.
 
 ## 2. Actores
 
-Visitante, alumno pendiente, alumno (titular), persona a cargo (no inicia sesión), alumno sin cuenta (no inicia sesión ni recibe mails), profesor (único administrador), proceso programado (pg_cron) y tarea de mantenimiento (GitHub Actions). Detalle en spec §2.
+Visitante, alumno pendiente, alumno (titular), persona a cargo (no inicia sesión), alumno sin cuenta (no inicia sesión ni recibe mails), profesor (administra solo su agenda), Administrador (dueño del servicio; no ve datos de alumnos), proceso programado (pg_cron) y tarea de mantenimiento (GitHub Actions). Detalle en spec §2.
 
 ## 3. Piezas (diseñado)
 
@@ -28,7 +28,7 @@ Visitante, alumno pendiente, alumno (titular), persona a cargo (no inicia sesió
 | C6 | Auth | Google (PKCE) y código de 6 dígitos sin enlaces |
 | C7 | Pipeline y operación | CI, despliegue, keep-alive cada 3 días |
 
-Fuente: `.aidlc/reservatuclase/arquitectura/componentes.md`; decisiones en `arquitectura/adr/` (ADR-001..017).
+Fuente: `.aidlc/reservatuclase/arquitectura/componentes.md`; decisiones en `arquitectura/adr/` (ADR-001..021).
 
 ## 4. Cómo se levanta en local
 
@@ -52,6 +52,19 @@ Los mails salen al buzón de prueba local (Mailpit); ahí se ve el código de in
 | `npm run test:integracion` | Sí | Vitest contra el stack local (toma el entorno de `supabase status`, nunca de la nube) |
 | `npm run build` y luego `npm run test:e2e` | Sí | Playwright en chromium contra el bundle servido por `preview` (puerto 4173 por defecto, `RTC_PREVIEW_PORT`) |
 | `npm run seguridad:dist` | No (necesita `dist/`) | Escaneo de credenciales en lo compilado |
+| `RTC_DEPENDENCIAS=1 npx playwright test tests/e2e/dependencias.spec.ts --project=chromium` | Sí (baja y sube Kong) | Opt-in: API caída muestra error y «Reintentar» (`tecnica/plataforma.md` §11) |
+| `node perf/preparar.mjs` y luego `node perf/medir-agenda.mjs …` | Sí | Mediciones de rendimiento de la agenda con Fast 4G (`tecnica/plataforma.md` §10) |
+
+**Rearmar el entorno limpio** (como en la verificación, `.aidlc/reservatuclase/verificacion/entorno.md`; Git Bash con Docker Desktop en el `PATH`):
+
+    npx supabase stop --no-backup && npx supabase start      # base y seed desde cero, aplica las migraciones
+    npm ci
+    # compilar con VITE_SUPABASE_URL=http://127.0.0.1:54321, VITE_SUPABASE_ANON_KEY=<sb_publishable_ de `npx supabase status`>
+    # y VITE_TURNSTILE_SITEKEY=1x00000000000000000000AA; no definir VITE_BASE en Git Bash
+    npm run build
+    node scripts/seguridad/escanear-dist.mjs dist --ref 127  # en local `npm run seguridad:dist` a secas falla por la clave demo (H-442)
+
+`npx supabase db reset` solo para volver al estado del seed. Playwright levanta `vite preview` por su cuenta. Entre tandas de E2E que repiten el login del mismo profesor, esperar más de 60 s (límite de Auth, H-421). Versiones probadas y diferencias con producción: `entorno.md` §1 y §7.
 
 **Notas para correr las pruebas (B02 a B05):**
 - **CAPTCHA de prueba.** El pedido de código exige el desafío. En local y en CI se usan las claves de prueba públicas de Cloudflare que ya trae `.env.example`; el E2E de ingreso necesita salida a internet porque carga el script de Turnstile.
@@ -61,7 +74,7 @@ Los mails salen al buzón de prueba local (Mailpit); ahí se ve el código de in
 
 **Producción:** proyecto Supabase Free, Gmail 465 desde la cuenta dedicada `agendaclasesapp@gmail.com` (`GMAIL_USER`, `GMAIL_APP_PASSWORD` como secretos, la contraseña sin espacios; DEC-15), web en `https://agendaclasesapp.github.io/reservas/` (DEC-14). El despliegue de la función va sin Docker (`--use-api`), la conexión a la base por el pooler de sesión `aws-1-sa-east-1` y `config push` detrás del guardia de `config diff` (ADR-012). Operación y secretos en `ops/` (ADR-012). Guías de producción: `ops/puesta-en-marcha.md`, `ops/auth.md`, `ops/mails.md`, `ops/rotacion.md`, `ops/incidentes.md` y `ops/verificar-repo.md`; política de seguridad en `SECURITY.md`.
 
-**Puesta en marcha en producción (diseñado):** antes del primer ingreso del profesor hay que correr a mano `privado.configurar_profesor` con su mail, porque el repositorio es público y no lleva datos personales (ADR-015). Revisar cada semana `privado.ejecucion_proceso` (`ops/operacion.md`).
+**Puesta en marcha en producción:** el repositorio es público y no lleva datos personales: antes del primer ingreso el operador corre a mano `privado.configurar_administrador('<mail>')`; los profesores se dan de alta desde `#/admin` (B15) y `privado.configurar_profesor('<mail>', '<nombre>', '<slug>')` queda como herramienta del operador. Opcional: el secreto de Vault `url_sitio` para que el mail de alta lleve el enlace completo. Pasos en `ops/puesta-en-marcha.md`. Para pasar una instalación de un solo profesor a varios, seguir `ops/migracion-multiprofesor.md` (migración en dos fases, desplegada por tramos `prod-b14` → `prod-b15a` → `prod-b15b` → `prod-b06`, con vuelta atrás ensayada hasta la contracción). Revisar cada semana `privado.ejecucion_proceso`.
 
 ## 5. Dónde está cada cosa
 
@@ -73,25 +86,31 @@ Los mails salen al buzón de prueba local (Mailpit); ahí se ve el código de in
 | `tests/unit`, `tests/integracion`, `tests/e2e` | Pruebas |
 | `.github/workflows/`, `scripts/seguridad/`, `ops/` | Pipeline y guía de operación |
 | `docs/` | Esta documentación; `docs/specs/` es la especificación |
-| `.aidlc/reservatuclase/` | Artefactos del ciclo: requisitos, arquitectura (ADR-001..017), ux, calidad (plan de 117 casos en `calidad/casos/`), estado |
+| `.aidlc/reservatuclase/` | Artefactos del ciclo: requisitos, arquitectura (ADR-001..021), ux, calidad (plan de 117 casos en `calidad/casos/`), estado |
 
 ## 6. Reglas que conviene saber antes de tocar nada
 
 - Los permisos los aplica solo RLS (ADR-001); la SPA no autoriza.
 - Un hueco admite una sola reserva pendiente o confirmada, garantizado por la base (RES-01, ADR-002).
-- Un solo huso horario: el del profesor (ADR-004).
+- Un solo huso horario por profesor (ADR-004); cada reserva guarda el huso con que se creó, así que cambiar el huso no mueve clases ni series ya pactadas (ADR-022).
 - Las series se materializan con horizonte de 26 semanas (ADR-003).
-- Se anonimiza en lugar de borrar (ADR-011).
+- Se anonimiza en lugar de borrar (ADR-011): a los 6 meses de la última clase con cualquier profesor, con aviso 7 días antes (ALU-10, AVI-06). DEC-39 (período de gracia si el proceso estuvo parado) se cerró sin gracia: si el proceso estuvo parado más de 7 días, quien opera revisa a mano antes de reactivarlo (`ops/operacion.md` §5).
+- Los procesos programados `recordatorios` y `retencion` se revisan cada semana con `ops/operacion.md`.
 - La hora de negocio sale de `public.app_ahora()`, nunca de `now()`; el reloj de prueba solo se habilita en local con `seed.sql` (ADR-014).
 - El rol y el vínculo con alumno o profesor se asignan solo con el mail confirmado (ADR-007).
-- Topes anti-abuso fijos por CR-001 (DEC-12): 5 solicitudes pendientes por alumno, 10 fichas por hora, 20 mails por hora y 200 por día; cambiarlos exige un CR. El pedido de código lleva CAPTCHA (Turnstile, DEC-13).
+- Topes anti-abuso fijos (DEC-12, DEC-27): 10 solicitudes pendientes por alumno con cada profesor, 10 fichas por hora por profesor de origen, 20 mails por hora y 200 por día por profesor y 400 por día en toda la aplicación; cambiarlos exige un CR. El pedido de código lleva CAPTCHA (Turnstile, DEC-13).
 - El motivo de rechazo de una cuenta se muestra a esa cuenta y se borra con la retención (DEC-22, ALU-10).
-- La agenda pública se lee con `postgrest-js` y `supabase-js` se carga diferido (ADR-017); las rutas de la SPA son `#/`, `#/ingreso`, `#/ficha`, `#/solicitud`, `#/mis-clases`, `#/panel`, `#/lista` y `#/configuracion` (ADR-007).
+- La agenda pública se lee con `postgrest-js` y `supabase-js` se carga diferido (ADR-017); las rutas de la SPA son `#/`, `#/p/<slug>` (agenda de un profesor), `#/ingreso`, `#/ficha`, `#/solicitud`, `#/mis-clases`, `#/panel`, `#/lista`, `#/configuracion` y `#/admin` (ADR-007, ADR-020).
+- Una persona es una sola ficha; el vínculo con cada profesor es una `inscripcion` y los permisos por profesor los aplica RLS (ADR-018). Nunca se lista a los profesores: se entra por el enlace.
+- Los mails de un profesor salen con su nombre y Reply-To; los de la aplicación y los códigos de ingreso, como «Agenda Clases App» (ADR-019, CR-003).
 - Las decisiones DEC-01..23 están cerradas en G1: ver `.aidlc/reservatuclase/analisis/decisiones-abiertas.md` (la tabla de arriba es la vigente). Los cambios que trajeron están en `.aidlc/reservatuclase/cambios/CR-001.md`.
+
+- **Accesibilidad y celular (B12).** Todo control táctil mide al menos 44 px (`--tactil-min`); un enlace que va solo en su renglón usa `EnlaceAccion` de `src/ui/`, no un `<a>` suelto. Las pruebas `accesibilidad.spec.ts` y `celular.spec.ts` fallan si una pantalla nueva rompe axe, desborda a 360 px o tiene controles chicos. Detalle y verificación manual pendiente en `tecnica/plataforma.md` §9.
+- **Rendimiento (B13).** La agenda debe verse en menos de 2 s (p95) con Fast 4G; «4G» es Fast 4G por DEC-41, no Slow 4G. `#/p/<slug>` pide la configuración y los huecos del día a la vez y `src/main.tsx` adelanta esa carga desde la entrada (`src/modulos/agenda/logica/precarga.ts`): no la vuelvas a poner en serie. Para medir, `perf/` (ver `tecnica/plataforma.md` §10). Los scripts de `perf/` y de pruebas solo aceptan un stack local (`esLocal`).
 
 ## 7. Glosario
 
-Grilla semanal (tramos horarios por día), tramo, hueco (espacio de una clase), libre/ocupado/bloqueado, bloqueo, anticipación mínima, titular, persona a cargo, alumno sin cuenta, alumno pendiente, ficha, reserva, serie, solicitud, alcance («solo esta clase» / «de acá en adelante»), unión de alumnos, teléfono normalizado, RLS, registro de mails fallidos. Definiciones completas: `.aidlc/reservatuclase/analisis/glosario.md`.
+Enlace del profesor, vínculo, serie (clases que se repiten cada semana o cada quince días), solicitud pendiente (pedido de clase que espera respuesta), profesor inactivo (pausa), Administrador, Agenda Clases App, grilla semanal (tramos horarios por día), tramo, hueco (espacio de una clase), libre/ocupado/bloqueado, bloqueo, anticipación mínima, titular, persona a cargo, alumno sin cuenta, alumno pendiente, ficha, reserva, serie, solicitud, alcance («solo esta clase» / «de acá en adelante»), unión de alumnos, teléfono normalizado, RLS, registro de mails fallidos. Definiciones completas: `.aidlc/reservatuclase/analisis/glosario.md`. Perfil 4G (el preset «Fast 4G» de Chrome DevTools: 9 Mbit/s y 165 ms; DEC-41).
 
 ## 8. A quién preguntar
 
@@ -106,3 +125,10 @@ Por área, según los perfiles del ciclo: requisitos (funcional), diseño técni
 | 0.3 | 2026-10-21 | construcción (hito spikes S01-S03 y CR-001) | CR-001, DEC-12..15, DEC-22, ADR-005, 007, 012, 017 | SMTP local, URL de la función, cuenta y sitio de producción, despliegue sin Docker, topes y CAPTCHA fijos, decisiones cerradas |
 | 0.4 | 2026-10-21 | B01 | SEC-12, SEC-13, SEC-16, SEC-20, ADR-007, 012, 016, 017 | Arranque local (`npx supabase`, `.env.example`, scripts), cómo correr cada suite, enlaces a `ops/` y `tecnica/plataforma.md` |
 | 0.5 | 2026-10-22 | B02-B05 | SEC-16, CA-44 | Notas para correr las pruebas: CAPTCHA de prueba, reinicio del stack, `AIDLC_EVIDENCIAS` |
+| 0.6 | 2026-10-23 | B14 | CR-002, CR-003, ADR-018..021, ADM-01, WEB-12, DEC-25..37 | Varios profesores, Administrador, enlace por profesor, topes nuevos, puesta en marcha y migración; nombre «Agenda Clases App» |
+| 0.7 | 2026-10-23 | B15, B06 | ADM-02, ADM-05, SOL-10, ADR-021, DEC-38 | Estado de los bolts construidos, alta de profesores desde `#/admin`, secreto `url_sitio`, despliegue por tramos, glosario |
+| 0.8 | 2026-10-23 | B07, B08, B09, B11 | ALU-10, AVI-05, AVI-06, DEC-39, SEC-28 | Estado de los bolts construidos, retención y runbook de operación |
+| 0.9 | 2026-10-26 | B10, B11 | AGE-08, DEC-39, ADR-022 | Huso por reserva y DEC-39 cerrada |
+| 0.10 | 2026-10-28 | B12 | NFR-05, NFR-06, CA-37, CA-38 | Regla de accesibilidad y uso en celular |
+| 0.11 | 2026-10-28 | B13 | NFR-04, CA-36, DEC-41 | Regla de rendimiento, Fast 4G y cómo medir con `perf/` |
+| 0.12 | 2026-10-28 | verificación | NFR-02, H-421, H-442 | Prueba opt-in de dependencias y cómo rearmar el entorno limpio |

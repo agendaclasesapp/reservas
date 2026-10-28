@@ -2,20 +2,25 @@
 // Tabla en escritorio y tarjetas en pantallas angostas, con estado (texto + ícono), ficha completa y edad.
 // Nombres, mails y motivos se muestran siempre como texto (SEC-16).
 import { Boton, Insignia, Vacio } from '../../../ui';
-import type { AlumnoLista } from '../logica';
-import { formatearNacimiento, INSIGNIA_ESTADO, nombreVisible, textoEdad, textoOpcional } from './formato';
+import { MENSAJES_LISTA, nombreVisible, puedeEditar, type AlumnoLista } from '../logica';
+import { formatearNacimiento, INSIGNIA_ESTADO, textoEdad, textoOpcional } from './formato';
 import estilos from './ListaAlumnos.module.css';
 
 export type ListaAlumnosProps = {
   alumnos: readonly AlumnoLista[];
   /** Alumno con una operación en curso: su botón queda `aria-busy`. */
   ocupadoId?: string | null;
+  /** false con el profesor inactivo (PRF-08): «Aprobar» y «Agregar alumno» quedan deshabilitados. */
+  puedeAprobar?: boolean;
+  puedeAgregar?: boolean;
   onAgregar: () => void;
   onEditar: (alumno: AlumnoLista) => void;
   /** Aprobar una cuenta rechazada (`aprobar_cuenta` acepta pendiente o rechazada). */
   onAprobar: (alumno: AlumnoLista) => void;
   /** Revisar si una cuenta aprobada tiene un alumno sin cuenta para unir (ALU-04). */
   onRevisarUnion: (alumno: AlumnoLista) => void;
+  /** Abre el diálogo de confirmación de «Borrar alumno» (ALU-12). Siempre disponible, también con el profesor inactivo. */
+  onBorrar: (alumno: AlumnoLista) => void;
 };
 
 const ID_TITULO = 'lista-alumnos-titulo';
@@ -23,22 +28,32 @@ const ID_TITULO = 'lista-alumnos-titulo';
 function Acciones({
   alumno,
   ocupadoId,
+  puedeAprobar,
   onEditar,
   onAprobar,
   onRevisarUnion,
-}: { alumno: AlumnoLista } & Pick<ListaAlumnosProps, 'ocupadoId' | 'onEditar' | 'onAprobar' | 'onRevisarUnion'>) {
+  onBorrar,
+}: { alumno: AlumnoLista; puedeAprobar: boolean } & Pick<
+  ListaAlumnosProps,
+  'ocupadoId' | 'onEditar' | 'onAprobar' | 'onRevisarUnion' | 'onBorrar'
+>) {
   const nombre = nombreVisible(alumno.nombre);
   const ocupado = ocupadoId === alumno.id;
   return (
     <div className={estilos.acciones}>
-      <Boton variante="secundario" aria-label={`Editar a ${nombre}`} onClick={() => onEditar(alumno)}>
-        Editar
-      </Boton>
+      {puedeEditar(alumno) ? (
+        <Boton variante="secundario" aria-label={`Editar a ${nombre}`} onClick={() => onEditar(alumno)}>
+          Editar
+        </Boton>
+      ) : (
+        <span className={estilos.noEditable}>Ficha no editable</span>
+      )}
       {alumno.estado === 'rechazado' ? (
         <Boton
           aria-label={`Aprobar cuenta de ${nombre}`}
           cargando={ocupado}
           textoCargando="Aprobando…"
+          deshabilitado={!puedeAprobar}
           onClick={() => onAprobar(alumno)}
         >
           Aprobar
@@ -55,18 +70,33 @@ function Acciones({
           Revisar unión
         </Boton>
       ) : null}
+      <Boton variante="peligro" aria-label={`Borrar a ${nombre}`} onClick={() => onBorrar(alumno)}>
+        Borrar
+      </Boton>
     </div>
   );
 }
 
-export function ListaAlumnos({ alumnos, ocupadoId = null, onAgregar, onEditar, onAprobar, onRevisarUnion }: ListaAlumnosProps) {
+export function ListaAlumnos({
+  alumnos,
+  ocupadoId = null,
+  puedeAprobar = true,
+  puedeAgregar = true,
+  onAgregar,
+  onEditar,
+  onAprobar,
+  onRevisarUnion,
+  onBorrar,
+}: ListaAlumnosProps) {
   return (
     <section aria-labelledby={ID_TITULO} className={estilos.seccion}>
       <div className={estilos.cabecera}>
         <h2 id={ID_TITULO} className={estilos.titulo}>
           Alumnos
         </h2>
-        <Boton onClick={onAgregar}>Agregar alumno</Boton>
+        <Boton deshabilitado={!puedeAgregar} onClick={onAgregar}>
+          Agregar alumno
+        </Boton>
       </div>
       {alumnos.length === 0 ? (
         <Vacio
@@ -122,9 +152,11 @@ export function ListaAlumnos({ alumnos, ocupadoId = null, onAgregar, onEditar, o
                     <Acciones
                       alumno={alumno}
                       ocupadoId={ocupadoId}
+                      puedeAprobar={puedeAprobar}
                       onEditar={onEditar}
                       onAprobar={onAprobar}
                       onRevisarUnion={onRevisarUnion}
+                      onBorrar={onBorrar}
                     />
                   </td>
                 </tr>
@@ -133,6 +165,7 @@ export function ListaAlumnos({ alumnos, ocupadoId = null, onAgregar, onEditar, o
           </tbody>
         </table>
       )}
+      {alumnos.some((a) => !puedeEditar(a)) ? <p className={estilos.nota}>{MENSAJES_LISTA.noEditable}</p> : null}
     </section>
   );
 }

@@ -1,0 +1,17 @@
+{
+  "id": "CA-45",
+  "titulo": "A borra a una cuenta rechazada con motivo: inscripcion.motivo_estado queda nulo",
+  "prueba": "tests/integracion/retencion/borrado.test.ts::CA-45_A_borra_a_una_cuenta_rechazada_con_motivo_y_inscripcion_motivo_estado_queda_nulo_con_la_cuenta_en_pie",
+  "request": {
+    "metodo": "POST",
+    "url": "{{api_url}}/rest/v1/rpc/borrar_alumno",
+    "cabeceras": {
+      "apikey": "{{anon_key}}",
+      "Authorization": "Bearer {{token}}"
+    },
+    "cuerpo": {
+      "p_alumno_id": "{{alumno_id}}"
+    }
+  },
+  "notas": "Esperado 200; la cuenta de Auth sigue"
+}

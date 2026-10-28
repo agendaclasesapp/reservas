@@ -1,0 +1,130 @@
+.huecos {
+  display: grid;
+  gap: var(--e-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  min-inline-size: 0;
+}
+
+.fila {
+  display: grid;
+  gap: var(--e-1);
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: var(--tactil-min);
+  padding: var(--e-2) var(--e-4);
+  border: var(--borde-ancho) solid var(--c-borde);
+  border-radius: var(--r-md);
+  background: var(--c-fondo);
+  color: var(--c-texto);
+  font: inherit;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2);
+}
+
+.estados {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-2);
+}
+
+.hora {
+  font-size: var(--t-md);
+  font-weight: var(--peso-fuerte);
+}
+
+.dato {
+  display: block;
+  font-size: var(--t-base);
+}
+
+.aparte {
+  display: block;
+  color: var(--c-texto-suave);
+  font-size: var(--t-xs);
+}
+
+.libre {
+  border-color: var(--c-libre-borde);
+}
+
+.ocupado {
+  border-color: var(--c-ocupado-borde);
+  background: var(--c-ocupado-fondo);
+}
+
+.bloqueado {
+  border-color: var(--c-bloqueado-borde);
+  border-style: dotted;
+  background: var(--patron-bloqueado), var(--c-bloqueado-fondo);
+}
+
+.boton {
+  cursor: pointer;
+  transition: background-color var(--mov);
+}
+
+.boton:hover {
+  background: var(--c-libre-fondo);
+}
+
+.ocupado.boton:hover {
+  background: var(--c-superficie);
+}
+
+.boton:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+.seleccionada {
+  box-shadow: var(--s-1);
+  border-color: var(--c-primario);
+}
+
+.enlace {
+  color: var(--c-primario);
+  text-decoration: underline;
+}
+
+.enlace:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+.soloLectores {
+  position: absolute;
+  inline-size: var(--medida-minima);
+  block-size: var(--medida-minima);
+  margin: calc(-1 * var(--medida-minima));
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (width >= 37.5rem) {
+  .huecos {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boton {
+    transition: none;
+  }
+}

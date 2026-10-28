@@ -17,6 +17,15 @@ describe('SEC-04 lista de RPC', () => {
     expect(m.get('app_ahora')).toBe('authenticated');
   });
 
+  it('SEC-04_B14_B15_la_lista_trae_pedir_inscripcion_para_authenticated_y_como_unica_RPC_de_alta_de_profesor_alta_profesor_de_B15_sin_RPC_de_Administrador_ni_configurar', () => {
+    const m = new Map(filas);
+    expect(m.get('pedir_inscripcion')).toBe('authenticated');
+    expect(m.get('completar_ficha')).toBe('authenticated');
+    // CA-49: la única RPC de alta de profesor es alta_profesor (B15, [Adm]: 403 a quien no es Administrador); ninguna configura ni crea Administradores.
+    expect(filas.map(([f]) => f).filter((f) => /administrador|alta_profesor|configurar/.test(f))).toEqual(['alta_profesor']);
+    expect(m.get('alta_profesor')).toBe('authenticated');
+  });
+
   it('SEC-04_anon_solo_ping_config_publica_y_agenda_publica', () => {
     const anon = filas.filter(([, r]) => r === 'anon').map(([f]) => f);
     expect(anon.filter((f) => !['ping', 'config_publica', 'agenda_publica'].includes(f))).toEqual([]);

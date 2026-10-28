@@ -1,0 +1,52 @@
+.seccion {
+  display: grid;
+  gap: var(--e-3);
+}
+
+.titulo,
+.subtitulo {
+  margin: 0;
+}
+
+.subtitulo {
+  font-size: var(--t-md);
+}
+
+.cuenta {
+  margin: 0;
+  color: var(--c-texto-suave);
+}
+
+.lista {
+  display: grid;
+  gap: var(--e-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.grupo {
+  display: grid;
+  gap: var(--e-3);
+}
+
+/* Región del resultado de cada respuesta: siempre en el DOM para que el anuncio llegue al lector de pantalla. */
+.resultado {
+  min-inline-size: 0;
+}
+
+.resultado:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+.exito {
+  display: flex;
+  align-items: center;
+  gap: var(--e-2);
+  margin: 0;
+  padding: var(--e-3) var(--e-4);
+  border-radius: var(--r-md);
+  color: var(--c-exito-texto);
+  background: var(--c-exito-fondo);
+}

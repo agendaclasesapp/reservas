@@ -15,9 +15,9 @@ function textos(): string[] {
 }
 
 describe('Navegacion (C-13, NFR-05, NFR-06)', () => {
-  it('visitante: Agenda e Ingresar, sin Salir', () => {
+  it('visitante: Inicio e Ingresar, sin Salir (WEB-09: el inicio no es una agenda)', () => {
     render(<Navegacion ruta="/" onSalir={() => undefined} />);
-    expect(textos()).toEqual(['Agenda', 'Ingresar']);
+    expect(textos()).toEqual(['Inicio', 'Ingresar']);
     expect(screen.getByRole('link', { name: 'Ingresar' }).getAttribute('href')).toBe('#/ingreso');
   });
 
@@ -34,6 +34,8 @@ describe('Navegacion (C-13, NFR-05, NFR-06)', () => {
     [{ rol: 'alumno', estado: 'sin_cuenta' }, ['Agenda']],
     [{ rol: 'alumno', estado: 'borrado' }, ['Agenda']],
     [{ rol: 'profesor' }, ['Panel', 'Lista', 'Configuración']],
+    [{ rol: 'profesor', esAdministrador: true }, ['Panel', 'Lista', 'Configuración', 'Administración']],
+    [{ rol: 'administrador' }, ['Administración']],
   ])('usuario %j ve %j', (usuario, esperado) => {
     render(<Navegacion ruta="/ficha" usuario={usuario} />);
     expect(textos()).toEqual(esperado);
@@ -44,6 +46,29 @@ describe('Navegacion (C-13, NFR-05, NFR-06)', () => {
     expect(screen.getByRole('link', { name: 'Mis clases' }).getAttribute('aria-current')).toBe('page');
     expect(screen.getByRole('link', { name: 'Agenda' }).hasAttribute('aria-current')).toBe(false);
     expect(screen.getByRole('link', { name: 'Mi ficha' }).hasAttribute('aria-current')).toBe(false);
+  });
+
+  it('WEB_10_el_Administrador_ve_Administracion_que_lleva_a_admin_y_Salir', () => {
+    render(<Navegacion ruta="/admin" usuario={{ rol: 'administrador' }} onSalir={() => undefined} />);
+    expect(textos()).toEqual(['Administración', 'Salir']);
+    const enlace = screen.getByRole('link', { name: 'Administración' });
+    expect(enlace.getAttribute('href')).toBe('#/admin');
+    expect(enlace.getAttribute('aria-current')).toBe('page');
+  });
+
+  it('WEB_11_Agenda_de_la_persona_apunta_a_la_ruta_de_su_profesor_y_se_marca_en_ella', () => {
+    const { rerender } = render(
+      <Navegacion ruta="/mis-clases" usuario={{ rol: 'alumno', estado: 'aprobado' }} rutaAgenda="/p/beto-gomez" />,
+    );
+    expect(screen.getByRole('link', { name: 'Agenda' }).getAttribute('href')).toBe('#/p/beto-gomez');
+    expect(screen.getByRole('link', { name: 'Agenda' }).hasAttribute('aria-current')).toBe(false);
+    rerender(<Navegacion ruta="/p/beto-gomez" usuario={{ rol: 'alumno', estado: 'aprobado' }} rutaAgenda="/p/beto-gomez" />);
+    expect(screen.getByRole('link', { name: 'Agenda' }).getAttribute('aria-current')).toBe('page');
+  });
+
+  it('WEB_11_sin_rutaAgenda_la_Agenda_de_la_persona_lleva_al_inicio_que_decide', () => {
+    render(<Navegacion ruta="/ficha" usuario={{ rol: 'alumno', estado: 'pendiente' }} />);
+    expect(screen.getByRole('link', { name: 'Agenda' }).getAttribute('href')).toBe('#/');
   });
 
   it('"Salir" llama a onSalir', async () => {
@@ -69,7 +94,7 @@ describe('Navegacion (C-13, NFR-05, NFR-06)', () => {
     const menu = screen.getByRole('button', { name: 'Menú' });
     await userEvent.click(menu);
     await userEvent.tab();
-    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'Agenda' }));
+    expect(document.activeElement).toBe(screen.getByRole('link', { name: 'Inicio' }));
     await userEvent.keyboard('{Escape}');
     expect(menu.getAttribute('aria-expanded')).toBe('false');
     expect(document.activeElement).toBe(menu);
@@ -99,12 +124,13 @@ describe('Navegacion (C-13, NFR-05, NFR-06)', () => {
     await sinViolacionesAxe(container);
   });
 
-  it('sin violaciones de axe: visitante, alumno y profesor, con el menú abierto y cerrado', async () => {
+  it('sin violaciones de axe: visitante, alumno, profesor y Administrador, con el menú abierto y cerrado', async () => {
     const { container } = render(
       <>
         <Navegacion ruta="/" etiqueta="Visitante" />
         <Navegacion ruta="/ficha" etiqueta="Alumno" usuario={{ rol: 'alumno', estado: 'aprobado' }} onSalir={() => undefined} />
         <Navegacion ruta="/panel" etiqueta="Profesor" usuario={{ rol: 'profesor' }} onSalir={() => undefined} />
+        <Navegacion ruta="/admin" etiqueta="Administrador" usuario={{ rol: 'administrador' }} onSalir={() => undefined} />
       </>,
     );
     await sinViolacionesAxe(container);

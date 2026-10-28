@@ -1,7 +1,7 @@
 ---
 titulo: Técnica · Base de datos, RPC y errores construidos (B02 a B05)
-version: 0.1
-fecha: 2026-10-22
+version: 0.4
+fecha: 2026-10-26
 publico: equipo técnico
 ---
 # Base de datos, RPC y errores construidos (B02 a B05)
@@ -31,14 +31,14 @@ Las migraciones ya aplicadas no se editan: un cambio nuevo va en una migración 
 
 | RPC | Rol | Bolt | Notas |
 | --- | --- | --- | --- |
-| `agenda_publica(p_dia)` | anon y alumno | B02 | `[{inicio, fin, estado}]` con libre, ocupado o bloqueado; nada más. Día válido entre hoy menos 366 días y hoy más el horizonte más 31 días; fuera de eso, 422 `DATOS_INVALIDOS` con `p_dia` |
-| `guardar_configuracion`, `guardar_grilla` | profesor | B02 | Duración 1 a 1440 min; anticipación 0 a 8784 h; huso IANA; hasta 50 tramos sin solape. Sin pantalla aún |
+| `agenda_publica(p_dia)` (hoy `agenda_publica(p_slug, p_dia)`, ver `varios-profesores-b14.md`) | anon y alumno | B02 | `[{inicio, fin, estado}]` con libre, ocupado o bloqueado; nada más. La forma sin slug quedó eliminada por la contracción de B15 (migración `202611000539`); solo existe `agenda_publica(p_slug, p_dia)`. Día válido entre hoy menos 366 días y hoy más el horizonte más 31 días; fuera de eso, 422 `DATOS_INVALIDOS` con `p_dia` |
+| `guardar_configuracion`, `guardar_grilla` | profesor | B02 | Duración 1 a 1440 min; anticipación 0 a 8784 h; huso IANA; hasta 50 tramos sin solape. Pantalla en B10 (`configuracion-y-bloqueos-b10.md`) |
 | `sesion_actual()` | sesión | B04 | `{rol, alumno_id, estado, nombre, mail, motivo_rechazo}`; el motivo solo si está rechazado |
 | `completar_ficha` | alumno | B04 | `{estado: "pendiente"}`; 409 `FICHA_YA_COMPLETA` (la web lo toma como éxito); 429 `LIMITE_EXCEDIDO` con 10 fichas por hora |
 | `guardar_persona_a_cargo` | alumno | B04 | Alta con id nulo, edición con id; sin baja |
 | `aprobar_cuenta`, `rechazar_cuenta` | profesor | B05 | Aprobar acepta pendiente o rechazada y borra el motivo anterior (H-037); rechazar, solo pendiente |
 | `sugerencias_union`, `unir_alumnos`, `descartar_union` | profesor | B05 | Unir reasigna toda FK hacia `alumno(id)` y borra el alumno sin cuenta en una transacción |
-| `alta_alumno`, `editar_alumno` | profesor | B05 | Con mail queda aprobado sin usuario; sin mail, sin cuenta; el mail de una cuenta con usuario no se edita |
+| `alta_alumno`, `editar_alumno` | profesor | B05 | Con mail queda aprobado sin usuario; sin mail, sin cuenta; el mail de una cuenta con usuario no se edita. Desde B15 (DEC-38, migración `202611000526`) agregar por edición un mail nuevo a un alumno sin cuenta encola el mismo aviso `alumno_sumado` del alta |
 
 Lecturas nuevas: `v_mails_fallidos` (B03; `id`, `fecha` = `creado_en`, destinatario, tipo, motivo; nunca asunto ni cuerpo) y `v_alumnos` (B05; incluye `con_usuario` y `edad` calculada con `app_ahora()` en el huso del profesor; excluye fichas incompletas y borrados).
 
@@ -65,11 +65,17 @@ Sin sesión, una RPC de alumno o profesor responde 401 con `42501` porque no tie
 | Fichas completadas | 10 por hora | `completar_ficha` | 429 `LIMITE_EXCEDIDO`; la cuenta sigue sin ficha y no sale mail al profesor (CA-43) |
 | Mails encolados | 20 por hora y 200 por día | `privado.encolar_mail` | La fila nace `fallido` con motivo `TOPE`; la operación que la origina se completa (AVI-08). Los destinatarios inválidos nacen `DESTINATARIO_INVALIDO` y no cuentan |
 
-Los valores son fijos por CR-001 y se miden con `app_ahora()`. Motivos de fallo de un mail: `TOPE`, `SIN_CONFIRMACION` (un envío en curso más de 10 minutos pasa a fallido sin reintento), `DESTINATARIO_INVALIDO` o el texto del servidor SMTP.
+Los valores son fijos por CR-001 y se miden con `app_ahora()`. **Desde B14 los topes son por profesor y hay uno global de 400 mails por día; el de solicitudes pendientes es 10 por alumno y profesor** (ver `varios-profesores-b14.md` §5). Motivos de fallo de un mail: `TOPE`, `SIN_CONFIRMACION` (un envío en curso más de 10 minutos pasa a fallido sin reintento), `DESTINATARIO_INVALIDO` o el texto del servidor SMTP.
 
 ## 5. Permisos de `mail_salida` (ADR-005)
 
 El profesor lee de `mail_salida` solo `id`, `tipo`, `destinatario`, `estado`, `motivo_fallo` y `creado_en` (permiso por columna). `service_role` queda con `select` y `update(estado, motivo_fallo)`; `intentado_en` y `enviado_en` los fija un trigger con `app_ahora()`.
+
+## 5 bis. Disparo de `enviar-mail`: firma HMAC (ADR-005, H-130)
+
+La llamada del trigger y de `barrer_mails` a la función ya no manda el secreto. Lleva `x-mail-ts` y `x-mail-firma`: HMAC-SHA256, con `MAIL_SECRETO`, de `<ts>.<cuerpo>`. La función responde 401 si falta alguna, si la firma no coincide o si `ts` está a más de 300 s del reloj de la función; `x-mail-secreto` ya no se acepta. `MAIL_SECRETO` y `mail_secreto` de Vault conservan su nombre. Fuente: `contratos.md` §4 y ADR-005 «Ajuste de B03 (2026-10-25, H-130)». Migración: `202611001150_firma_hmac_mails.sql`.
+
+**H-131, riesgo aceptado.** `pg_net` deja a `anon` y `authenticated` ejecutar `net.http_*` y leer la cola y las respuestas, pero la API pública solo publica `public` y `graphql_public` (el esquema `net` da 406). Se aceptó y lo vigila una prueba en `supabase/tests/00_catalogo.test.sql`, que falla si ese estado cambia. Fuente: `aprobacion/H-131-pedidos-salientes-abiertos-a-cualquiera.md`.
 
 ## 6. Capa web
 
@@ -86,3 +92,6 @@ El profesor lee de `mail_salida` solo `id`, `tipo`, `destinatario`, `estado`, `m
 | Versión | Fecha | Bolt | IDs | Cambio |
 | --- | --- | --- | --- | --- |
 | 0.1 | 2026-10-22 | B02-B05 | AGE-07, AVI-02, AVI-03, AVI-08, ALU-02..09, ALU-13, NFR-07, ADR-005, ADR-013 | Primera versión: migraciones, RPC, errores y topes construidos |
+| 0.2 | 2026-10-23 | B14 | CR-002 | Nota: topes por profesor y global desde B14 |
+| 0.3 | 2026-10-23 | B15 | DEC-38, AVI-04, ADR-021 | `agenda_publica` solo con slug; `editar_alumno` avisa al sumar un mail |
+| 0.4 | 2026-10-26 | B03, B10 | H-130, H-131, ADR-005, AGE-08 | Firma HMAC del disparo de mails, H-131 aceptado y vigilado por prueba; la configuración ya tiene pantalla |

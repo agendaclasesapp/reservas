@@ -1,10 +1,18 @@
-// Enlace de React con el estado de sesión y las guardas de ruta (ADR-007). La presentación de
-// «esperando», «sin permisos» y «error» la pone quien monta la guarda (src/ui, ux-web).
+// Enlace de React con el estado de sesión, el profesor de la ruta y las guardas (ADR-007, ADR-020). La
+// presentación de «esperando», «sin permisos» y «error» la pone quien monta la guarda (src/ui, ux-web).
 import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router';
+import type { DestinoSinPermisos } from '../ui/SinPermisos';
 import { decidirGuarda, type DecisionGuarda } from './guardas';
+import {
+  anotarVisitaDeProfesor,
+  leerProfesorElegido,
+  leerProfesorOrigen,
+  slugDeRuta,
+  suscribirProfesor,
+} from './profesor';
 import { estadoSesion, refrescarSesion, suscribirSesion } from './sesion-actual';
-import type { EstadoAlumno, EstadoSesion } from './tipos';
+import type { EstadoSesion } from './tipos';
 
 /** Estado de la sesión de la app; si arranca en `cargando`, dispara la lectura de `sesion_actual`. */
 export function useSesion(): EstadoSesion {
@@ -14,6 +22,27 @@ export function useSesion(): EstadoSesion {
     if (cargando) void refrescarSesion();
   }, [cargando]);
   return estado;
+}
+
+/** WEB-11: slug del profesor elegido en esta pestaña, o `null`. */
+export function useProfesorElegido(): string | null {
+  return useSyncExternalStore(suscribirProfesor, leerProfesorElegido, leerProfesorElegido);
+}
+
+/** ALU-14: slug del profesor de origen (último enlace visitado sin vínculo), o `null`. */
+export function useProfesorOrigen(): string | null {
+  return useSyncExternalStore(suscribirProfesor, leerProfesorOrigen, leerProfesorOrigen);
+}
+
+/**
+ * Anota cada visita a `#/p/<slug>` con la sesión del momento (ADR-020): se monta una vez en el layout de
+ * src/rutas.tsx, así el profesor de origen queda anotado aunque la guarda lleve a la ficha.
+ */
+export function useAnotarVisitaDeProfesor(pathname: string, sesion: EstadoSesion): void {
+  const slug = slugDeRuta(pathname);
+  useEffect(() => {
+    if (slug !== null) anotarVisitaDeProfesor(slug, sesion);
+  }, [slug, sesion]);
 }
 
 /** Decisión de la guarda para la ruta actual. */
@@ -26,7 +55,7 @@ export function useGuardaDeRuta(): DecisionGuarda {
 export interface GuardaDeRutaProps {
   children: ReactNode;
   esperando?: ReactNode;
-  sinPermisos?: (estado: EstadoAlumno | null) => ReactNode;
+  sinPermisos?: (motivo: string, destino: DestinoSinPermisos) => ReactNode;
   error?: (mensaje: string) => ReactNode;
 }
 
@@ -47,7 +76,7 @@ export function GuardaDeRuta({ children, esperando = null, sinPermisos, error }:
       // una nueva en cada ubicación y la redirección se reintenta.
       return <Navigate key={key} to={decision.a} replace />;
     case 'sin_permisos':
-      return <>{sinPermisos?.(decision.estado) ?? null}</>;
+      return <>{sinPermisos?.(decision.motivo, decision.destino) ?? null}</>;
     case 'error':
       return <>{error?.(decision.mensaje) ?? null}</>;
   }

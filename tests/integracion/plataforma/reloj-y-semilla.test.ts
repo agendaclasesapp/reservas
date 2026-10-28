@@ -10,6 +10,7 @@ import { rest, rpc, sesionDe } from '../../soporte/usuarios';
 
 beforeAll(async () => {
   await sesionDe('alumno');
+  await sesionDe('profesor');
 }, 300_000);
 afterEach(limpiarReloj);
 afterAll(cerrar);
@@ -61,7 +62,7 @@ describe('ADR-014 app_ahora y reloj de prueba', () => {
   });
 
   it('ADR-014_el_reloj_no_se_puede_tocar_por_la_API', async () => {
-    for (const rol of ['anon', 'alumno', 'profesor'] as const) {
+    for (const rol of ['anon', 'alumno', 'profesor', 'profesorB', 'administrador'] as const) {
       const r = await rest(rol, 'PATCH', 'reloj_prueba?id=eq.1', { ahora: '2020-01-01T00:00:00Z' }, { 'Content-Profile': 'privado' });
       expect([401, 403, 404, 406], `${rol}: ${r.status}`).toContain(r.status);
     }
@@ -70,46 +71,70 @@ describe('ADR-014 app_ahora y reloj de prueba', () => {
   });
 });
 
-describe('ADR-015 privado.configurar_profesor', () => {
-  it('ADR-015_la_migracion_deja_una_unica_fila_de_profesor_y_el_indice_impide_otra', async () => {
+describe('ADR-015 / ADR-018 privado.configurar_profesor con varios profesores (CA-51, CA-63)', () => {
+  it('ADR-018_el_seed_deja_dos_profesores_activos_con_slug_y_ya_no_hay_fila_unica', async () => {
+    const f = await sql<{ slug: string; mail: string; nombre: string; activo: boolean }>(
+      'select slug::text, mail::text, nombre, activo from public.profesor order by slug',
+    );
+    expect(f.map((p) => [p.slug, p.mail, p.nombre, p.activo])).toEqual([
+      ['profesor-prueba', 'profesor@example.test', 'Profesor de Prueba', true],
+      ['profesora-b', 'profesora.b@example.test', 'Profesora B de Prueba', true],
+    ]);
+    await expect(sql("select 1 from pg_indexes where indexname = 'profesor_fila_unica'")).resolves.toEqual([]);
+  });
+
+  it('ADR-018_el_seed_deja_al_administrador_y_a_una_persona_con_dos_inscripciones', async () => {
+    const [a] = await sql<{ mail: string }>('select mail::text from privado.administrador');
+    expect(a.mail).toBe('admin@example.test');
+    const i = await sql<{ slug: string; estado: string }>(
+      `select p.slug::text, i.estado from public.inscripcion i join public.profesor p on p.id = i.profesor_id
+         join public.alumno al on al.id = i.alumno_id where al.mail = 'persona@example.test' order by p.slug`,
+    );
+    expect(i).toEqual([
+      { slug: 'profesor-prueba', estado: 'aprobado' },
+      { slug: 'profesora-b', estado: 'pendiente' },
+    ]);
+  });
+
+  it('ADR-015_es_idempotente_y_no_duplica_profesores', async () => {
+    await sql("select privado.configurar_profesor('profesor@example.test', 'Profesor de Prueba', 'profesor-prueba')");
+    await sql("select privado.configurar_profesor('profesor@example.test', 'Profesor de Prueba', 'profesor-prueba')");
     const [{ n }] = await sql<{ n: string }>('select count(*)::text n from public.profesor');
-    expect(n).toBe('1');
-    await expect(sql('insert into public.profesor default values')).rejects.toThrow(/profesor_fila_unica|duplicate/);
+    expect(n).toBe('2');
   });
 
-  it('ADR-015_el_seed_fijo_el_mail_de_prueba', async () => {
-    const [p] = await sql<{ mail: string; nombre: string }>('select mail::text, nombre from public.profesor');
-    expect(p.mail).toBe('profesor@example.test');
-    expect(p.nombre).toBe('Profesor de Prueba');
+  it('ADR-015_valida_mail_nombre_y_slug', async () => {
+    await expect(sql("select privado.configurar_profesor('no-es-un-mail', 'X', 'x-valido')")).rejects.toThrow(/DATOS_INVALIDOS/);
+    await expect(sql("select privado.configurar_profesor('a@example.test', '  ', 'x-valido')")).rejects.toThrow(/DATOS_INVALIDOS/);
+    await expect(sql("select privado.configurar_profesor('a@example.test', 'X', 'No Valido!')")).rejects.toThrow(/DATOS_INVALIDOS/);
   });
 
-  it('ADR-015_es_idempotente', async () => {
-    await sql("select privado.configurar_profesor('profesor@example.test', 'Profesor de Prueba')");
-    await sql("select privado.configurar_profesor('profesor@example.test', 'Profesor de Prueba')");
-    const [p] = await sql<{ mail: string }>('select mail::text from public.profesor');
-    expect(p.mail).toBe('profesor@example.test');
+  it('ADR-018_un_slug_usado_por_otro_profesor_da_SLUG_YA_USADO_y_no_cambia_nada', async () => {
+    await expect(sql("select privado.configurar_profesor('profesora.b@example.test', 'Profesora B de Prueba', 'profesor-prueba')")).rejects.toThrow(
+      /SLUG_YA_USADO/,
+    );
+    const [p] = await sql<{ slug: string }>("select slug::text from public.profesor where mail = 'profesora.b@example.test'");
+    expect(p.slug).toBe('profesora-b');
   });
 
-  it('ADR-015_valida_mail_y_nombre', async () => {
-    await expect(sql("select privado.configurar_profesor('no-es-un-mail', 'X')")).rejects.toThrow(/DATOS_INVALIDOS/);
-    await expect(sql("select privado.configurar_profesor('a@example.test', '  ')")).rejects.toThrow(/DATOS_INVALIDOS/);
-  });
-
-  it('ADR-015_si_ya_hay_otro_usuario_vinculado_falla_y_no_cambia_nada', async () => {
-    await sesionDe('profesor'); // vincula al usuario confirmado con profesor.user_id
-    await expect(sql("select privado.configurar_profesor('otro.profesor@example.test', 'Otro')")).rejects.toThrow(/PROFESOR_YA_VINCULADO/);
-    const [p] = await sql<{ mail: string }>('select mail::text from public.profesor');
-    expect(p.mail).toBe('profesor@example.test');
+  it('ADR-015_si_el_profesor_ya_esta_vinculado_a_otro_usuario_falla_y_no_cambia_nada', async () => {
+    const s = await sesionDe('profesor'); // vincula al usuario confirmado con profesor.user_id
+    const [antes] = await sql<{ user_id: string }>("select user_id from public.profesor where mail = 'profesor@example.test'");
+    expect(antes.user_id).toBe(s.userId);
   });
 
   it('ADR-015_borra_la_ficha_incompleta_que_el_ingreso_haya_creado_al_profesor', async () => {
     const s = await sesionDe('profesor');
     await sql(
-      "insert into public.alumno (profesor_id, user_id, mail) values ((select id from public.profesor), $1, 'profesor@example.test') on conflict (user_id) do update set estado = 'ficha_incompleta'",
+      "insert into public.alumno (user_id, mail) values ($1, 'profesor@example.test') on conflict (user_id) do update set estado = 'ficha_incompleta'",
       [s.userId],
     );
-    await sql("select privado.configurar_profesor('profesor@example.test', 'Profesor de Prueba')");
+    await sql("select privado.configurar_profesor('profesor@example.test', 'Profesor de Prueba', 'profesor-prueba')");
     expect(await sql('select 1 from public.alumno where user_id = $1', [s.userId])).toEqual([]);
+  });
+
+  it('ADR-018_el_mail_de_una_persona_con_ficha_completa_no_se_puede_dar_de_alta_como_profesor', async () => {
+    await expect(sql("select privado.configurar_profesor('persona@example.test', 'Otro', 'otro-slug')")).rejects.toThrow(/MAIL_YA_REGISTRADO/);
   });
 });
 

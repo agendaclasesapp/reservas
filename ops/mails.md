@@ -4,7 +4,19 @@ Dos caminos, ambos con la cuenta Gmail dedicada (`agendaclasesapp@gmail.com`).
 - Auth (códigos OTP y confirmación): SMTP de Gmail cargado en el panel (Auth > SMTP); no va en `config.toml`.
   El límite `rate_limit.email_sent` se fija y verifica en el panel (`auth.md`).
 - Recordatorios y avisos: Edge Function `enviar-mail` (Gmail 465, se activa en B03), desplegada con
-  `--no-verify-jwt --use-api` y protegida por `MAIL_SECRETO`.
+  `--no-verify-jwt --use-api` y protegida por una firma HMAC-SHA256 con `MAIL_SECRETO` (H-130).
+
+## Cómo se autentica el disparo (H-130, SEC-11)
+`privado.disparar_mail` ya no manda el secreto: manda `x-mail-ts` (epoch en segundos) y `x-mail-firma`
+(HMAC-SHA256 hex de `ts.cuerpo`, con el `mail_secreto` de Vault). `enviar-mail` recalcula la firma con
+`MAIL_SECRETO` y acepta `ts` a lo sumo 300 s del reloj de la función. Sin cabeceras válidas, con la firma mal o con
+el viejo `x-mail-secreto`: 401 sin tocar la base. Los nombres `mail_secreto` y `MAIL_SECRETO` no cambiaron y deben
+tener el mismo valor.
+
+**Despliegue:** la migración `202611001150_firma_hmac_mails.sql` y la función `enviar-mail` van en el mismo
+despliegue. Mientras esté una sin la otra, las llamadas dan 401 y las filas quedan `pendiente`; el barrido de cada
+5 min las vuelve a disparar cuando las dos están desplegadas. En `supabase-deploy.yml` el orden es `db push` y luego
+la función: hay unos minutos de 401 que el barrido absorbe, sin pérdida de mails.
 
 ## Secretos de la función (solo en Supabase)
 `GMAIL_USER`, `GMAIL_APP_PASSWORD` (sin espacios), `MAIL_SECRETO`.
@@ -16,7 +28,21 @@ Dos caminos, ambos con la cuenta Gmail dedicada (`agendaclasesapp@gmail.com`).
 supabase-deploy solo hace `secrets list` y falla si falta un nombre; nunca los carga.
 
 ## Vault de producción
-`url_funcion_mail` y `mail_secreto` se cargan a mano en el SQL Editor (nunca por migración ni `seed.sql`).
+`url_funcion_mail`, `mail_secreto` y `url_sitio` se cargan a mano en el SQL Editor (nunca por migración; `seed.sql`
+solo tiene los valores locales). `url_sitio` es la dirección pública del sitio (DEC-14): no es secreta, pero va en
+Vault porque el código no lleva ajustes del despliegue. Es opcional: sin él, el mail de alta del profesor
+(`alta_profesor`, ADM-02) dice solo cómo termina el enlace (`#/p/<slug>`).
+
+### `url_sitio` (B15, T15.5)
+Cargar **antes de dar de alta profesores** desde `#/admin`, para que el mail lleve el enlace completo:
+
+    select vault.create_secret('https://agendaclasesapp.github.io/reservas/', 'url_sitio');
+
+Es el mismo valor que `RTC_SITE_URL` (con o sin barra final: la función la normaliza); si la URL de Pages es otra,
+usar esa. Si ya existe: `select vault.update_secret(id, 'https://.../') from vault.secrets where name = 'url_sitio';`.
+Comprobar: `select name from vault.secrets where name = 'url_sitio';` (una fila). Borrarlo devuelve el mail al texto sin
+enlace completo. Local: lo carga `supabase/seed.sql` (`http://127.0.0.1:5173/reservas/`) y Mailpit muestra el enlace
+completo (CA-49).
 
 ## Pasos del humano para producción (B03, T03.3; AVI-07, SEC-11, SEC-30, H-018, H-019)
 Nada de esto lo ejecuta el pipeline ni un agente. Proyecto `rmokypmznhobapyghfpi`, casilla de DEC-15.
@@ -53,18 +79,39 @@ Nada de esto lo ejecuta el pipeline ni un agente. Proyecto `rmokypmznhobapyghfpi
         npx supabase@2.121.0 functions delete enviar-mail --project-ref rmokypmznhobapyghfpi   # opcional, antes
         npx supabase@2.121.0 functions deploy enviar-mail --no-verify-jwt --use-api --project-ref rmokypmznhobapyghfpi
 
-   `verify_jwt` desactivado (la llama `pg_net` con el secreto, sin JWT; es la única función así, SEC-30). Comprobá en
+   `verify_jwt` desactivado (la llama `pg_net` con firma HMAC, sin JWT; es la única función así, SEC-30). Comprobá en
    el panel (Edge Functions > enviar-mail > Details) que *Verify JWT* está apagado y que la fecha de despliegue es de hoy.
 7. **Rotación de `MAIL_SECRETO`** (también ante sospecha de filtración): repetir los pasos 2, 3 (solo
-   `MAIL_SECRETO`), 4 y 5 con `vault.update_secret`. Entre un paso y otro la función responde 401 y los mails
-   quedan `pendiente`; el barrido (`barrer_mails`) los reintenta.
+   `MAIL_SECRETO`), 4 y 5 con `vault.update_secret`. El secreto de la función y el de Vault cambian juntos: mientras
+   difieren, la firma no coincide, los disparos dan 401 y los mails quedan `pendiente`; el barrido de cada 5 min
+   (`barrer_mails`) los reenvía cuando coinciden.
 8. **Prueba de humo.** Encolá un mail de prueba desde la app y comprobá que llega con la casilla como remitente;
    con una contraseña inválida la fila queda `fallido` con motivo y se ve en «Mails fallidos» (CA-33, CA-34).
+
+## Cuota compartida y topes (AVI-07, AVI-08, ADR-019, CR-002)
+La casilla de Gmail es **una sola** y la comparten todos los profesores y los códigos de ingreso de Auth. Quién figura
+como remitente: los mails de un profesor a su alumno llevan su nombre y responden a su mail (Reply-To); los avisos al
+profesor, los de borrado y los códigos muestran el nombre del servicio, `Agenda Clases App` (WEB-12, CR-003).
+- Tope por profesor: 20 por hora y 200 por día (`tope_mails_hora`, `tope_mails_dia` en `privado.ajustes`).
+- Tope global: 400 por día (`tope_mails_dia_global`), con margen bajo los ~500 de Gmail porque los códigos de Auth no
+  pasan por `mail_salida`. Se cambia en el SQL Editor: `update privado.ajustes set tope_mails_dia_global = <n>;`.
+- Un mail que supera un tope no se envía: la fila nace `fallido` con motivo `TOPE` (profesor) o `TOPE_GLOBAL`, y se ve en
+  «Mails fallidos»; esas filas no cuentan para el tope. Si aparece `TOPE_GLOBAL`, esperar 24 h y revisar si un
+  profesor genera volumen anormal.
+- **Nombre del remitente de Auth** (panel, a mano, **antes de desplegar B14**): en el proyecto de producción,
+  Authentication > SMTP Settings > *Sender name* = `Agenda Clases App` y *Save*. Hasta hacerlo, los códigos de
+  ingreso siguen saliendo con el nombre anterior mientras los mails de `enviar-mail` ya dicen `Agenda Clases App`.
+  Comprobación: pedir un código de ingreso y mirar el remitente visible (CA-65). Además,
+  `scripts/seguridad/verificar-auth.mjs` (paso final de `supabase-deploy.yml`) falla si `smtp_sender_name` no es
+  `Agenda Clases App` (H-290).
+  No va por `config.toml` en producción: declarar `[auth.email.smtp]` haría que `config push` pisara el SMTP del panel y
+  la guardia lo bloquearía. En `config.toml` solo está `[local_smtp] sender_name` (Mailpit local).
 
 ## Local y CI
 Mailpit/Inbucket recibe todo; `MAIL_SECRETO` de prueba en `supabase/.env.development`. Nada sale a Gmail.
 
 ## Fallos frecuentes
 - `535` de Gmail: contraseña de aplicación revocada o con espacios; rota (`rotacion.md`).
-- 401 de la función: `MAIL_SECRETO` distinto entre función y Vault.
+- 401 de la función: `MAIL_SECRETO` distinto de `mail_secreto` de Vault (la firma HMAC no coincide), reloj con más
+  de 300 s de diferencia, o migración `202611001150` y función desplegadas por separado.
 - Límite diario de Gmail agotado: espera 24 h y reduce reintentos.

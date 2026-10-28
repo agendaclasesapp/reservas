@@ -1,0 +1,41 @@
+.inicio {
+  display: grid;
+  gap: var(--e-4);
+  justify-items: start;
+  max-inline-size: var(--dialogo-max);
+}
+
+.inicio > h1,
+.inicio > p {
+  margin: 0;
+}
+
+.texto {
+  color: var(--c-texto-suave);
+}
+
+/* Enlace con aspecto de botón primario: lleva a otra pantalla, por eso es un enlace. */
+.accion {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--tactil-min);
+  min-inline-size: var(--tactil-min);
+  padding: var(--e-2) var(--e-4);
+  border: var(--borde-ancho) solid transparent;
+  border-radius: var(--r-md);
+  color: var(--c-sobre-primario);
+  background: var(--c-primario);
+  font-weight: var(--peso-fuerte);
+  line-height: var(--interlineado-titulo);
+  text-decoration: none;
+}
+
+.accion:hover {
+  background: var(--c-primario-hover);
+}
+
+.accion:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}

@@ -20,7 +20,10 @@ export type AgendaDiaProps = {
   limites: LimitesAgenda;
   vista: VistaHuecos;
   onCambiarDia: (dia: Dia) => void;
-  /** Contrato para B06: si se pasa, el hueco libre es un botón. La invitación a ingresar no es de esta vista. */
+  /**
+   * Si se pasa, el hueco libre es un botón (WEB-01, B06): quien monta la agenda decide qué pasa al tocarlo
+   * (formulario de solicitud, invitación a ingresar o el aviso de estado del vínculo).
+   */
   onElegirHueco?: (hueco: Hueco) => void;
 };
 
@@ -49,6 +52,7 @@ export function AgendaDia({ dia, zona, limites, vista, onCambiarDia, onElegirHue
       <p role="status" className={estilos.soloLectores}>
         {resumen}
       </p>
+      {onElegirHueco && resumen !== '' ? <p className={estilos.huso}>Tocá un horario libre para pedir la clase.</p> : null}
       <Resultado vista={vista} dia={dia} zona={zona} onElegirHueco={onElegirHueco} />
     </div>
   );

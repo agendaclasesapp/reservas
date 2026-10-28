@@ -10,6 +10,7 @@ import {
   encolar,
   esperarEstado,
   esperarMailPara,
+  firmar,
   insertarFila,
   invocar,
   limpiarFilas,
@@ -17,12 +18,15 @@ import {
   mailsPara,
   registrar,
   SECRETO_LOCAL,
+  textoDe,
 } from './ayuda';
 
 beforeAll(async () => {
   await limpiarFilas();
   await sesionDe('profesor');
   await sesionDe('alumno');
+  await sesionDe('profesorB');
+  await sesionDe('administrador');
 }, 300_000);
 afterEach(limpiarFilas);
 afterAll(async () => {
@@ -30,18 +34,24 @@ afterAll(async () => {
   await cerrar();
 });
 
-describe('SEC-11 la función exige el secreto y valida `ids`', () => {
-  it('SEC-11_sin_secreto_con_secreto_erroneo_o_vacio_es_401_y_la_fila_pendiente_no_se_toca', async () => {
+describe('SEC-11 / H-130 la función exige la firma HMAC y valida `ids`', () => {
+  it('SEC-11_H-130_sin_firma_con_firma_mala_ts_fuera_de_ventana_cuerpo_alterado_o_el_x_mail_secreto_viejo_es_401_y_la_fila_pendiente_no_se_toca', async () => {
     const id = await insertarFila({ estado: 'pendiente' }, true);
+    const texto = textoDe({ ids: [id] });
+    const ahora = Math.floor(Date.now() / 1000);
     const respuestas = {
       sinCabecera: await invocar({ ids: [id] }, {}),
-      erroneo: await invocar({ ids: [id] }, { 'x-mail-secreto': 'secreto-equivocado' }),
-      vacio: await invocar({ ids: [id] }, { 'x-mail-secreto': '' }),
-      prefijo: await invocar({ ids: [id] }, { 'x-mail-secreto': SECRETO_LOCAL.slice(0, -1) }),
-      ampliado: await invocar({ ids: [id] }, { 'x-mail-secreto': `${SECRETO_LOCAL}x` }),
+      secretoViejo: await invocar({ ids: [id] }, { 'x-mail-secreto': SECRETO_LOCAL }),
+      otraClave: await invocar({ ids: [id] }, firmar(texto, 'secreto-equivocado')),
+      prefijo: await invocar({ ids: [id] }, firmar(texto, SECRETO_LOCAL.slice(0, -1))),
+      firmaVacia: await invocar({ ids: [id] }, { ...firmar(texto), 'x-mail-firma': '' }),
+      sinTs: await invocar({ ids: [id] }, { 'x-mail-firma': firmar(texto)['x-mail-firma'] }),
+      tsViejo: await invocar({ ids: [id] }, firmar(texto, SECRETO_LOCAL, ahora - 301)),
+      tsFuturo: await invocar({ ids: [id] }, firmar(texto, SECRETO_LOCAL, ahora + 301)),
+      cuerpoAlterado: await invocar({ ids: [id] }, firmar(textoDe({ ids: [] }))),
     };
     const [fila] = await sql<{ estado: string; intentado_en: Date | null }>('select estado, intentado_en from public.mail_salida where id = $1', [id]);
-    registrar('SEC-11_secreto', { ids: [id], secretos: ['ninguno', 'erroneo', 'vacio', 'prefijo', 'ampliado'] }, { status: Object.fromEntries(Object.entries(respuestas).map(([k, v]) => [k, v.status])), fila });
+    registrar('H-130_firma', { ids: [id], casos: Object.keys(respuestas) }, { status: Object.fromEntries(Object.entries(respuestas).map(([k, v]) => [k, v.status])), fila });
     for (const [k, r] of Object.entries(respuestas)) expect(r.status, k).toBe(401);
     expect(fila).toEqual({ estado: 'pendiente', intentado_en: null });
   });
@@ -63,9 +73,42 @@ describe('SEC-11 la función exige el secreto y valida `ids`', () => {
       salida[nombre] = r.status;
       expect(r.status, nombre).toBe(esperado);
     }
-    const get = await invocar(undefined, { 'x-mail-secreto': SECRETO_LOCAL }, 'GET');
+    const get = await invocar(undefined, undefined, 'GET');
     registrar('SEC-11_ids', { casos: casos.map((c) => c[0]) }, { ...salida, GET: get.status });
     expect(get.status).toBe(405);
+  });
+
+  it('H-130_AVI-07_la_llamada_firmada_por_disparar_mail_vale_en_la_funcion_y_su_replay_no_reenvia', async () => {
+    const para = direccion('replay');
+    const id = await insertarFila({ estado: 'pendiente', destinatario: para }, true);
+    // La firma la arma la base (pgcrypto); la llamada de pg_net se deshace y la repetimos dos veces a mano.
+    const c = await (await import('../../soporte/bd')).conectar();
+    await c.query('begin');
+    let llamada: { headers: Record<string, string>; body: string } = { headers: {}, body: '' };
+    try {
+      await c.query('select privado.disparar_mail(array[$1]::uuid[])', [id]);
+      const r = await c.query<{ headers: Record<string, string>; body: string }>(
+        "select headers, convert_from(body, 'UTF8') as body from net.http_request_queue where convert_from(body, 'UTF8')::jsonb = jsonb_build_object('ids', jsonb_build_array($1::text))",
+        [id],
+      );
+      llamada = r.rows[0];
+    } finally {
+      await c.query('rollback');
+    }
+    const cabeceras = { 'x-mail-ts': llamada.headers['x-mail-ts'], 'x-mail-firma': llamada.headers['x-mail-firma'] };
+    const primera = await invocar(llamada.body, cabeceras);
+    const replay = await invocar(llamada.body, cabeceras);
+    await esperarMailPara(para);
+    await dormir(1000);
+    const mails = await mailsPara(para);
+    const [fila] = await sql<{ estado: string }>('select estado from public.mail_salida where id = $1', [id]);
+    registrar('H-130_replay', { id, cabeceras: Object.keys(llamada.headers) }, { primera: primera.json, replay: replay.json, mails: mails.length, estado: fila.estado });
+    expect(Object.keys(llamada.headers)).not.toContain('x-mail-secreto');
+    expect(JSON.stringify(llamada.headers)).not.toContain(SECRETO_LOCAL);
+    expect(primera).toMatchObject({ status: 200, json: { enviados: 1, fallidos: 0 } });
+    expect(replay).toMatchObject({ status: 200, json: { enviados: 0, fallidos: 0 } });
+    expect(mails).toHaveLength(1);
+    expect(fila.estado).toBe('enviado');
   });
 
   it('SEC-11_un_asunto_con_CR_LF_no_inyecta_cabeceras_y_sale_en_una_linea', async () => {
@@ -91,7 +134,7 @@ describe('SEC-11 la función exige el secreto y valida `ids`', () => {
       const encolados: (string | null)[] = [];
       for (const m of malos) encolados.push(await encolar(c, 'cuenta_nueva', m, 'x', 'c'));
       // «La operación»: lo que el negocio escribió en la misma transacción y debe sobrevivir (NFR-07).
-      await c.query("insert into public.mail_salida (profesor_id, tipo, destinatario, asunto, cuerpo_texto, estado) values ((select id from public.profesor), 'recordatorio', $1, 'operacion', 'c', 'enviado')", [operacion]);
+      await c.query("insert into public.mail_salida (profesor_id, tipo, destinatario, asunto, cuerpo_texto, estado) values ((select id from public.profesor where slug = 'profesor-prueba'), 'recordatorio', $1, 'operacion', 'c', 'enviado')", [operacion]);
       return encolados;
     });
     try {
@@ -141,10 +184,13 @@ describe('SEC-17 los logs de la función no traen el destinatario', () => {
     await c.query('begin');
     try {
       const id = await encolar(c, 'cuenta_nueva', para, 'Asunto-cola', 'Cuerpo-cola');
-      const r = await c.query<{ body: string }>("select convert_from(body, 'UTF8') as body from net.http_request_queue where convert_from(body, 'UTF8') like '%' || $1 || '%'", [id]);
-      registrar('SEC-17_cola', { destinatario: para }, { cuerpos: r.rows.map((x) => x.body) });
+      const r = await c.query<{ body: string; headers: Record<string, string> }>("select convert_from(body, 'UTF8') as body, headers from net.http_request_queue where convert_from(body, 'UTF8') like '%' || $1 || '%'", [id]);
+      registrar('SEC-17_cola', { destinatario: para }, { cuerpos: r.rows.map((x) => x.body), cabeceras: r.rows.map((x) => Object.keys(x.headers)) });
       expect(r.rows).toHaveLength(1);
       expect(JSON.parse(r.rows[0].body)).toEqual({ ids: [id] });
+      // H-130: la cola guarda ts y firma, nunca el secreto.
+      expect(Object.keys(r.rows[0].headers).sort()).toEqual(['Content-Type', 'x-mail-firma', 'x-mail-ts']);
+      expect(JSON.stringify(r.rows[0].headers)).not.toContain(SECRETO_LOCAL);
     } finally {
       await c.query('rollback');
     }
@@ -186,11 +232,19 @@ describe('SEC-01 / SEC-03 / SEC-04 / T-NFR-13 mails por la API', () => {
     expect([401, 403]).toContain(profAsunto.status);
     expect(profColumnas.status).toBe(200);
     expect(profColumnas.cuerpo as unknown[]).toHaveLength(1);
+    // CA-52 / SEC-02: ni el otro profesor ni el Administrador ven el registro de A.
+    for (const rol of ['profesorB', 'administrador'] as const) {
+      const v = await rest(rol, 'GET', `v_mails_fallidos?destinatario=eq.${encodeURIComponent(para)}&select=id`);
+      const t = await rest(rol, 'GET', `mail_salida?destinatario=eq.${encodeURIComponent(para)}&select=id`);
+      expect(v.cuerpo, `${rol} ve el fallo de A`).toEqual([]);
+      expect([200, 401, 403]).toContain(t.status);
+      if (t.status === 200) expect(t.cuerpo, `${rol} ve mail_salida de A`).toEqual([]);
+    }
   });
 
   it('SEC-03_SEC-04_ningun_rol_escribe_mail_salida_ni_llama_a_las_funciones_de_privado', async () => {
     const fallos: string[] = [];
-    for (const rol of ['anon', 'alumno', 'profesor'] as const) {
+    for (const rol of ['anon', 'alumno', 'profesor', 'profesorB', 'administrador'] as const) {
       const post = await rest(rol, 'POST', 'mail_salida', { tipo: 'cuenta_nueva' });
       const patch = await rest(rol, 'PATCH', 'mail_salida?id=not.is.null', { estado: 'enviado' });
       const del = await rest(rol, 'DELETE', 'mail_salida?id=not.is.null');

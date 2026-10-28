@@ -1,0 +1,6 @@
+# B11 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
+# Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated.
+# T11.1 (primera parte): `borrar_alumno(p_alumno_id)` [P]. `privado.retencion`, `privado.anonimizar_alumno`,
+# `privado.cerrar_agenda_alumno`, `privado.reserva_con_clases_activas`, `privado.vence_inactividad_en` y
+# `privado.vencimientos_inactividad` no son RPC (privado, sin grant a la API).
+authenticated borrar_alumno

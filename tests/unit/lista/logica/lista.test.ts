@@ -15,6 +15,8 @@ import {
   mailSimple,
   MENSAJES_LISTA,
   normalizarMotivo,
+  permisosLista,
+  puedeEditar,
   rechazarCuenta,
   separarPendientes,
   sugerenciasUnion,
@@ -59,6 +61,7 @@ const ALUMNO: AlumnoLista = {
   ficha_completada_en: '2026-10-01T12:05:00+00:00',
   aprobado_en: '2026-10-02T12:00:00+00:00',
   edad: 25,
+  editable: true,
 };
 
 const ENTRADA: AlumnoEntrada = { nombre: ' Beto ', telefono: ' 099 555-111 ', fecha_nacimiento: '1990-01-01', mail: '' };
@@ -178,8 +181,8 @@ describe('unión de alumnos (ALU-04, ALU-05)', () => {
 
 describe('alta y edición (ALU-07, ALU-08, SEC-09)', () => {
   it('ALU_08_alta_sin_mail_manda_null_y_queda_sin_cuenta', async () => {
-    const { c, deps } = cliente({ rpc: { data: { alumno_id: 'n1', estado: 'sin_cuenta' }, error: null } });
-    expect(await altaAlumno(ENTRADA, deps)).toEqual({ ok: true, alumnoId: 'n1', estado: 'sin_cuenta' });
+    const { c, deps } = cliente({ rpc: { data: { alumno_id: 'n1', estado: 'sin_cuenta', asociado: false }, error: null } });
+    expect(await altaAlumno(ENTRADA, deps)).toEqual({ ok: true, alumnoId: 'n1', estado: 'sin_cuenta', asociado: false });
     expect(c.rpc).toHaveBeenCalledWith('alta_alumno', {
       p_nombre: 'Beto',
       p_telefono: '099 555-111',
@@ -189,26 +192,68 @@ describe('alta y edición (ALU-07, ALU-08, SEC-09)', () => {
   });
 
   it('ALU_07_alta_con_mail_queda_aprobada', async () => {
-    const { c, deps } = cliente({ rpc: { data: { alumno_id: 'n1', estado: 'aprobado' }, error: null } });
+    const { c, deps } = cliente({ rpc: { data: { alumno_id: 'n1', estado: 'aprobado', asociado: false }, error: null } });
     expect(await altaAlumno({ ...ENTRADA, mail: ' beto@example.test ' }, deps)).toEqual({
       ok: true,
       alumnoId: 'n1',
       estado: 'aprobado',
+      asociado: false,
     });
     expect(c.rpc).toHaveBeenCalledWith('alta_alumno', expect.objectContaining({ p_mail: 'beto@example.test' }));
   });
 
-  it('ALU_07_mail_ya_registrado_da_409_con_el_alumno_existente', async () => {
+  it('ALU_07_mail_de_una_alumna_suya_da_409_con_el_alumno_existente', async () => {
     const { deps } = cliente({ rpc: { data: null, error: err('PT409', 'MAIL_YA_REGISTRADO', '{"alumno_id":"a9"}') } });
     expect(await altaAlumno({ ...ENTRADA, mail: 'x@example.test' }, deps)).toEqual({
       ok: false,
       codigo: 'MAIL_YA_REGISTRADO',
-      mensaje: MENSAJES.MAIL_YA_REGISTRADO,
+      mensaje: MENSAJES_LISTA.mailYaEsTuAlumno,
       campo: null,
       alumnoExistenteId: 'a9',
     });
+  });
+
+  it('SEC_17_mail_de_un_profesor_o_del_administrador_da_409_sin_decir_de_quien_es', async () => {
+    // DEC-31: `alumno_id` null; el texto es el del catálogo y no nombra a nadie.
     const prof = cliente({ rpc: { data: null, error: err('PT409', 'MAIL_YA_REGISTRADO', '{"alumno_id":null}') } });
-    expect(await altaAlumno(ENTRADA, prof.deps)).toMatchObject({ codigo: 'MAIL_YA_REGISTRADO', alumnoExistenteId: null });
+    expect(await altaAlumno({ ...ENTRADA, mail: 'p@example.test' }, prof.deps)).toEqual({
+      ok: false,
+      codigo: 'MAIL_YA_REGISTRADO',
+      mensaje: MENSAJES.MAIL_YA_REGISTRADO,
+      campo: null,
+      alumnoExistenteId: null,
+    });
+    const sinDetalle = cliente({ rpc: { data: null, error: err('PT409', 'MAIL_YA_REGISTRADO') } });
+    expect(await altaAlumno(ENTRADA, sinDetalle.deps)).toMatchObject({ mensaje: MENSAJES.MAIL_YA_REGISTRADO, alumnoExistenteId: null });
+  });
+
+  it('ALU_07_DEC_29_b_alta_con_el_mail_de_una_persona_existente_la_asocia', async () => {
+    const { deps } = cliente({ rpc: { data: { alumno_id: 'a7', estado: 'aprobado', asociado: true }, error: null } });
+    expect(await altaAlumno({ ...ENTRADA, mail: 'ana@example.test' }, deps)).toEqual({
+      ok: true,
+      alumnoId: 'a7',
+      estado: 'aprobado',
+      asociado: true,
+    });
+    expect(MENSAJES_LISTA.altaAsociada).toContain('quedó como alumna tuya');
+  });
+
+  it('ALU_07_respuesta_del_alta_sin_asociado_esta_fuera_de_contrato', async () => {
+    const { deps } = cliente({ rpc: { data: { alumno_id: 'n1', estado: 'aprobado' }, error: null } });
+    expect(await altaAlumno(ENTRADA, deps)).toMatchObject({ ok: false, codigo: 'DESCONOCIDO' });
+  });
+
+  it('PRF_08_con_el_profesor_inactivo_alta_y_aprobar_dan_el_409_con_su_texto', async () => {
+    const inactivo = () => cliente({ rpc: { data: null, error: err('PT409', 'PROFESOR_INACTIVO') } }).deps;
+    const esperado = {
+      ok: false,
+      codigo: 'PROFESOR_INACTIVO',
+      mensaje: MENSAJES_LISTA.profesorInactivo,
+      campo: null,
+      alumnoExistenteId: null,
+    };
+    expect(await altaAlumno(ENTRADA, inactivo())).toEqual(esperado);
+    expect(await aprobarCuenta('a1', null, inactivo())).toEqual(esperado);
   });
 
   it('SEC_09_alta_422_marca_el_campo_sin_prefijo', async () => {
@@ -266,12 +311,26 @@ describe('alta y edición (ALU-07, ALU-08, SEC-09)', () => {
   });
 });
 
+describe('permisos del profesor en la lista (PRF-08, DEC-32)', () => {
+  it('PRF_08_activo_puede_todo_e_inactivo_no_aprueba_ni_da_de_alta', () => {
+    expect(permisosLista(true)).toEqual({ aprobar: true, rechazar: true, alta: true, editar: true, unir: true });
+    expect(permisosLista(false)).toEqual({ aprobar: false, rechazar: true, alta: false, editar: true, unir: true });
+  });
+
+  it('DEC_32_solo_se_edita_la_ficha_editable', () => {
+    expect(puedeEditar(ALUMNO)).toBe(true);
+    expect(puedeEditar({ ...ALUMNO, editable: false })).toBe(false);
+    expect(MENSAJES_LISTA.noEditable).not.toBe('');
+  });
+});
+
 describe('lista de alumnos (ALU-09)', () => {
   it('ALU_09_lee_v_alumnos_con_edad_por_nombre', async () => {
     const { c, consulta, deps } = cliente({ filas: { data: [ALUMNO], error: null } });
     expect(await leerAlumnos(deps)).toEqual([ALUMNO]);
     expect(c.from).toHaveBeenCalledWith('v_alumnos');
     expect(consulta.select).toHaveBeenCalledWith(expect.stringContaining('edad'));
+    expect(consulta.select).toHaveBeenCalledWith(expect.stringContaining('editable'));
     expect(consulta.order).toHaveBeenCalledWith('nombre');
   });
 
@@ -279,6 +338,9 @@ describe('lista de alumnos (ALU-09)', () => {
     const e = err('PGRST301', 'JWT expired');
     await expect(leerAlumnos(cliente({ filas: { data: null, error: e } }).deps)).rejects.toBe(e);
     await expect(leerAlumnos(cliente({ filas: { data: [{ ...ALUMNO, estado: 'borrado' }], error: null } }).deps)).rejects.toThrow();
+    const sinEditable: Record<string, unknown> = { ...ALUMNO };
+    delete sinEditable.editable;
+    await expect(leerAlumnos(cliente({ filas: { data: [sinEditable], error: null } }).deps)).rejects.toThrow();
     expect(await leerAlumnos(cliente({ filas: { data: null, error: null } }).deps)).toEqual([]);
   });
 

@@ -1,0 +1,56 @@
+.seccion {
+  display: grid;
+  gap: var(--e-3);
+  margin-block-start: var(--e-6);
+}
+
+.seccion h2 {
+  margin: 0;
+  font-size: var(--t-xl);
+}
+
+.ayuda {
+  margin: 0;
+  color: var(--c-texto-suave);
+}
+
+.fila {
+  display: grid;
+  gap: var(--e-2);
+  justify-items: start;
+  max-inline-size: var(--dialogo-max);
+}
+
+.etiqueta {
+  font-weight: var(--peso-fuerte);
+}
+
+.campo {
+  inline-size: 100%;
+  min-block-size: var(--tactil-min);
+  padding: var(--e-2) var(--e-3);
+  border: var(--borde-ancho) solid var(--c-borde);
+  border-radius: var(--r-md);
+  color: var(--c-texto);
+  background: var(--c-superficie);
+  font: inherit;
+}
+
+.campo:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+.resultado,
+.fallo {
+  margin: 0;
+  min-block-size: calc(var(--t-base) * var(--interlineado-cuerpo));
+}
+
+.resultado {
+  color: var(--c-exito-texto);
+}
+
+.fallo {
+  color: var(--c-error);
+}

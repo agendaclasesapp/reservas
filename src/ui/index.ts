@@ -19,6 +19,7 @@ export {
   type EstadoCuentaNavegacion,
 } from './Navegacion';
 export { AnuncioVivo, type AnuncioVivoProps } from './AnuncioVivo';
+export { EnlaceAccion, type EnlaceAccionProps } from './EnlaceAccion';
 export { SinPermisos, type SinPermisosProps, type DestinoSinPermisos } from './SinPermisos';
 export { GrupoOpciones, type GrupoOpcionesProps, type OpcionGrupo } from './GrupoOpciones';
 export { CampoFecha, type CampoFechaProps } from './CampoFecha';

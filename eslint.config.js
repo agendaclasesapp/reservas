@@ -25,6 +25,9 @@ export default tseslint.config(
       'playwright-report/',
       'test-results/',
       'supabase/functions/',
+      'perf/.dist/',
+      'perf/.estado/',
+      'perf/resultados/',
     ],
   },
   js.configs.recommended,
@@ -42,7 +45,7 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.browser } },
   },
   {
-    files: ['tests/**/*.{ts,tsx,js,mjs}', 'scripts/**/*.{js,mjs,ts}', '*.config.{js,ts,mjs}'],
+    files: ['tests/**/*.{ts,tsx,js,mjs}', 'scripts/**/*.{js,mjs,ts}', 'perf/**/*.mjs', '*.config.{js,ts,mjs}'],
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
   },
   {
@@ -75,7 +78,7 @@ export default tseslint.config(
   },
   {
     // Scripts de CLI y ayudas de prueba: escriben por consola y limpian secuencias ANSI.
-    files: ['tests/**/*.{ts,tsx,js,mjs}', 'scripts/**/*.{js,mjs,ts}'],
+    files: ['tests/**/*.{ts,tsx,js,mjs}', 'scripts/**/*.{js,mjs,ts}', 'perf/**/*.mjs'],
     rules: { 'no-control-regex': 'off' },
   },
 );

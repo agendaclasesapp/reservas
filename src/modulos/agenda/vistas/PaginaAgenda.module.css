@@ -1,0 +1,12 @@
+.enlace {
+  color: var(--c-primario);
+  font-weight: var(--peso-fuerte);
+}
+
+/* Reciben el foco por código (título tras un pedido, «Pedir acceso» al tocar un hueco): se ve dónde cayó. */
+.titulo:focus-visible,
+.aviso:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+  border-radius: var(--r-md);
+}

@@ -3,10 +3,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { z } from 'zod';
 import { cargarSupabase } from '../../../lib/supabase';
+import { MOTIVOS_TOPE_MAIL } from '../../../lib/errores';
 import {
   MOTIVO_DESTINATARIO_INVALIDO,
   MOTIVO_SIN_CONFIRMACION,
-  MOTIVO_TOPE,
+  MOTIVO_TOPE_GLOBAL,
   esquemaMailFallido,
   type ClaseMotivo,
   type MailFallido,
@@ -35,10 +36,15 @@ export async function leerMailsFallidos(
   return z.array(esquemaMailFallido).parse(data ?? []);
 }
 
+/** AVI-08: el tope superado es el de toda la aplicación (400 por día), no el del profesor. */
+export function esTopeGlobal(motivo: string | null): boolean {
+  return motivo === MOTIVO_TOPE_GLOBAL;
+}
+
 /** NFR-07, AVI-08, H-141: clase del motivo para que la vista diga en palabras qué pasó. */
 export function clasificarMotivo(motivo: string | null): ClaseMotivo {
   if (motivo === null || motivo.trim() === '') return 'desconocido';
-  if (motivo === MOTIVO_TOPE) return 'tope';
+  if (MOTIVOS_TOPE_MAIL.includes(motivo)) return 'tope';
   if (motivo === MOTIVO_SIN_CONFIRMACION) return 'sin_confirmacion';
   if (motivo === MOTIVO_DESTINATARIO_INVALIDO) return 'destinatario_invalido';
   return 'envio';

@@ -1,0 +1,16 @@
+.seccion {
+  display: grid;
+  gap: var(--e-3);
+}
+
+.seccion > h2 {
+  margin: 0;
+}
+
+.lista {
+  display: grid;
+  gap: var(--e-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}

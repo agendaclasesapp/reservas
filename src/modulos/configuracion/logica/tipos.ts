@@ -1,6 +1,7 @@
 // Tipos de dominio de «Mails fallidos» (WEB-08, NFR-07, AVI-08), escritos a mano contra
 // contratos.md §2 (`v_mails_fallidos`) y §4 (tipos de mail).
 import { z } from 'zod';
+import { MOTIVO_MAIL_TOPE, MOTIVO_MAIL_TOPE_GLOBAL } from '../../../lib/errores';
 
 /** Tipos de mail que encola `privado.encolar_mail` (contratos.md §4). */
 export const TIPOS_MAIL = [
@@ -11,14 +12,19 @@ export const TIPOS_MAIL = [
   'clase_creada',
   'clase_movida',
   'clase_cancelada',
+  // B14 (ADR-019): «te sumó como alumno» (AVI-04, ALU-07) y el alta de un profesor (B15).
+  'alumno_sumado',
   'recordatorio',
   'aviso_inactividad',
+  'profesor_alta',
 ] as const;
 
 export type TipoMail = (typeof TIPOS_MAIL)[number];
 
-/** Motivo con que nace un mail sobre el tope de AVI-08 (ADR-016). */
-export const MOTIVO_TOPE = 'TOPE';
+/** Motivo con que nace un mail sobre el tope del profesor de AVI-08 (ADR-016). */
+export const MOTIVO_TOPE = MOTIVO_MAIL_TOPE;
+/** Motivo con que nace un mail sobre el tope de toda la aplicación (AVI-08, ADR-019). */
+export const MOTIVO_TOPE_GLOBAL = MOTIVO_MAIL_TOPE_GLOBAL;
 /** Motivo del barrido para un envío sin confirmar tras 10 min (H-017, DEC-10 b). */
 export const MOTIVO_SIN_CONFIRMACION = 'SIN_CONFIRMACION';
 /** Motivo con que nace un mail cuyo destinatario no es una dirección simple (H-141, NFR-07). */
@@ -26,7 +32,7 @@ export const MOTIVO_DESTINATARIO_INVALIDO = 'DESTINATARIO_INVALIDO';
 
 /**
  * Clase de motivo para que la vista elija el texto:
- * - `tope`: se superó el tope de envío (AVI-08); el mail no salió.
+ * - `tope`: se superó el tope de envío del profesor o el de toda la aplicación (AVI-08); el mail no salió.
  * - `sin_confirmacion`: la función no confirmó el envío; pudo haber salido.
  * - `destinatario_invalido`: la dirección no es un mail simple (H-141); el mail no salió.
  * - `envio`: error del servidor de correo (texto SMTP en `motivo`).

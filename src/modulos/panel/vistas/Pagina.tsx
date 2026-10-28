@@ -1,4 +1,6 @@
-// Página vacía de B01. El bolt del módulo la completa; rutas.tsx importa este archivo (default export).
+// Página `#/panel` (WEB-06, B09). rutas.tsx importa este archivo (default export).
+import { PaginaPanel } from './PaginaPanel';
+
 export default function Pagina() {
-  return <h1>Panel</h1>;
+  return <PaginaPanel />;
 }

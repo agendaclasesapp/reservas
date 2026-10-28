@@ -1,0 +1,7 @@
+# B10 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
+# Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated.
+# T10.1: `bloquear(p_desde, p_hasta, p_motivo)` y `desbloquear(p_bloqueo_id)`, ambas [P]: las ejecuta
+# `authenticated` y el rol (profesor) se comprueba adentro (403, SEC-06). `guardar_configuracion` se reemplaza
+# con la misma firma y sigue en 02.txt.
+authenticated bloquear
+authenticated desbloquear

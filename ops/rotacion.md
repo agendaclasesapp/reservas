@@ -7,7 +7,10 @@ con el digest de `npx supabase@2.121.0 secrets list --project-ref rmokypmznhobap
 1. Genera un valor aleatorio largo (`openssl rand -hex 32`).
 2. `supabase secrets set MAIL_SECRETO=<nuevo> --project-ref rmokypmznhobapyghfpi`.
 3. En el SQL Editor actualiza el Vault `mail_secreto` con el mismo valor (`vault.update_secret`).
-4. Envía un mail de prueba y confirma que llega; con el secreto viejo la función responde 401.
+   El disparo firma con HMAC (`x-mail-ts`, `x-mail-firma`) usando `mail_secreto`; la función verifica con
+   `MAIL_SECRETO`. Los pasos 2 y 3 van juntos: mientras difieren, los disparos dan 401 y los mails quedan
+   `pendiente`; el barrido de cada 5 min los reenvía cuando coinciden.
+4. Envía un mail de prueba y confirma que llega; con el secreto viejo la firma no coincide y la función responde 401.
 5. Ensayo local obligatorio antes de G4: repite 1 a 4 contra `supabase start` con `supabase/.env.development`.
 
 ## GMAIL_APP_PASSWORD

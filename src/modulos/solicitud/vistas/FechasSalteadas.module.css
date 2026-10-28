@@ -1,0 +1,22 @@
+.fechas {
+  min-inline-size: 0;
+}
+
+.texto {
+  margin: 0;
+}
+
+.lista {
+  display: grid;
+  gap: var(--e-1);
+  margin: var(--e-2) 0 0;
+  padding-inline-start: var(--e-6);
+}
+
+.item {
+  overflow-wrap: anywhere;
+}
+
+.motivo {
+  color: var(--c-texto-suave);
+}

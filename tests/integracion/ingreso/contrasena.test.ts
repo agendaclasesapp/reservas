@@ -10,7 +10,7 @@ import { TOKEN_CAPTCHA } from '../../soporte/captcha';
 import { esperarMail, mailUnico } from '../../soporte/correo';
 import { clienteAnon } from '../../soporte/usuarios';
 import { pedirCodigo, verificarCodigo, type AuthCodigo, type DependenciasCodigo } from '../../../src/modulos/ingreso/logica/codigo';
-import { alumnoDe, almacenamientoEnMemoria, borrarPorMail } from './ayuda';
+import { alumnoDe, almacenamientoEnMemoria, borrarPorMail, personaCargada } from './ayuda';
 
 const creados: string[] = [];
 const mail = (p: string) => {
@@ -59,11 +59,7 @@ describe('H-180 preregistro con contraseña', () => {
     const m = mail('h180codigo');
     const clave = `Atacante-${randomUUID()}`;
     // ALU-07: el profesor ya dio de alta al alumno con ese mail (el caso de más valor para el atacante).
-    const [{ id: profesor }] = await sql<{ id: string }>('select id from public.profesor');
-    const [{ id: alumnoId }] = await sql<{ id: string }>(
-      "insert into public.alumno (profesor_id, estado, nombre, mail) values ($1, 'aprobado', 'Víctima', $2) returning id",
-      [profesor, m],
-    );
+    const alumnoId = await personaCargada({ mail: m, nombre: 'Víctima' });
     const userId = await preregistrar(m, clave);
     expect(await contrasenaGuardada(m), 'H-180: la contraseña del signUp no se guarda').toBe('');
     expect(await alumnoDe(userId), 'SEC-14: sin confirmar no se vincula').toBeNull();
@@ -76,8 +72,8 @@ describe('H-180 preregistro con contraseña', () => {
     expect(await verificarCodigo({ mail: m, codigo }, d)).toEqual({ ok: true });
     const { data } = await c.auth.getSession();
     expect(data.session?.user.id).toBe(userId);
-    expect(await alumnoDe(userId), 'ALU-01: se vincula conservando id y estado').toMatchObject({ id: alumnoId, estado: 'aprobado' });
-    expect((await c.rpc('sesion_actual')).data).toMatchObject({ rol: 'alumno', estado: 'aprobado' });
+    expect(await alumnoDe(userId), 'ALU-01: se vincula conservando id y estado').toMatchObject({ id: alumnoId, estado: 'completa' });
+    expect((await c.rpc('sesion_actual')).data).toMatchObject({ rol: 'alumno', estado: 'completa', inscripciones: [{ slug: 'profesor-prueba', estado: 'aprobado' }] });
 
     // El atacante intenta entrar con su contraseña sobre la cuenta ya confirmada.
     const intento = await entrarConContrasena(m, clave);

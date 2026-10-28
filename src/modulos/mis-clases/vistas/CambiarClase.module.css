@@ -1,0 +1,39 @@
+.cuerpo,
+.agenda {
+  display: grid;
+  gap: var(--e-3);
+}
+
+.cuerpo p,
+.agenda p {
+  margin: 0;
+}
+
+.clase {
+  font-weight: var(--peso-fuerte);
+  overflow-wrap: anywhere;
+}
+
+.nota {
+  color: var(--c-texto-suave);
+}
+
+.elegido {
+  font-weight: var(--peso-fuerte);
+}
+
+.error:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+.soloLectores {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

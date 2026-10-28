@@ -22,11 +22,6 @@ export function textoOpcional(valor: string | null): string {
   return valor === null || valor === '' ? 'Sin dato' : valor;
 }
 
-/** Nombre para mostrar y para los nombres accesibles de los botones. */
-export function nombreVisible(nombre: string | null): string {
-  return nombre === null || nombre.trim() === '' ? 'Sin nombre' : nombre;
-}
-
 /** Estado de la lista (ALU-09) → insignia y su texto: pendiente, aprobado, rechazado o sin cuenta. */
 export const INSIGNIA_ESTADO: Readonly<Record<EstadoAlumno, { tipo: TipoInsignia; texto: string }>> = {
   pendiente: { tipo: 'pendiente', texto: 'Pendiente' },

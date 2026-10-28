@@ -1,5 +1,6 @@
 # B05 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
 # Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated.
+# B14 · T14.2: mismas RPC sobre la inscripción con el profesor de la sesión (ADR-018); firmas sin cambios.
 authenticated aprobar_cuenta
 authenticated rechazar_cuenta
 authenticated sugerencias_union

@@ -1,4 +1,4 @@
-# Spec · ReservaTuClase
+# Spec · Agenda Clases App
 
 | Campo | Valor |
 | --- | --- |
@@ -10,7 +10,8 @@
 
 Los profesores de tenis coordinan hoy sus clases por mensajes: los alumnos no ven qué horarios quedan
 libres, y los pedidos, cambios y avisos de que no van se dispersan entre conversaciones.
-ReservaTuClase es una aplicación web gratuita donde cualquiera ve los huecos libres de la agenda de un
+Agenda Clases App (el «nombre del servicio» en esta spec; su ícono está en
+`docs/marca/agenda-clases-app-icono.jpg`) es una aplicación web gratuita donde cualquiera ve los huecos libres de la agenda de un
 profesor, los alumnos aprobados piden clases, piden moverlas o avisan que no van, y cada profesor
 confirma los pedidos que le llegan y es el único que ve quién ocupa cada hueco de su agenda. Un
 Administrador, el dueño del servicio, da de alta a los profesores; cada uno tiene su enlace y su
@@ -80,7 +81,10 @@ para teléfonos; dominio propio.
   cargó (DEC-29). Si el mail es el de un profesor o el del Administrador, el sistema rechaza el alta
   con `MAIL_YA_REGISTRADO` sin devolver datos de esa persona (DEC-31).
 - **ALU-08** · Si el profesor da de alta un alumno sin mail, queda como alumno sin cuenta de ese
-  profesor: no puede iniciar sesión y no recibe mails.
+  profesor: no puede iniciar sesión y no recibe mails. Si después el profesor le agrega un mail al
+  editarlo (PRF-01) y ese mail ya tiene cuenta, se rechaza con 409 «ese mail ya tiene cuenta» y no se
+  asocia ni se une nada; con un mail nuevo se permite. La única unión de un alumno sin cuenta con una
+  cuenta es la de ALU-04 (DEC-36).
 - **ALU-09** · El profesor ve la lista de sus alumnos (personas con vínculo con él y alumnos sin
   cuenta que cargó él) con el estado del vínculo con él (pendiente, aprobado, rechazado o sin cuenta),
   su ficha completa y la edad calculada a partir de la fecha de nacimiento.
@@ -136,9 +140,10 @@ para teléfonos; dominio propio.
   agenda y libre en otra.
 - **AGE-11** · Si el profesor está inactivo (ADM-05), su enlace abre una página que dice que no toma
   reservas por ahora y no muestra su agenda; nadie puede pedirle acceso ni crearle solicitudes nuevas
-  (reserva, movimiento o cancelación) y no se crean clases nuevas en su agenda. Las clases ya
-  confirmadas siguen visibles para sus alumnos en Mis clases. Al reactivarlo, su enlace y su agenda
-  vuelven como estaban (DEC-30).
+  (reserva, movimiento o cancelación) y no se crean clases nuevas en su agenda. Al inactivarlo se
+  cancelan todas sus solicitudes pendientes (SOL-03, SOL-04); las reservas y clases ya confirmadas
+  se mantienen y siguen visibles para sus alumnos en Mis clases. Al reactivarlo, su enlace y su
+  agenda vuelven como estaban; las solicitudes canceladas no se restablecen (DEC-30, DEC-35).
 
 ### 3.3 Reservas
 
@@ -206,9 +211,10 @@ para teléfonos; dominio propio.
   y su configuración; toda consulta u operación sobre datos de otro profesor no devuelve datos o se
   rechaza con 403.
 - **PRF-08** · Con el profesor inactivo (ADM-05) su panel sigue disponible para ver y gestionar lo ya
-  existente: ve su agenda, sus alumnos, sus clases y sus solicitudes, cancela clases o series
-  (PRF-03) y rechaza solicitudes pendientes (SOL-04); no crea ni mueve clases, no confirma
-  solicitudes, no aprueba accesos y no da de alta alumnos hasta que lo reactiven (DEC-30, DEC-35).
+  existente: ve su agenda, sus alumnos, sus clases y sus solicitudes (las pendientes quedaron
+  canceladas al inactivarlo, AGE-11), y gestiona las reservas ya confirmadas: las ve y cancela
+  clases o series (PRF-03); no crea ni mueve clases, no aprueba accesos y no da de alta alumnos
+  hasta que lo reactiven (DEC-30, DEC-35).
 
 ### 3.6 Avisos
 
@@ -254,8 +260,9 @@ para teléfonos; dominio propio.
   la agenda de ningún profesor. Si es además profesor, actúa como tal solo sobre su propia agenda; un
   profesor no es alumno de otro (DEC-31).
 - **ADM-05** · El Administrador, y solo él, inactiva a un profesor y lo reactiva. Inactivar es una
-  pausa: no borra ni cambia nada, y rigen AGE-11 y PRF-08; al reactivarlo todo queda como estaba. No
-  hay baja de un profesor ni cambio de su enlace (DEC-30).
+  pausa: no borra clases ni datos; cancela todas sus solicitudes pendientes y mantiene las reservas
+  ya confirmadas, y rigen AGE-11 y PRF-08; al reactivarlo todo queda como estaba, salvo las
+  solicitudes canceladas, que no vuelven (el alumno pide de nuevo). No hay baja de un profesor ni cambio de su enlace (DEC-30).
 
 ## 4. Interfaz
 
@@ -305,6 +312,11 @@ Pages no reescribe direcciones; la agenda de cada profesor es la ruta `#/p/<slug
   agenda, "Pedir acceso" y los pedidos se refieren a ese profesor. Mis clases sigue mostrando las
   clases de todos con su profesor (RES-06). Con un solo profesor no aparece y se abre su agenda
   (DEC-25, DEC-28).
+- **WEB-12** · Nombre e ícono: la aplicación se llama "Agenda Clases App" y usa el ícono de
+  `docs/marca/agenda-clases-app-icono.jpg`. El nombre aparece en el título de cada página, en el
+  encabezado junto al ícono y en las páginas de condiciones y privacidad; el ícono es también el
+  favicon. El remitente visible de los mails de la aplicación y de los códigos de ingreso es el mismo
+  nombre (AVI-07). Los identificadores internos (slug, rutas, paquetes) no cambian (CR-003).
 
 ## 5. Integraciones y API
 
@@ -566,14 +578,19 @@ destinatario, tipo y motivo del fallo.
 - **CA-62** · Una persona que pide acceso a A y a B responde «cómo llegaste» ante cada uno, y cada
   profesor ve solo su respuesta (ALU-14, DEC-33).
 - **CA-63** · El Administrador inactiva a un profesor con clases confirmadas, solicitudes pendientes
-  y alumnos: su enlace muestra que no toma reservas y no su agenda; nadie puede pedirle acceso ni
-  crearle solicitudes; el profesor entra, ve lo existente y cancela una clase, pero no crea, mueve ni
-  confirma; las clases confirmadas siguen visibles para sus alumnos en Mis clases; lo de otros
-  profesores no cambia; al reactivarlo, su enlace y su agenda quedan como antes (ADM-05, AGE-11,
-  PRF-08, DEC-30).
+  y alumnos: sus solicitudes pendientes quedan todas canceladas y las clases confirmadas se
+  mantienen; su enlace muestra que no toma reservas y no su agenda; nadie puede pedirle acceso ni
+  crearle solicitudes; el profesor entra, ve lo existente y cancela una clase, pero no crea ni mueve;
+  las clases confirmadas siguen visibles para sus alumnos en Mis clases; lo de otros profesores no
+  cambia; al reactivarlo, su enlace y su agenda quedan como antes y las solicitudes canceladas no
+  vuelven (ADM-05, AGE-11, PRF-08, DEC-30, DEC-35).
 - **CA-64** · Solo el Administrador inactiva o reactiva a un profesor: la operación hecha por un
   profesor o un alumno recibe 403, y la lista de profesores muestra el estado de cada uno (ADM-03,
   ADM-05, WEB-10).
+- **CA-65** · Al abrir cualquier página se ve "Agenda Clases App" en el título de la pestaña y en el
+  encabezado junto al ícono, el favicon es el ícono, y un mail de la aplicación y un código de ingreso
+  llegan con "Agenda Clases App" como remitente visible; no queda "ReservaTuClase" en ningún texto
+  visible (WEB-12, AVI-07).
 
 Los CA-37 y CA-38 (accesibilidad y 360 px) alcanzan también a WEB-09, 10 y 11.
 
@@ -603,4 +620,4 @@ No hay decisiones abiertas.
 | Administrador | Dueño del servicio; da de alta, inactiva y reactiva profesores (ADM-01). |
 | Enlace del profesor | Dirección `#/p/<slug>` que abre la agenda pública de un profesor. |
 | Vínculo | Relación de una persona con un profesor, con su estado pendiente, aprobado o rechazado. |
-| Profesor inactivo | Profesor en pausa por decisión del Administrador: su enlace no toma reservas y lo ya confirmado sigue visible (ADM-05). |
+| Profesor inactivo | Profesor en pausa por decisión del Administrador: su enlace no toma reservas y sus solicitudes pendientes se cancelan y lo ya confirmado sigue visible (ADM-05). |

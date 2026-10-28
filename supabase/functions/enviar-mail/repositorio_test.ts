@@ -22,15 +22,29 @@ const json = (v: unknown, status = 200) =>
 
 Deno.test("AVI_07_reclamar_pasa_de_pendiente_a_enviando_en_un_solo_update", async () => {
   const { f, llamadas } = fetchFalso([
-    json([{ id: ID, destinatario: "a@example.test", asunto: "A", cuerpo_texto: "C" }]),
+    json([{
+      id: ID,
+      destinatario: "a@example.test",
+      asunto: "A",
+      cuerpo_texto: "C",
+      remitente_nombre: "Ana Profe",
+      responder_a: "ana@example.test",
+    }]),
   ]);
   const repo = crearRepositorio("http://kong:8000/", "clave-servicio", f);
   const mail = await repo.reclamar(ID);
-  assert.deepEqual(mail, { id: ID, destinatario: "a@example.test", asunto: "A", cuerpo: "C" });
+  assert.deepEqual(mail, {
+    id: ID,
+    destinatario: "a@example.test",
+    asunto: "A",
+    cuerpo: "C",
+    remitente: "Ana Profe",
+    responderA: "ana@example.test",
+  });
   const { url, init } = llamadas[0];
   assert.equal(
     url,
-    `http://kong:8000/rest/v1/mail_salida?id=eq.${ID}&estado=eq.pendiente&select=id,destinatario,asunto,cuerpo_texto`,
+    `http://kong:8000/rest/v1/mail_salida?id=eq.${ID}&estado=eq.pendiente&select=id,destinatario,asunto,cuerpo_texto,remitente_nombre,responder_a`,
   );
   assert.equal(init.method, "PATCH");
   assert.equal(init.body, JSON.stringify({ estado: "enviando" }));
@@ -38,6 +52,13 @@ Deno.test("AVI_07_reclamar_pasa_de_pendiente_a_enviando_en_un_solo_update", asyn
   assert.equal(h.apikey, "clave-servicio");
   assert.equal(h.Authorization, "Bearer clave-servicio");
   assert.equal(h.Prefer, "return=representation");
+});
+
+Deno.test("AVI_07_reclamar_una_fila_sin_remitente_lo_deja_en_null", async () => {
+  const { f } = fetchFalso([json([{ id: ID, destinatario: "a@example.test", asunto: "A", cuerpo_texto: "C" }])]);
+  const mail = await crearRepositorio("http://x", "k", f).reclamar(ID);
+  assert.equal(mail?.remitente, null);
+  assert.equal(mail?.responderA, null);
 });
 
 Deno.test("AVI_07_reclamar_una_fila_que_ya_no_esta_pendiente_devuelve_null", async () => {

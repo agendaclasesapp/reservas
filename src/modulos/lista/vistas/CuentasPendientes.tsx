@@ -10,13 +10,15 @@ export type CuentasPendientesProps = {
   ocupada?: { id: string; accion: AccionCuenta } | null;
   /** Errores por id de cuenta (mensajes del módulo de la lista). */
   errores?: Readonly<Record<string, string>>;
+  /** false con el profesor inactivo (PRF-08): «Aprobar» queda deshabilitado; rechazar sigue disponible. */
+  puedeAprobar?: boolean;
   onAprobar: (cuenta: AlumnoLista) => void;
   onRechazar: (cuenta: AlumnoLista) => void;
 };
 
 const ID_TITULO = 'cuentas-pendientes-titulo';
 
-export function CuentasPendientes({ cuentas, ocupada = null, errores = {}, onAprobar, onRechazar }: CuentasPendientesProps) {
+export function CuentasPendientes({ cuentas, ocupada = null, errores = {}, puedeAprobar = true, onAprobar, onRechazar }: CuentasPendientesProps) {
   return (
     <section aria-labelledby={ID_TITULO} className={estilos.seccion}>
       <h2 id={ID_TITULO} className={estilos.titulo}>
@@ -36,6 +38,7 @@ export function CuentasPendientes({ cuentas, ocupada = null, errores = {}, onApr
                   cuenta={cuenta}
                   ocupada={ocupada !== null && ocupada.id === cuenta.id ? ocupada.accion : null}
                   error={errores[cuenta.id]}
+                  puedeAprobar={puedeAprobar}
                   onAprobar={onAprobar}
                   onRechazar={onRechazar}
                 />

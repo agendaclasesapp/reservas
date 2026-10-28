@@ -30,6 +30,15 @@ function estadoSupabase(): Record<string, string> {
   return estadoCache!;
 }
 
+const HOSTS_LOCALES = new Set(['127.0.0.1', 'localhost', '::1', '[::1]']);
+export function esLocal(url: string): boolean {
+  try {
+    return HOSTS_LOCALES.has(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
 export interface Entorno {
   apiUrl: string;
   anonKey: string;
@@ -64,9 +73,12 @@ export function entorno(): Entorno {
   dbUrl ??= 'postgresql://postgres:postgres@127.0.0.1:54322/postgres';
   mailpitUrl ??= 'http://127.0.0.1:54324';
   if (!anonKey) throw new Error('Sin clave anon del stack local: levanta Supabase local o define RTC_ANON_KEY');
-  // Guardia: estas pruebas solo corren contra la base local.
-  if (!/127\.0\.0\.1|localhost/.test(apiUrl)) {
+  // Guardia (H-408): la API y la base tienen que ser locales; se mira el host de la URL analizada, no el texto.
+  if (!esLocal(apiUrl)) {
     throw new Error(`Las pruebas de integración solo corren contra el stack local, no contra ${apiUrl}`);
+  }
+  if (!esLocal(dbUrl)) {
+    throw new Error('Las pruebas de integración solo limpian datos en la base local (RTC_DB_URL con host 127.0.0.1, localhost o ::1)');
   }
   entornoCache = { apiUrl, anonKey, dbUrl, mailpitUrl };
   return entornoCache;

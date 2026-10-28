@@ -1,6 +1,6 @@
 // Núcleo de la Edge Function `enviar-mail` (ADR-005 «Ajustes tras S01», contratos.md §4).
 // Sin dependencias de red: la base, el SMTP y el reloj llegan inyectados (pruebas Deno).
-// IDs: AVI-07, NFR-07, SEC-11, SEC-17, H-017.
+// IDs: AVI-07, NFR-07, SEC-10, SEC-11, SEC-17, H-017, H-130.
 
 /** SEC-11: máximo de `ids` por llamada y de pendientes con cuerpo `{}`. */
 export const MAX_IDS = 50;
@@ -10,8 +10,17 @@ export const TOPE_MAIL_MS = 15_000;
 export const PRESUPUESTO_MS = 100_000;
 /** contratos.md §4: largo máximo de `motivo_fallo`. */
 export const MAX_MOTIVO = 500;
+/**
+ * H-130: ventana de `x-mail-ts` en segundos, hacia atrás y hacia adelante del reloj de la función. Cubre la
+ * espera de pg_net tras el commit y el desfase de relojes; un replay dentro de la ventana solo reclama filas
+ * que sigan `pendiente` (AVI-07, sin doble envío).
+ */
+export const VENTANA_FIRMA_S = 300;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+/** H-130: `x-mail-ts` son segundos desde epoch en decimal; `x-mail-firma`, 64 dígitos hex. */
+const TS = /^\d{1,12}$/;
+const FIRMA = /^[0-9a-f]{64}$/;
 
 /** Fila reclamada (`pendiente → enviando`). Nunca se registra ni se devuelve (SEC-17). */
 export interface MailReclamado {
@@ -19,6 +28,10 @@ export interface MailReclamado {
   destinatario: string | null;
   asunto: string | null;
   cuerpo: string | null;
+  /** Nombre visible del From (ADR-019, WEB-12): el del profesor o «Agenda Clases App» (`NOMBRE_SERVICIO`). */
+  remitente?: string | null;
+  /** Reply-To (AVI-07): el mail del profesor en sus mails a alumnos; null en los demás. */
+  responderA?: string | null;
 }
 
 /** Acceso a `mail_salida`; cada método lanza si la base no responde. */
@@ -41,7 +54,10 @@ export interface Dependencias {
   secreto: string;
   repo: Repositorio;
   enviar: Enviar;
+  /** Reloj del presupuesto (H-017), en ms. */
   ahora?: () => number;
+  /** Reloj de la ventana de la firma (H-130), en segundos desde epoch: el real, nunca el de prueba (ADR-014). */
+  relojSeg?: () => number;
   registrar?: (evento: Evento) => void;
   topeMailMs?: number;
   presupuestoMs?: number;
@@ -63,6 +79,31 @@ export function iguales(a: string, b: string): boolean {
   const n = Math.max(x.length, y.length);
   for (let i = 0; i < n; i++) dif |= (x[i] ?? 0) ^ (y[i] ?? 0);
   return dif === 0;
+}
+
+/**
+ * H-130: hex(HMAC-SHA256(clave = MAIL_SECRETO, mensaje = `${ts}.` + cuerpo crudo)), la misma cuenta que
+ * `privado.disparar_mail` hace con pgcrypto. Se firma el cuerpo en bytes, tal como llega, antes de parsearlo.
+ */
+export async function firmar(secreto: string, ts: string, cuerpo: Uint8Array): Promise<string> {
+  const clave = await crypto.subtle.importKey(
+    "raw",
+    codificador.encode(secreto),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const prefijo = codificador.encode(`${ts}.`);
+  const mensaje = new Uint8Array(prefijo.length + cuerpo.length);
+  mensaje.set(prefijo);
+  mensaje.set(cuerpo, prefijo.length);
+  const mac = new Uint8Array(await crypto.subtle.sign("HMAC", clave, mensaje));
+  return Array.from(mac, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** H-130: `ts` bien formado y a no más de `VENTANA_FIRMA_S` del reloj, para atrás o para adelante. */
+export function tsVigente(ts: string, ahoraSeg: number): boolean {
+  return TS.test(ts) && Math.abs(ahoraSeg - Number(ts)) <= VENTANA_FIRMA_S;
 }
 
 function json(estado: number, cuerpo: unknown): Response {
@@ -115,19 +156,28 @@ export function crearManejador(deps: Dependencias): (req: Request) => Promise<Re
   const registrar = deps.registrar ?? ((e: Evento) => console.log(JSON.stringify(e)));
   const topeMailMs = deps.topeMailMs ?? TOPE_MAIL_MS;
   const presupuestoMs = deps.presupuestoMs ?? PRESUPUESTO_MS;
+  const relojSeg = deps.relojSeg ?? (() => Math.floor(Date.now() / 1000));
 
   return async (req: Request): Promise<Response> => {
     if (req.method !== "POST") return json(405, { error: "Solo POST" });
 
-    // SEC-11: sin secreto configurado o con uno distinto, 401 sin consultar la base.
-    const recibido = req.headers.get("x-mail-secreto") ?? "";
-    if (!deps.secreto || !iguales(recibido, deps.secreto)) {
-      return json(401, { error: "No autorizado" });
+    // SEC-11, H-130: sin MAIL_SECRETO configurado, sin `x-mail-ts` vigente o sin una `x-mail-firma` que
+    // coincida con la del cuerpo crudo, 401 sin consultar la base. El secreto ya no viaja en la llamada.
+    const noAutorizado = () => json(401, { error: "No autorizado" });
+    const ts = req.headers.get("x-mail-ts") ?? "";
+    const firma = (req.headers.get("x-mail-firma") ?? "").toLowerCase();
+    if (!deps.secreto || !tsVigente(ts, relojSeg()) || !FIRMA.test(firma)) return noAutorizado();
+    let crudo: Uint8Array;
+    try {
+      crudo = new Uint8Array(await req.arrayBuffer());
+    } catch {
+      return noAutorizado();
     }
+    if (!iguales(firma, await firmar(deps.secreto, ts, crudo))) return noAutorizado();
 
     let cuerpo: unknown;
     try {
-      const texto = await req.text();
+      const texto = new TextDecoder("utf-8", { fatal: true }).decode(crudo);
       cuerpo = texto.trim() === "" ? {} : JSON.parse(texto);
     } catch {
       return json(400, { error: "Pedido inválido" });

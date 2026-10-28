@@ -1,7 +1,15 @@
 // Pruebas Deno de la configuración SMTP y del envío (AVI-07, H-017, H-018, SEC-11).
 import assert from "node:assert/strict";
 import type { MailReclamado } from "./nucleo.ts";
-import { crearEnviador, type CrearTransporte, leerConfigSmtp, type Transporte } from "./smtp.ts";
+import {
+  crearEnviador,
+  type CrearTransporte,
+  leerConfigSmtp,
+  type Mensaje,
+  nombreRemitente,
+  responderA,
+  type Transporte,
+} from "./smtp.ts";
 
 const MAIL: MailReclamado = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -55,7 +63,7 @@ Deno.test("H_018_la_contrasena_de_aplicacion_se_usa_sin_espacios", () => {
   assert.equal(leerConfigSmtp(entorno({ GMAIL_APP_PASSWORD: " abcd efgh\tijkl mnop \n" })).clave, "abcdefghijklmnop");
 });
 
-Deno.test("AVI_07_el_remitente_es_GMAIL_USER_y_el_cuerpo_va_en_texto_plano", async () => {
+Deno.test("AVI_07_sin_remitente_en_la_fila_sale_con_el_nombre_del_servicio_y_sin_Reply_To", async () => {
   const { crear, estado } = transporteFalso();
   const enviar = crearEnviador(
     leerConfigSmtp(entorno({ GMAIL_USER: "casilla@gmail.com", GMAIL_APP_PASSWORD: "ab cd" })),
@@ -63,7 +71,7 @@ Deno.test("AVI_07_el_remitente_es_GMAIL_USER_y_el_cuerpo_va_en_texto_plano", asy
   );
   await enviar(MAIL, new AbortController().signal);
   assert.deepEqual(estado.enviados, [{
-    from: "casilla@gmail.com",
+    from: { name: "Agenda Clases App", address: "casilla@gmail.com" },
     to: MAIL.destinatario,
     subject: MAIL.asunto,
     text: MAIL.cuerpo,
@@ -93,4 +101,62 @@ Deno.test("H_017_abortar_la_senal_cierra_el_transporte_y_el_error_smtp_se_propag
   rechazar(new Error("Connection closed"));
   await assert.rejects(envio, /Connection closed/);
   assert.equal(estado.cierres, 2);
+});
+
+Deno.test("AVI_07_mail_de_un_profesor_sale_de_GMAIL_USER_con_su_nombre_y_Reply_To_a_su_mail", async () => {
+  const { crear, estado } = transporteFalso();
+  const enviar = crearEnviador(leerConfigSmtp(entorno({ GMAIL_USER: "casilla@gmail.com" })), crear);
+  await enviar(
+    { ...MAIL, remitente: "Ana Pérez", responderA: "ana.profe@example.test" },
+    new AbortController().signal,
+  );
+  assert.deepEqual(estado.enviados, [{
+    from: { name: "Ana Pérez", address: "casilla@gmail.com" },
+    to: MAIL.destinatario,
+    replyTo: "ana.profe@example.test",
+    subject: MAIL.asunto,
+    text: MAIL.cuerpo,
+  }]);
+});
+
+Deno.test("SEC_11_el_nombre_del_remitente_va_como_objeto_sin_saltos_comillas_ni_corchetes", async () => {
+  const { crear, estado } = transporteFalso();
+  const enviar = crearEnviador(leerConfigSmtp(entorno({ GMAIL_USER: "casilla@gmail.com" })), crear);
+  await enviar(
+    { ...MAIL, remitente: 'Ana\r\nBcc: x@y.test "<evil@y.test>"\\', responderA: null },
+    new AbortController().signal,
+  );
+  const m = estado.enviados[0] as Mensaje;
+  assert.equal(typeof m.from, "object");
+  assert.equal(m.from.address, "casilla@gmail.com");
+  assert.doesNotMatch(m.from.name, /[\r\n"<>\\]/);
+  assert.equal(m.from.name, "Ana Bcc: x@y.test evil@y.test");
+  assert.equal("replyTo" in m, false);
+});
+
+Deno.test("SEC_11_nombreRemitente_corta_a_70_y_vacio_es_el_servicio", () => {
+  assert.equal(nombreRemitente("a".repeat(90)).length, 70);
+  assert.equal(nombreRemitente("    "), "Agenda Clases App");
+  assert.equal(nombreRemitente(null), "Agenda Clases App");
+});
+
+Deno.test("WEB_12_SEC_11_un_nombre_con_espacios_sale_entero_en_from_name_sin_cabecera_armada_a_mano", async () => {
+  const { crear, estado } = transporteFalso();
+  const enviar = crearEnviador(leerConfigSmtp(entorno({ GMAIL_USER: "casilla@gmail.com" })), crear);
+  await enviar(MAIL, new AbortController().signal);
+  await enviar({ ...MAIL, remitente: "Ana María  Pérez" }, new AbortController().signal);
+  const [servicio, profesor] = estado.enviados as Mensaje[];
+  // nodemailer recibe el objeto y codifica el nombre; ni comillas ni «<dirección>» armados aquí.
+  assert.deepEqual(servicio.from, { name: "Agenda Clases App", address: "casilla@gmail.com" });
+  assert.deepEqual(profesor.from, { name: "Ana María Pérez", address: "casilla@gmail.com" });
+  for (const m of [servicio, profesor]) assert.doesNotMatch(m.from.name, /["<>]/);
+});
+
+Deno.test("SEC_11_Reply_To_solo_con_un_mail_simple", () => {
+  assert.equal(responderA("profe@example.test"), "profe@example.test");
+  assert.equal(responderA("a@x.test, b@y.test"), undefined);
+  assert.equal(responderA("Profe <p@x.test>"), undefined);
+  assert.equal(responderA("p@x.test\r\nBcc: z@y.test"), undefined);
+  assert.equal(responderA(`${"a".repeat(250)}@x.test`), undefined);
+  assert.equal(responderA(null), undefined);
 });

@@ -16,6 +16,10 @@ export const CODIGOS_ERROR = [
   'CLASE_NO_MODIFICABLE',
   'BLOQUEO_CON_RESERVAS',
   'MAIL_YA_REGISTRADO',
+  'CUENTA_NO_PENDIENTE',
+  'UNION_NO_VALIDA',
+  'SLUG_YA_USADO',
+  'PROFESOR_INACTIVO',
   'FUERA_DE_GRILLA',
   'ANTICIPACION_INSUFICIENTE',
   'DATOS_INVALIDOS',
@@ -31,7 +35,7 @@ export interface ErrorTraducido {
 }
 
 /** Tope de SOL-10; se usa si `details.limite` no llega o no es válido. */
-export const LIMITE_PENDIENTES_SOL10 = 5;
+export const LIMITE_PENDIENTES_SOL10 = 10;
 
 export const MENSAJE_GENERICO = 'No pudimos completar la operación. Probá de nuevo en unos minutos.';
 export const MENSAJE_SIN_CONEXION = 'No hay conexión con el servidor. Revisá tu conexión y probá de nuevo.';
@@ -54,12 +58,27 @@ export const MENSAJES: Readonly<Record<CodigoError, string>> = {
   SOLICITUD_VENCIDA: 'Esa solicitud venció: su horario ya pasó.',
   CLASE_NO_MODIFICABLE: 'Esa clase ya no se puede mover ni cancelar.',
   BLOQUEO_CON_RESERVAS: 'No se puede bloquear: hay clases pendientes o confirmadas en ese horario.',
-  MAIL_YA_REGISTRADO: 'Ya hay un alumno con ese mail.',
+  // B14 (DEC-29 b, DEC-31): también el mail de un profesor o del Administrador; no dice de quién es.
+  MAIL_YA_REGISTRADO: 'Ese mail ya está registrado y no se puede usar acá.',
+  CUENTA_NO_PENDIENTE: 'Esa cuenta ya no está pendiente de aprobación. Actualizá la lista.',
+  UNION_NO_VALIDA: 'Esa unión ya no es posible. Actualizá la lista.',
+  SLUG_YA_USADO: 'Ese enlace ya lo usa otro profesor. Elegí otro.',
+  // AGE-11, PRF-08: la misma respuesta para el alumno y para el profesor inactivo; cada módulo puede afinarla.
+  PROFESOR_INACTIVO: 'El profesor no toma reservas por ahora, así que no se puede hacer esto.',
   FUERA_DE_GRILLA: 'Ese horario no está en la grilla de clases.',
   ANTICIPACION_INSUFICIENTE: MENSAJE_ANTICIPACION_SIN_HORAS,
   DATOS_INVALIDOS: 'Revisá los datos ingresados.',
   LIMITE_EXCEDIDO: MENSAJE_LIMITE_OTRO,
 };
+
+/**
+ * Motivos con que nace `fallido` un mail sobre un tope de AVI-08 (ADR-016, ADR-019). No son errores: la
+ * operación que encola sigue. `TOPE` es el del profesor (20 por hora, 200 por día); `TOPE_GLOBAL`, el de toda
+ * la aplicación (400 por día).
+ */
+export const MOTIVO_MAIL_TOPE = 'TOPE';
+export const MOTIVO_MAIL_TOPE_GLOBAL = 'TOPE_GLOBAL';
+export const MOTIVOS_TOPE_MAIL: readonly string[] = [MOTIVO_MAIL_TOPE, MOTIVO_MAIL_TOPE_GLOBAL];
 
 /** SOL-10: el mensaje dice el límite. */
 export function mensajePendientesSol10(limite: number): string {

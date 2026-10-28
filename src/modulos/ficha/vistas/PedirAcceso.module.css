@@ -1,0 +1,27 @@
+.pedir {
+  display: grid;
+  gap: var(--e-3);
+  max-inline-size: var(--dialogo-max);
+  padding: var(--e-4);
+  background: var(--c-superficie);
+  border-radius: var(--r-md);
+}
+
+.pedir > h2,
+.pedir > p {
+  margin: 0;
+}
+
+.texto {
+  color: var(--c-texto-suave);
+}
+
+.form {
+  display: grid;
+  gap: var(--e-3);
+  justify-items: start;
+}
+
+.form > :not(button) {
+  inline-size: 100%;
+}

@@ -1,17 +1,23 @@
 // @vitest-environment jsdom
-// Pruebas de componente de la página de agenda (T02.2): WEB-01, AGE-07, NFR-05, NFR-06.
+// Pruebas de componente de la página de agenda de un profesor (T02.2, B14 · T14.4): WEB-01, AGE-07, AGE-09,
+// AGE-11, ALU-14, SEC-16, NFR-05, NFR-06.
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import type { ReactNode } from 'react';
 import { MemoryRouter, useLocation } from 'react-router';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MENSAJE_SIN_CONEXION } from '../../../../src/lib/errores';
 import { reiniciarConfigPublica, type ConfigPublica, type Hueco } from '../../../../src/modulos/agenda/logica';
 import { PaginaAgenda } from '../../../../src/modulos/agenda/vistas/PaginaAgenda';
+import { fijarSesion, restaurarSesion } from '../../ui/sesion';
 import { sinViolacionesAxe } from '../../ui/soporte';
 
 // 2026-11-02 12:00 en Buenos Aires (UTC-3, sin horario de verano). Rango válido: 2025-11-01 .. 2026-12-31.
 const AHORA = new Date('2026-11-02T15:00:00Z');
 const CONFIG: ConfigPublica = {
+  profesor_id: 'id-ana-perez',
+  nombre: 'Ana Pérez',
+  activo: true,
   zona_horaria: 'America/Argentina/Buenos_Aires',
   duracion_min: 60,
   anticipacion_horas: 24,
@@ -23,9 +29,14 @@ const LUNES: Hueco[] = [
   { inicio: '2026-11-02T17:00:00+00:00', fin: '2026-11-02T18:00:00+00:00', estado: 'bloqueado' },
 ];
 
+beforeEach(async () => {
+  await fijarSesion(null);
+});
+
 afterEach(() => {
   cleanup();
   reiniciarConfigPublica();
+  restaurarSesion();
 });
 
 function Ubicacion() {
@@ -34,13 +45,24 @@ function Ubicacion() {
 }
 
 function montar(
-  opciones: { ruta?: string; obtenerAgenda?: (dia: string) => Promise<Hueco[]>; obtenerConfig?: () => Promise<ConfigPublica> } = {},
+  opciones: {
+    ruta?: string;
+    obtenerAgenda?: (slug: string, dia: string) => Promise<Hueco[]>;
+    obtenerConfig?: (slug: string) => Promise<ConfigPublica>;
+    pedirAcceso?: (slug: string) => ReactNode;
+  } = {},
 ) {
   const obtenerAgenda = opciones.obtenerAgenda ?? vi.fn(async () => LUNES);
   const obtenerConfig = opciones.obtenerConfig ?? vi.fn(async () => CONFIG);
   const vista = render(
     <MemoryRouter initialEntries={[opciones.ruta ?? '/']}>
-      <PaginaAgenda obtenerConfig={obtenerConfig} obtenerAgenda={obtenerAgenda} ahora={AHORA} />
+      <PaginaAgenda
+        slug="ana-perez"
+        pedirAcceso={opciones.pedirAcceso}
+        obtenerConfig={obtenerConfig}
+        obtenerAgenda={obtenerAgenda}
+        ahora={AHORA}
+      />
       <Ubicacion />
     </MemoryRouter>,
   );
@@ -51,9 +73,10 @@ describe('Agenda por día: huecos (WEB-01, AGE-07, NFR-05)', () => {
   it('WEB_01_muestra_hoy_en_el_huso_del_profesor_con_hora_estado_texto_e_icono', async () => {
     const { container, obtenerAgenda } = montar();
     expect(screen.getByRole('heading', { level: 1, name: 'Agenda' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Agenda de Ana Pérez' })).toBeTruthy();
     expect(await screen.findByRole('heading', { level: 2, name: /2 de noviembre/ })).toBeTruthy();
     const lista = await screen.findByRole('list', { name: 'Huecos del día' });
-    expect(obtenerAgenda).toHaveBeenCalledWith('2026-11-02');
+    expect(obtenerAgenda).toHaveBeenCalledWith('ana-perez', '2026-11-02');
 
     const filas = within(lista).getAllByRole('listitem');
     // Ordenados por hora, en el huso del profesor y no en el del navegador (AGE-08).
@@ -64,7 +87,9 @@ describe('Agenda por día: huecos (WEB-01, AGE-07, NFR-05)', () => {
     ]);
     // Cada estado lleva ícono (decorativo) además del texto.
     for (const fila of filas) expect(fila.querySelector('svg')).not.toBeNull();
-    expect(filas.map((f) => f.getAttribute('data-estado'))).toEqual(['libre', 'ocupado', 'bloqueado']);
+    // El libre es un botón para tocarlo (WEB-01, CA-46): ocupado y bloqueado conservan su `data-estado`.
+    expect(filas.map((f) => f.getAttribute('data-estado'))).toEqual([null, 'ocupado', 'bloqueado']);
+    expect(within(filas[0] as HTMLElement).getByRole('button', { name: '08:00 a 09:00 Libre' })).toBeTruthy();
     expect(screen.getByText('Horarios en el huso America/Argentina/Buenos_Aires.')).toBeTruthy();
     await sinViolacionesAxe(container);
   });
@@ -76,10 +101,11 @@ describe('Agenda por día: huecos (WEB-01, AGE-07, NFR-05)', () => {
     expect(screen.getByText('1 hueco libre de 3.')).toBeTruthy();
   });
 
-  it('AGE_07_la_vista_publica_no_interactua_ni_muestra_mas_que_hora_y_estado', async () => {
+  it('AGE_07_solo_el_hueco_libre_se_toca_y_la_vista_no_muestra_mas_que_hora_y_estado', async () => {
     montar();
     const lista = await screen.findByRole('list', { name: 'Huecos del día' });
-    expect(within(lista).queryAllByRole('button')).toHaveLength(0);
+    // Ocupado y bloqueado nunca son interactivos; el libre es el único botón (WEB-01).
+    expect(within(lista).getAllByRole('button').map((b) => b.textContent)).toEqual(['08:00 a 09:00 Libre']);
     expect(lista.textContent).not.toMatch(/@|motivo|observaci/i);
   });
 
@@ -122,7 +148,7 @@ describe('Agenda por día: cargando y error (WEB-01)', () => {
 
   it('WEB_01_si_los_huecos_fallan_muestra_el_error_y_reintentar_conserva_el_dia', async () => {
     const obtenerAgenda = vi
-      .fn<(dia: string) => Promise<Hueco[]>>()
+      .fn<(slug: string, dia: string) => Promise<Hueco[]>>()
       .mockRejectedValueOnce(new TypeError('Failed to fetch'))
       .mockResolvedValue(LUNES);
     const { container } = montar({ ruta: '/?d=2026-11-05', obtenerAgenda });
@@ -134,7 +160,7 @@ describe('Agenda por día: cargando y error (WEB-01)', () => {
     await userEvent.click(within(alerta).getByRole('button', { name: 'Reintentar' }));
     expect(await screen.findByRole('list', { name: 'Huecos del día' })).toBeTruthy();
     expect(obtenerAgenda).toHaveBeenCalledTimes(2);
-    expect(obtenerAgenda).toHaveBeenLastCalledWith('2026-11-05');
+    expect(obtenerAgenda).toHaveBeenLastCalledWith('ana-perez', '2026-11-05');
   });
 
   it('WEB_01_si_falla_la_configuracion_ofrece_reintentar_y_luego_muestra_la_agenda', async () => {
@@ -158,11 +184,11 @@ describe('Agenda por día: selector de día (WEB-01, SEC-09, NFR-06)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Día siguiente' }));
     expect(await screen.findByRole('heading', { level: 2, name: /3 de noviembre/ })).toBeTruthy();
     expect(screen.getByTestId('ubicacion').textContent).toBe('?d=2026-11-03');
-    await waitFor(() => expect(obtenerAgenda).toHaveBeenLastCalledWith('2026-11-03'));
+    await waitFor(() => expect(obtenerAgenda).toHaveBeenLastCalledWith('ana-perez', '2026-11-03'));
     await userEvent.click(screen.getByRole('button', { name: 'Día anterior' }));
     await userEvent.click(screen.getByRole('button', { name: 'Día anterior' }));
     expect(await screen.findByRole('heading', { level: 2, name: /1 de noviembre/ })).toBeTruthy();
-    await waitFor(() => expect(obtenerAgenda).toHaveBeenLastCalledWith('2026-11-01'));
+    await waitFor(() => expect(obtenerAgenda).toHaveBeenLastCalledWith('ana-perez', '2026-11-01'));
   });
 
   it('WEB_01_el_selector_se_opera_solo_con_teclado', async () => {
@@ -172,7 +198,7 @@ describe('Agenda por día: selector de día (WEB-01, SEC-09, NFR-06)', () => {
     await userEvent.tab();
     expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Día siguiente' }));
     await userEvent.keyboard('{Enter}');
-    await waitFor(() => expect(obtenerAgenda).toHaveBeenLastCalledWith('2026-11-03'));
+    await waitFor(() => expect(obtenerAgenda).toHaveBeenLastCalledWith('ana-perez', '2026-11-03'));
     await userEvent.tab();
     expect(document.activeElement).toBe(screen.getByLabelText('Elegir día'));
   });
@@ -192,7 +218,7 @@ describe('Agenda por día: selector de día (WEB-01, SEC-09, NFR-06)', () => {
     expect(campo.max).toBe('2026-12-31');
     fireEvent.change(campo, { target: { value: '2026-11-10' } });
     expect(await screen.findByRole('heading', { level: 2, name: /10 de noviembre/ })).toBeTruthy();
-    await waitFor(() => expect(obtenerAgenda).toHaveBeenLastCalledWith('2026-11-10'));
+    await waitFor(() => expect(obtenerAgenda).toHaveBeenLastCalledWith('ana-perez', '2026-11-10'));
     expect(screen.getByTestId('ubicacion').textContent).toBe('?d=2026-11-10');
   });
 
@@ -210,7 +236,7 @@ describe('Agenda por día: selector de día (WEB-01, SEC-09, NFR-06)', () => {
     // Un día válido después limpia el error.
     fireEvent.change(campo, { target: { value: '2026-11-04' } });
     await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
-    expect(obtenerAgenda).toHaveBeenLastCalledWith('2026-11-04');
+    expect(obtenerAgenda).toHaveBeenLastCalledWith('ana-perez', '2026-11-04');
   });
 
   it('SEC_09_vaciar_el_campo_no_pide_ningun_dia_ni_muestra_error', async () => {
@@ -240,7 +266,7 @@ describe('Agenda por día: selector de día (WEB-01, SEC-09, NFR-06)', () => {
       const { obtenerAgenda, unmount } = montar({ ruta });
       await screen.findByRole('list', { name: 'Huecos del día' });
       expect(obtenerAgenda).toHaveBeenCalledTimes(1);
-      expect(obtenerAgenda).toHaveBeenCalledWith('2026-11-02');
+      expect(obtenerAgenda).toHaveBeenCalledWith('ana-perez', '2026-11-02');
       unmount();
       reiniciarConfigPublica();
     }

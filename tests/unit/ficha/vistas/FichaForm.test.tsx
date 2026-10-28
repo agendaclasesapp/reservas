@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-// Formulario de la ficha (WEB-03, ALU-02, ALU-13, CA-02, CA-43): errores por campo, foco al primero y mensaje del tope.
+// Formulario de la ficha (WEB-03, ALU-02, ALU-13, ALU-14, SEC-16, CA-02, CA-43): errores por campo, foco al primero,
+// mensaje del tope y «cómo llegaste» solo con un profesor de origen.
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -12,11 +13,12 @@ afterEach(cleanup);
 
 const HOY = '2026-11-02';
 const OK: ResultadoFicha = { ok: true };
+const ORIGEN = { nombre: 'Beto Gómez' };
 
 function montar(extra: Partial<FichaFormProps> = {}) {
   const onGuardar = vi.fn<FichaFormProps['onGuardar']>(() => Promise.resolve(OK));
   const resultado = render(
-    <FichaForm precargado={{ nombre: null, mail: null }} hoy={HOY} onGuardar={onGuardar} {...extra} />,
+    <FichaForm precargado={{ nombre: null, mail: null }} hoy={HOY} profesorOrigen={ORIGEN} onGuardar={onGuardar} {...extra} />,
   );
   return { ...resultado, onGuardar };
 }
@@ -30,20 +32,20 @@ async function completar(valores: { nombre?: string; telefono?: string; fecha?: 
     fireEvent.change(screen.getByLabelText(/^Fecha de nacimiento/), { target: { value: valores.fecha } });
   }
   if (valores.llego !== undefined) {
-    await userEvent.type(screen.getByLabelText(/^Cómo llegaste al profesor/), valores.llego);
+    await userEvent.type(screen.getByLabelText(/^Cómo llegaste a Beto Gómez/), valores.llego);
   }
 }
 
 const GUARDAR = () => screen.getByRole('button', { name: 'Guardar ficha' });
 
 describe('FichaForm (ALU-02, CA-02)', () => {
-  it('CA_02_muestra_los_cuatro_campos_obligatorios_con_sus_atributos_y_pasa_axe', async () => {
+  it('CA_02_ALU_14_con_profesor_de_origen_muestra_los_cuatro_campos_obligatorios_y_pasa_axe', async () => {
     const { container } = montar();
     for (const etiqueta of [
       /^Nombre y apellido/,
       /^Teléfono o WhatsApp/,
       /^Fecha de nacimiento/,
-      /^Cómo llegaste al profesor/,
+      /^Cómo llegaste a Beto Gómez/,
     ]) {
       expect(screen.getByLabelText(etiqueta).getAttribute('aria-required')).toBe('true');
     }
@@ -70,7 +72,7 @@ describe('FichaForm (ALU-02, CA-02)', () => {
     await userEvent.click(GUARDAR());
     const nombre = screen.getByLabelText(/^Nombre y apellido/);
     await waitFor(() => expect(nombre.getAttribute('aria-invalid')).toBe('true'));
-    for (const etiqueta of [/^Teléfono o WhatsApp/, /^Fecha de nacimiento/, /^Cómo llegaste al profesor/]) {
+    for (const etiqueta of [/^Teléfono o WhatsApp/, /^Fecha de nacimiento/, /^Cómo llegaste a Beto Gómez/]) {
       expect(screen.getByLabelText(etiqueta).getAttribute('aria-invalid')).toBe('true');
       expect(screen.getByLabelText(etiqueta).getAttribute('aria-describedby')).toBeTruthy();
     }
@@ -170,5 +172,47 @@ describe('FichaForm (ALU-02, CA-02)', () => {
     expect(onGuardar).toHaveBeenCalledOnce();
     terminar(OK);
     await waitFor(() => expect(screen.getByRole('button', { name: 'Guardar ficha' })).toBeTruthy());
+  });
+});
+
+describe('FichaForm · «cómo llegaste» según el profesor de origen (ALU-14, DEC-33, SEC-16)', () => {
+  it('ALU_14_sin_profesor_de_origen_no_pregunta_como_llegaste_y_pasa_axe', async () => {
+    const { container } = montar({ profesorOrigen: null });
+    expect(screen.queryByLabelText(/^Cómo llegaste/)).toBeNull();
+    expect(screen.queryByText(/Al guardarla le pedimos acceso/)).toBeNull();
+    await sinViolacionesAxe(container);
+  });
+
+  it('ALU_14_sin_profesor_de_origen_se_puede_guardar_sin_como_llegaste_y_se_manda_vacio', async () => {
+    const { onGuardar } = montar({ profesorOrigen: null });
+    await completar({ nombre: 'Ana Pérez', telefono: '099123456', fecha: '1990-02-03' });
+    await userEvent.click(GUARDAR());
+    await waitFor(() => expect(onGuardar).toHaveBeenCalledOnce());
+    expect(onGuardar.mock.calls[0]?.[0]).toEqual({
+      nombre: 'Ana Pérez',
+      telefono: '099123456',
+      fecha_nacimiento: '1990-02-03',
+      como_llego: '',
+    });
+  });
+
+  it('ALU_14_con_profesor_de_origen_avisa_a_quien_se_le_pide_acceso_y_el_campo_es_obligatorio', async () => {
+    const { onGuardar } = montar();
+    expect(screen.getByText('Al guardarla le pedimos acceso a Beto Gómez.')).toBeTruthy();
+    await completar({ nombre: 'Ana', telefono: '099123456', fecha: '1990-02-03' });
+    await userEvent.click(GUARDAR());
+    const campo = screen.getByLabelText(/^Cómo llegaste a Beto Gómez/);
+    await waitFor(() => expect(campo.getAttribute('aria-invalid')).toBe('true'));
+    expect(screen.getByRole('alert').textContent).toBe(MENSAJES_FICHA.comoLlegoVacio);
+    await waitFor(() => expect(document.activeElement).toBe(campo));
+    expect(onGuardar).not.toHaveBeenCalled();
+  });
+
+  it('SEC_16_el_nombre_del_profesor_se_muestra_como_texto_nunca_como_HTML', () => {
+    const nombre = '<img src=x onerror="alert(1)"><b>Beto</b>';
+    const { container } = montar({ profesorOrigen: { nombre } });
+    expect(screen.getByText(`Al guardarla le pedimos acceso a ${nombre}.`)).toBeTruthy();
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('b')).toBeNull();
   });
 });
