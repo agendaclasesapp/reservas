@@ -2,8 +2,8 @@
 // Tabla en escritorio y tarjetas en pantallas angostas, con estado (texto + ícono), ficha completa y edad.
 // Nombres, mails y motivos se muestran siempre como texto (SEC-16).
 import { Boton, Insignia, Vacio } from '../../../ui';
-import { MENSAJES_LISTA, puedeEditar, type AlumnoLista } from '../logica';
-import { formatearNacimiento, INSIGNIA_ESTADO, nombreVisible, textoEdad, textoOpcional } from './formato';
+import { MENSAJES_LISTA, nombreVisible, puedeEditar, type AlumnoLista } from '../logica';
+import { formatearNacimiento, INSIGNIA_ESTADO, textoEdad, textoOpcional } from './formato';
 import estilos from './ListaAlumnos.module.css';
 
 export type ListaAlumnosProps = {
@@ -19,6 +19,8 @@ export type ListaAlumnosProps = {
   onAprobar: (alumno: AlumnoLista) => void;
   /** Revisar si una cuenta aprobada tiene un alumno sin cuenta para unir (ALU-04). */
   onRevisarUnion: (alumno: AlumnoLista) => void;
+  /** Abre el diálogo de confirmación de «Borrar alumno» (ALU-12). Siempre disponible, también con el profesor inactivo. */
+  onBorrar: (alumno: AlumnoLista) => void;
 };
 
 const ID_TITULO = 'lista-alumnos-titulo';
@@ -30,9 +32,10 @@ function Acciones({
   onEditar,
   onAprobar,
   onRevisarUnion,
+  onBorrar,
 }: { alumno: AlumnoLista; puedeAprobar: boolean } & Pick<
   ListaAlumnosProps,
-  'ocupadoId' | 'onEditar' | 'onAprobar' | 'onRevisarUnion'
+  'ocupadoId' | 'onEditar' | 'onAprobar' | 'onRevisarUnion' | 'onBorrar'
 >) {
   const nombre = nombreVisible(alumno.nombre);
   const ocupado = ocupadoId === alumno.id;
@@ -67,6 +70,9 @@ function Acciones({
           Revisar unión
         </Boton>
       ) : null}
+      <Boton variante="peligro" aria-label={`Borrar a ${nombre}`} onClick={() => onBorrar(alumno)}>
+        Borrar
+      </Boton>
     </div>
   );
 }
@@ -80,6 +86,7 @@ export function ListaAlumnos({
   onEditar,
   onAprobar,
   onRevisarUnion,
+  onBorrar,
 }: ListaAlumnosProps) {
   return (
     <section aria-labelledby={ID_TITULO} className={estilos.seccion}>
@@ -149,6 +156,7 @@ export function ListaAlumnos({
                       onEditar={onEditar}
                       onAprobar={onAprobar}
                       onRevisarUnion={onRevisarUnion}
+                      onBorrar={onBorrar}
                     />
                   </td>
                 </tr>

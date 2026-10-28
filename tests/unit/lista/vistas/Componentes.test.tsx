@@ -8,7 +8,6 @@ import { TarjetaCuenta } from '../../../../src/modulos/lista/vistas/TarjetaCuent
 import {
   formatearNacimiento,
   INSIGNIA_ESTADO,
-  nombreVisible,
   textoEdad,
   textoOpcional,
 } from '../../../../src/modulos/lista/vistas/formato';
@@ -19,12 +18,21 @@ const logica = vi.hoisted(() => ({
   estado: { estado: 'cargando', alumnos: [], error: null } as Record<string, unknown>,
   recargar: vi.fn(),
   aprobarCuenta: vi.fn(),
+  // B07 (T07.2): solicitudes pendientes y clases de la página.
+  solicitudes: { estado: 'listo', filas: [], error: null } as Record<string, unknown>,
+  clases: { estado: 'listo', filas: [], error: null } as Record<string, unknown>,
+  recargarSolicitudes: vi.fn(),
+  recargarClases: vi.fn(),
+  responderSolicitud: vi.fn(),
 }));
 
 vi.mock('../../../../src/modulos/lista/logica', async (importarOriginal) => ({
   ...(await importarOriginal<object>()),
   useAlumnos: () => ({ datos: logica.estado, recargar: logica.recargar }),
   aprobarCuenta: logica.aprobarCuenta,
+  useSolicitudesPendientes: () => ({ datos: logica.solicitudes, recargar: logica.recargarSolicitudes }),
+  useClases: () => ({ datos: logica.clases, recargar: logica.recargarClases }),
+  responderSolicitud: logica.responderSolicitud,
 }));
 vi.mock('../../../../src/modulos/agenda/logica', () => ({
   useConfigPublica: () => ({ estado: 'listo', config: { zona_horaria: 'America/Montevideo' }, error: null }),
@@ -42,16 +50,13 @@ describe('formato (ALU-09, CA-07)', () => {
     expect(textoEdad(null)).toBe('Sin dato');
   });
 
-  it('formatearNacimiento_y_textoOpcional_y_nombreVisible', () => {
+  it('formatearNacimiento_y_textoOpcional', () => {
     expect(formatearNacimiento('1990-02-03')).toBe('3 de febrero de 1990');
     expect(formatearNacimiento(null)).toBe('Sin dato');
     expect(formatearNacimiento('')).toBe('Sin dato');
     expect(formatearNacimiento('no-es-fecha')).toBe('no-es-fecha');
     expect(textoOpcional('')).toBe('Sin dato');
     expect(textoOpcional('x')).toBe('x');
-    expect(nombreVisible(null)).toBe('Sin nombre');
-    expect(nombreVisible('  ')).toBe('Sin nombre');
-    expect(nombreVisible('Ana')).toBe('Ana');
   });
 
   it('ALU_09_los_cuatro_estados_tienen_texto_propio', () => {
@@ -60,9 +65,9 @@ describe('formato (ALU-09, CA-07)', () => {
 });
 
 describe('ListaAlumnos (C-67)', () => {
-  const props = { onAgregar: vi.fn(), onEditar: vi.fn(), onAprobar: vi.fn(), onRevisarUnion: vi.fn() };
+  const props = { onAgregar: vi.fn(), onEditar: vi.fn(), onAprobar: vi.fn(), onRevisarUnion: vi.fn(), onBorrar: vi.fn() };
 
-  it('ALU_09_un_alumno_sin_nombre_ni_datos_muestra_Sin_nombre_y_Sin_dato', async () => {
+  it('ALU_09_un_alumno_sin_nombre_ni_datos_muestra_Alumno_dado_de_baja_y_Sin_dato', async () => {
     const vacio = alumno({
       id: 'x',
       nombre: null,
@@ -75,7 +80,7 @@ describe('ListaAlumnos (C-67)', () => {
       estado: 'sin_cuenta',
     });
     const { container } = render(<ListaAlumnos alumnos={[vacio]} {...props} />);
-    const fila = screen.getByRole('row', { name: /Sin nombre/ });
+    const fila = screen.getByRole('row', { name: /Alumno dado de baja/ });
     expect(within(fila).getAllByText('Sin dato').length).toBeGreaterThanOrEqual(5);
     await sinViolacionesAxe(container);
   });
@@ -158,5 +163,45 @@ describe('Página #/lista conectada a logica/ (WEB-07)', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Aprobar cuenta de Bruno Díaz' }));
     await waitFor(() => expect(logica.aprobarCuenta).toHaveBeenCalledWith('p1', null));
     await waitFor(() => expect(logica.recargar).toHaveBeenCalledOnce());
+  });
+
+  it('WEB_07_la_pagina_monta_solicitudes_y_clases_arriba_de_cuentas_y_alumnos_y_confirmar_llama_a_responderSolicitud', async () => {
+    logica.estado = { estado: 'listo', alumnos: [alumno()], error: null };
+    logica.solicitudes = {
+      estado: 'listo',
+      filas: [
+        {
+          id: 's1',
+          tipo: 'reserva',
+          alcance: null,
+          fecha_clase: '2026-11-02T13:00:00Z',
+          vencida: false,
+          alumno_id: 'a1',
+          titular: 'Ana Pérez',
+          quien_toma: 'Ana Pérez',
+          observacion: null,
+          reserva_tipo: 'suelta',
+          frecuencia: null,
+          origen_inicio: null,
+          origen_fin: null,
+          destino_inicio: '2026-11-02T13:00:00Z',
+          destino_fin: '2026-11-02T14:00:00Z',
+          reserva_id: 'r1',
+          clase_id: null,
+          creada_en: '2026-10-30T12:00:00Z',
+        },
+      ],
+      error: null,
+    };
+    logica.responderSolicitud.mockResolvedValue({ ok: true, estado: 'confirmada' });
+    const { container } = render(<Pagina />);
+    const titulos = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(titulos).toEqual(['Solicitudes pendientes', 'Clases', 'Cuentas pendientes', 'Alumnos']);
+    await sinViolacionesAxe(container);
+    await userEvent.click(screen.getByRole('button', { name: /^Confirmar la solicitud de Ana Pérez/ }));
+    await waitFor(() => expect(logica.responderSolicitud).toHaveBeenCalledWith('s1', 'confirmar', null));
+    await waitFor(() => expect(logica.recargarSolicitudes).toHaveBeenCalled());
+    expect(logica.recargarClases).toHaveBeenCalled();
+    logica.solicitudes = { estado: 'listo', filas: [], error: null };
   });
 });

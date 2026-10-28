@@ -1,8 +1,8 @@
 // Cuenta pendiente de aprobación (WEB-07, ALU-03; flujos-profesor.md F-11; componentes-profesor.md C-63).
 // Ficha completa como texto plano (SEC-16): nombre, teléfono, mail, nacimiento con edad y cómo llegó.
 import { Alerta, Boton } from '../../../ui';
-import type { AlumnoLista } from '../logica';
-import { formatearNacimiento, nombreVisible, textoEdad, textoOpcional } from './formato';
+import { nombreVisible, type AlumnoLista } from '../logica';
+import { formatearNacimiento, textoEdad, textoOpcional } from './formato';
 import estilos from './TarjetaCuenta.module.css';
 
 export type AccionCuenta = 'aprobando' | 'rechazando';

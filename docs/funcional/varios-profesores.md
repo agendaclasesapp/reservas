@@ -1,12 +1,12 @@
 ---
 titulo: Funcional · Varios profesores
-version: 0.1
+version: 0.2
 fecha: 2026-10-23
 publico: negocio y equipo
 ---
 # Varios profesores (CR-002) y nombre del producto (CR-003)
 
-> Estado tras B14: **construido y verificado** el enlace por profesor, el vínculo persona-profesor, la página de inicio sin enlace, el selector, el alta de alumnos que ya tienen cuenta, los mails con el nombre del profesor y los topes por profesor y globales. Verificado por la API y en navegador. **Todavía no construido (B15):** la pantalla del Administrador para dar de alta, pausar y reactivar profesores (ADM-02, ADM-03, ADM-05, WEB-10); las reglas de la pausa ya están en la base.
+> Estado tras B14: **construido y verificado** el enlace por profesor, el vínculo persona-profesor, la página de inicio sin enlace, el selector, el alta de alumnos que ya tienen cuenta, los mails con el nombre del profesor y los topes por profesor y globales. Verificado por la API y en navegador. **Construido y verificado en B15 y B06:** la pantalla del Administrador para dar de alta, listar, pausar y reactivar profesores (ADM-02, ADM-03, ADM-05, WEB-10, CA-49, CA-63) y la anulación de pendientes al pausar.
 
 ## El producto
 
@@ -37,13 +37,15 @@ Quien tiene más de un vínculo ve arriba, en las pantallas del alumno, la lista
 - Con el mail de un profesor o del Administrador el alta se rechaza («Ese mail ya está registrado y no se puede usar acá»).
 - El profesor solo edita la ficha de un alumno que él cargó, que no tiene cuenta y que no tiene otro profesor; las demás dicen «Ficha no editable».
 - Agregar por edición un mail que ya tiene cuenta responde «ese mail ya tiene cuenta» y no asocia (DEC-36).
+- Agregar por edición un mail nuevo a un alumno sin cuenta le envía el mismo aviso «te sumó como alumno» del alta (DEC-38, AVI-04). No se manda si el mail no cambia, si se quita, si se cambia el mail de quien ya tenía uno ni en otra edición.
 
 ## Administrador (ADM-01 a ADM-05)
 
 - Hay un único Administrador, el dueño del servicio, fijado por el operador en el despliegue; ingresa como cualquier persona y ninguna pantalla permite hacerse Administrador (ADM-01).
 - Da de alta a un profesor con mail, nombre y enlace (3 a 30 caracteres: minúsculas, dígitos y guiones; único y no reservado), con aviso de que el nombre es público y de que su mail lo ven los alumnos como dirección de respuesta (ADM-02, DEC-34). Ve la lista con nombre, mail, enlace y estado (ADM-03).
 - Por serlo, no ve fichas, clases ni solicitudes de nadie; si además es profesor, actúa como tal solo sobre su agenda (ADM-04, DEC-31). Un profesor no es alumno de otro.
-- **Estado:** la pantalla y las acciones son de B15. En B14 existe `#/admin`, el menú «Administración» para el profesor que también es Administrador y el modelo en la base.
+- Al dar de alta, el profesor nace activo con la grilla inicial y recibe el mail «Tu agenda en Agenda Clases App» con su enlace y el aviso de que su nombre es público. Si el mail es el de un profesor que ya usaba el sistema con un enlace provisional, se lo **adopta**: queda con el nombre y el enlace nuevos y conserva su agenda. Si el mail es de una persona con ficha completa, de otro profesor o del Administrador, el alta se rechaza.
+- **Estado:** construido y verificado en B15 (`#/admin`; ver `manuales/administrador.md`). El texto de privacidad con varios profesores y la frase sobre el Administrador están publicados (H-286, vigente desde el 23 de octubre de 2026).
 
 ## Pausa de un profesor (ADM-05, AGE-11, PRF-08, DEC-30, DEC-35, DEC-37)
 
@@ -53,12 +55,12 @@ Solo el Administrador inactiva y reactiva a un profesor; no hay baja ni cambio d
 | --- | --- |
 | Su enlace | Dice «<nombre> no toma reservas por ahora», sin agenda ni «Pedir acceso» |
 | Pedidos de acceso, solicitudes nuevas, clases nuevas | No se pueden crear (409 `PROFESOR_INACTIVO`) |
-| Solicitudes pendientes | Se cancelan al inactivar y **no vuelven** al reactivar; el alumno no recibe mail por esto |
+| Solicitudes pendientes | Se anulan **todas**, también las vencidas, y se liberan sus huecos; **no vuelven** al reactivar; el alumno no recibe mail por esto (B06) |
 | Reservas y clases confirmadas | Se mantienen y siguen visibles |
 | Su panel | Ve todo y puede cancelar clases o series y rechazar; no aprueba accesos, no da de alta alumnos, no crea ni mueve clases. La lista lo avisa y «Agregar alumno» queda deshabilitado |
 | Al reactivarlo | Todo queda como estaba (con la agenda recargada) |
 
-Verificado: un profesor inactivo no recibe pedidos de acceso y al reactivarlo todo queda idéntico; el rechazo sí se permite.
+Verificado: un profesor inactivo no recibe pedidos de acceso, su enlace dice que no toma reservas, clases, vínculos, grilla y mails no cambian y al reactivarlo el enlace y la agenda vuelven idénticos; el rechazo sí se permite (CA-63). Los huecos de lo anulado vuelven a figurar libres al reactivar, pero lo anulado no se restablece.
 
 ## Mails y topes con varios profesores (AVI-07, AVI-08, SOL-10, ALU-13)
 
@@ -72,3 +74,4 @@ Verificado: un profesor inactivo no recibe pedidos de acceso y al reactivarlo to
 | Versión | Fecha | Bolt | IDs | Cambio |
 | --- | --- | --- | --- | --- |
 | 0.1 | 2026-10-23 | B14 | CR-002, CR-003, ADM-01..05, AGE-09..11, ALU-03, ALU-13, ALU-14, PRF-08, SOL-10, AVI-07, AVI-08, WEB-09..12, DEC-25..37 | Primera versión: enlace por profesor, vínculos, selector, alta con persona existente, Administrador, pausa, mails y topes, nombre del producto |
+| 0.2 | 2026-10-23 | B15, B06 | ADM-02, ADM-03, ADM-05, WEB-10, CA-49, CA-63, DEC-35, DEC-37, DEC-38, H-286 | Administrador construido, adopción, pausa que anula pendientes, aviso al sumar un mail |

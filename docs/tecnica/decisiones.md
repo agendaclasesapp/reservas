@@ -1,6 +1,6 @@
 ---
 titulo: Técnica · Decisiones de arquitectura (resumen)
-version: 0.2
+version: 0.4
 fecha: 2026-10-23
 publico: equipo técnico
 ---
@@ -41,7 +41,11 @@ Qué cambió con los spikes:
 - **ADR-017 (S03):** lectura pública con cliente REST liviano.
 - **ADR-016 y CR-001:** los topes son 5 solicitudes pendientes por alumno, 20 mails por hora, 200 por día y 10 fichas por hora, fijos en la spec (DEC-12), más CAPTCHA en el pedido de código (DEC-13). El texto actual de ADR-016 sigue en «propuesta, sujeta a DEC-12 y DEC-13» y los contratos dicen «sujeto a DEC-12»: el Arquitecto debe actualizarlos (CR-001 §3).
 
-- **ADR-018 a ADR-021 (CR-002, B14):** resumen y estado en `varios-profesores-b14.md`. La 016 pasa a topes por profesor y globales (10 pendientes por alumno y profesor, 400 mails por día).
+- **ADR-018 a ADR-021 (CR-002, B14, B15, B06):** resumen y estado en `varios-profesores-b14.md`. ADR-018 suma «Anulación al inactivar» (B06: al pausar a un profesor se anulan sus solicitudes pendientes, DEC-35, DEC-37) y ADR-021 el despliegue por tramos `prod-b14`, `prod-b15a`, `prod-b15b`, `prod-b06` con la contracción comprobada por `P0004`. La 016 pasa a topes por profesor y globales (10 pendientes por alumno y profesor, 400 mails por día).
+
+- **ADR-008 (B11):** `retencion` y `recordatorios` corren con `call privado.correr_proceso('<nombre>')` y registran cada corrida en `privado.ejecucion_proceso`; error `PROCESO_FALLIDO`. Ver `solicitudes-gestion-y-retencion-b07-b11.md` §5.
+- **ADR-011 (B11, DEC-26):** la retención anonimiza; el plazo de 6 meses es de la persona con todos sus profesores; borrar un alumno limpia lo suyo con ese profesor. **DEC-39** (período de gracia si el proceso estuvo parado) está **pendiente del humano**: hoy se borra igual a quien venció; recomendación del Arquitecto y SecDevOps: gracia de 7 días.
+- **ADR-018 y ADR-019 (B07, B08):** `inscripcion` copia nombre, slug y huso del profesor (triggers); los mails de respuesta, movimiento y cancelación salen con el nombre del profesor y Reply-To.
 
 Detalle operativo: `tecnica/configuracion-y-despliegue.md`.
 
@@ -51,3 +55,5 @@ Detalle operativo: `tecnica/configuracion-y-despliegue.md`.
 | --- | --- | --- | --- | --- |
 | 0.1 | 2026-10-21 | construcción (hito spikes S01-S03 y CR-001) | ADR-001..017, CR-001 | Primera versión del resumen de ADR |
 | 0.2 | 2026-10-23 | B14 | ADR-018..021, CR-002 | ADR-018 a 021; la 015 queda reemplazada |
+| 0.3 | 2026-10-23 | B15, B06 | ADR-018, ADR-021, DEC-35, DEC-37 | Anulación al inactivar y despliegue por tramos |
+| 0.4 | 2026-10-23 | B07, B08, B11 | ADR-008, ADR-011, ADR-018, ADR-019, DEC-26, DEC-39 | Procesos programados, retención con DEC-39 pendiente y datos del profesor en la inscripción |

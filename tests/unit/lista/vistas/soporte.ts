@@ -1,7 +1,7 @@
 // Datos y acciones de prueba compartidos por las pruebas de las vistas de la lista (T05.2).
 import { vi, type Mock } from 'vitest';
 import type { AccionesLista } from '../../../../src/modulos/lista/vistas/VistaLista';
-import type { AlumnoLista, FalloLista } from '../../../../src/modulos/lista/logica';
+import type { AlumnoLista, ClaseProfesor, FalloLista, SolicitudPendiente } from '../../../../src/modulos/lista/logica';
 
 export function alumno(extra: Partial<AlumnoLista> = {}): AlumnoLista {
   return {
@@ -39,5 +39,52 @@ export function acciones(): AccionesSimuladas {
     descartar: vi.fn<AccionesLista['descartar']>(() => Promise.resolve({ ok: true, cuentaId: 'p1' })),
     alta: vi.fn<AccionesLista['alta']>(() => Promise.resolve({ ok: true, alumnoId: 'n1', estado: 'aprobado', asociado: false })),
     editar: vi.fn<AccionesLista['editar']>(() => Promise.resolve({ ok: true, alumnoId: 'a1' })),
+    borrar: vi.fn<AccionesLista['borrar']>(() => Promise.resolve({ ok: true, clasesCanceladas: 0, solicitudesAnuladas: 0 })),
+  };
+}
+
+// B07 (T07.2): solicitudes pendientes y clases del profesor.
+
+export function solicitud(extra: Partial<SolicitudPendiente> = {}): SolicitudPendiente {
+  return {
+    id: 's1',
+    tipo: 'reserva',
+    alcance: null,
+    fecha_clase: '2026-11-02T13:00:00Z',
+    vencida: false,
+    alumno_id: 'a1',
+    titular: 'Ana Pérez',
+    quien_toma: 'Ana Pérez',
+    observacion: null,
+    reserva_tipo: 'suelta',
+    frecuencia: null,
+    origen_inicio: null,
+    origen_fin: null,
+    destino_inicio: '2026-11-02T13:00:00Z',
+    destino_fin: '2026-11-02T14:00:00Z',
+    reserva_id: 'r1',
+    clase_id: null,
+    creada_en: '2026-10-30T12:00:00Z',
+    ...extra,
+  };
+}
+
+export function claseProfesor(extra: Partial<ClaseProfesor> = {}): ClaseProfesor {
+  return {
+    id: 'c1',
+    inicio: '2026-11-02T13:00:00Z',
+    fin: '2026-11-02T14:00:00Z',
+    estado: 'confirmada',
+    alumno_id: 'a1',
+    titular: 'Ana Pérez',
+    quien_toma: 'Ana Pérez',
+    persona_a_cargo_id: null,
+    observacion: null,
+    reserva_tipo: 'suelta',
+    frecuencia: null,
+    solicitud_pendiente: null,
+    pasada: false,
+    reserva_id: 'r1',
+    ...extra,
   };
 }

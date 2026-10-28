@@ -82,3 +82,4 @@ Si el proyecto se pausó: panel de Supabase > Restore project, y vuelve a lanzar
 
 ## 9. Verificación tras el primer push
 Run de `web.yml` en verde, job `verificar-publicado` en verde, `keepalive` activo y `ops/verificar-repo.md`.
+- [ ] Pendiente (H-358): `show cron.use_background_workers;` devuelve `off` en el proyecto alojado (`ops/operacion.md` §1).

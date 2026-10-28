@@ -1,6 +1,6 @@
 ---
 titulo: Técnica · Plataforma (B01)
-version: 0.2
+version: 0.4
 fecha: 2026-10-23
 publico: equipo técnico
 ---
@@ -81,11 +81,17 @@ El pedido de código lleva CAPTCHA de Turnstile (ADR-016, DEC-13). `[auth.captch
 
 ## 7. Puesta en marcha del profesor y RPC base
 
-> Desde B14 (CR-002, ADR-018) el alta cambió: el operador corre `select privado.configurar_administrador('<mail>');` y, hasta que B15 permita el alta desde `#/admin`, `select privado.configurar_profesor('<mail>', '<nombre>', '<slug>');` (tres argumentos, devuelve el id). `config_publica` y `agenda_publica` reciben el slug. Ver `varios-profesores-b14.md` y `ops/puesta-en-marcha.md`. Lo siguiente describe B01.
+> Desde B14 (CR-002, ADR-018) el alta cambió, y desde B15 la contracción lo dejó así: el operador corre `select privado.configurar_administrador('<mail>');` y los demás profesores se dan de alta desde `#/admin` (`alta_profesor`). `privado.configurar_profesor('<mail>', '<nombre>', '<slug>')` (tres argumentos, devuelve el id; ADR-018) queda como herramienta del operador. `config_publica(p_slug)` y `agenda_publica(p_slug, p_dia)` reciben el slug; las versiones sin slug ya no existen (migración `202611000539`). Ver `varios-profesores-b14.md` y `ops/puesta-en-marcha.md`. Lo siguiente describe B01.
 
-Antes del primer ingreso del profesor se corre `select privado.configurar_profesor('<mail>', '<nombre>');` (`supabase/migrations/202611000104_rpc_base.sql`). Es idempotente; con un mail inválido o sin nombre devuelve 422 `DATOS_INVALIDOS`, y si la fila ya está vinculada a otro usuario, `PROFESOR_YA_VINCULADO` (código interno `PT409`; ADR-015). `config_publica()` devuelve `{zona_horaria, duracion_min, anticipacion_horas, horizonte_semanas}` y `ping()` la hora de la aplicación (`app_ahora`). `aprobar_cuenta` sobrescribe `motivo_estado` (contratos §3).
+En B01, antes del primer ingreso del profesor se corría `select privado.configurar_profesor('<mail>', '<nombre>');` (`supabase/migrations/202611000104_rpc_base.sql`); esa firma de dos argumentos **ya no existe**: hoy son `configurar_profesor(mail, nombre, slug)` (ADR-018). Es idempotente; con un mail inválido o sin nombre devuelve 422 `DATOS_INVALIDOS`, y si la fila ya está vinculada a otro usuario, `PROFESOR_YA_VINCULADO` (código interno `PT409`; ADR-015). `config_publica(p_slug)` devuelve (en B01 era sin argumentos) `{zona_horaria, duracion_min, anticipacion_horas, horizonte_semanas}` más los campos de B14 y `ping()` la hora de la aplicación (`app_ahora`). `aprobar_cuenta` sobrescribe `motivo_estado` (contratos §3).
 
 Los topes anti-abuso y el error `LIMITE_EXCEDIDO` están en ADR-016 y contratos §1, §3 y §5; `alumno.user_id` y `profesor.user_id` usan `on delete set null` con revinculación por mail (ADR-013).
+
+**Secreto opcional `url_sitio` (B15).** El mail «Tu agenda en Agenda Clases App» que recibe el profesor dado de alta desde `#/admin` lleva su enlace completo solo si el operador cargó en Vault `url_sitio` (la dirección del sitio publicado, a mano; ADR-012). Sin el secreto el mail trae solo `#/p/<slug>`. Pasos en `ops/mails.md` y `ops/puesta-en-marcha.md`.
+
+## 8. Procesos programados y su registro (B11)
+
+Desde B11 los jobs `recordatorios` (cada 15 minutos) y `retencion` (03:30 UTC) están en `cron.job` y llaman a `call privado.correr_proceso('<nombre>')` (ADR-008). Cada corrida deja una fila en `privado.ejecucion_proceso` (nombre, ahora, inicio, fin, ok, error, cantidades); si falla queda `ok = false` con SQLSTATE y mensaje y `cron.job_run_details` la marca `failed` con `PROCESO_FALLIDO`. `barrer_mails` y `extender_series` siguen con `select privado.<fn>()`. La revisión semanal, el riesgo de una retención parada y la depuración manual de la tabla están en `ops/operacion.md`; el detalle técnico en `solicitudes-gestion-y-retencion-b07-b11.md` §5. Despliegue en un ambiente propio: `despliegue/otro/README.md`.
 
 ## Bitácora de versiones
 
@@ -93,3 +99,5 @@ Los topes anti-abuso y el error `LIMITE_EXCEDIDO` están en ADR-016 y contratos 
 | --- | --- | --- | --- | --- |
 | 0.1 | 2026-10-21 | B01 | SEC-12, SEC-13, SEC-16, ADR-007, 012, 013, 015, 016, 017, NFR-09 | Primera versión: estructura, scripts, pipeline, sesión, UI compartida, CAPTCHA y puesta en marcha |
 | 0.2 | 2026-10-23 | B14 | ADR-018 | Nota de puesta en marcha con Administrador y slug |
+| 0.3 | 2026-10-23 | B15 | ADR-018, ADR-021, ADM-02 | `configurar_profesor` con tres argumentos tras la contracción, funciones sin slug eliminadas, secreto opcional `url_sitio` |
+| 0.4 | 2026-10-23 | B07, B11 | ADR-008, SEC-28, ALU-10, AVI-05 | Procesos programados y su registro de corridas; enlace a la guía de despliegue del cliente |

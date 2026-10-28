@@ -1,0 +1,17 @@
+{
+  "id": "SEC-06",
+  "titulo": "B intenta borrar a un alumno solo de A: 404 NO_ENCONTRADO igual que un id inexistente",
+  "prueba": "tests/integracion/retencion/borrado.test.ts::SEC-06_B_no_puede_borrar_a_un_alumno_que_solo_es_de_A_y_la_respuesta_es_la_de_un_id_inexistente",
+  "request": {
+    "metodo": "POST",
+    "url": "{{api_url}}/rest/v1/rpc/borrar_alumno",
+    "cabeceras": {
+      "apikey": "{{anon_key}}",
+      "Authorization": "Bearer {{token}}"
+    },
+    "cuerpo": {
+      "p_alumno_id": "00000000-0000-0000-0000-00000000dead"
+    }
+  },
+  "notas": "token {{token}} del profesor B. Esperado 404 NO_ENCONTRADO"
+}

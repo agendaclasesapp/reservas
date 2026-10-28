@@ -1,12 +1,12 @@
 ---
 titulo: Índice de la documentación · Agenda Clases App
-version: 0.6
+version: 0.8
 fecha: 2026-10-23
 publico: todos
 ---
 # Índice de la documentación
 
-Estado: B01 a B05 (plataforma, agenda pública, mails, ingreso y cuentas) y B14 (varios profesores) construidos; lo funcional sigue describiendo lo **diseñado** hasta que cada bolt lo verifique.
+Estado: B01 a B05 (plataforma, agenda pública, mails, ingreso y cuentas), B14 (varios profesores), B15 (Administrador), B06 (pedir clases), B07 (responder), B08 (mover), B09 (panel y gestión del profesor) y B11 (retención) construidos; lo funcional sigue describiendo lo **diseñado** hasta que cada bolt lo verifique.
 
 | Documento | Propósito | Público |
 | --- | --- | --- |
@@ -19,12 +19,15 @@ Estado: B01 a B05 (plataforma, agenda pública, mails, ingreso y cuentas) y B14 
 | [tecnica/plataforma.md](tecnica/plataforma.md) | Estructura del repo, scripts npm, pipeline, sesión, UI compartida, CAPTCHA de prueba, puesta en marcha del profesor | Equipo técnico |
 | [tecnica/base-y-contratos-b02-b05.md](tecnica/base-y-contratos-b02-b05.md) | Migraciones, RPC, errores del catálogo y topes construidos en B02 a B05 | Equipo técnico |
 | [tecnica/varios-profesores-b14.md](tecnica/varios-profesores-b14.md) | Modelo multiprofesor, contratos, rutas, mails y topes, nombre visible, migración y vuelta atrás | Equipo técnico, operación |
+| [tecnica/solicitudes-gestion-y-retencion-b07-b11.md](tecnica/solicitudes-gestion-y-retencion-b07-b11.md) | Migraciones, RPC, errores, procesos programados y mails de B07, B08, B09 y B11; DEC-39 pendiente | Equipo técnico, operación |
+| [secuencias/solicitar-reserva.md](secuencias/solicitar-reserva.md) | Diagrama de secuencia de pedir una reserva, con sus fallos | Equipo técnico |
 | [tecnica/decisiones.md](tecnica/decisiones.md) | Resumen de los ADR 001..021 y lo que cambiaron los spikes | Equipo técnico |
-| [manuales/alumno.md](manuales/alumno.md) | Ver la agenda, ingresar, ficha, personas a cargo, estado de la cuenta | Alumnos, visitantes |
-| [manuales/profesor.md](manuales/profesor.md) | Cuentas pendientes, unión, alumnos, mails fallidos | Profesor |
+| [manuales/alumno.md](manuales/alumno.md) | Ver la agenda, ingresar, ficha, pedir una clase suelta o una serie, Mis clases, mover y avisar que no voy, personas a cargo, estado de la cuenta, borrado de datos | Alumnos, visitantes |
+| [manuales/profesor.md](manuales/profesor.md) | Cuentas pendientes, unión, alumnos, responder solicitudes, panel y gestión de clases, borrar alumno, mails fallidos | Profesor |
+| [manuales/administrador.md](manuales/administrador.md) | Lista de profesores, alta, pausa y reactivación | Administrador |
 | `specs/` | Especificación original (no se modifica desde la documentación) | Equipo |
 
-Pendientes de escribir: resto de la documentación técnica (arquitectura, modelo de datos completo), diagramas de secuencia y los manuales de lo que falte construir (ver `.aidlc/reservatuclase/documentacion/plan.md`).
+Pendientes de escribir: resto de la documentación técnica (arquitectura, modelo de datos completo), el resto de los diagramas de secuencia (`responder-solicitud`, `ingreso`, `envio-de-mail`, `recordatorio`) y los manuales de lo que falte construir (bloqueos, B10) (ver `.aidlc/reservatuclase/documentacion/plan.md`).
 
 ## Bitácora de versiones
 
@@ -36,3 +39,5 @@ Pendientes de escribir: resto de la documentación técnica (arquitectura, model
 | 0.4 | 2026-10-21 | B01 | — | Documento técnico nuevo `plataforma.md`; onboarding 0.4 |
 | 0.5 | 2026-10-22 | B02-B05 | — | Documento técnico nuevo `base-y-contratos-b02-b05.md`; manuales de alumno y profesor; onboarding 0.5 |
 | 0.6 | 2026-10-23 | B14 | CR-002, CR-003 | Documentos nuevos `funcional/varios-profesores.md` y `tecnica/varios-profesores-b14.md`; manuales y onboarding al día; nombre «Agenda Clases App» |
+| 0.7 | 2026-10-23 | B15, B06 | ADM-02, WEB-04, WEB-10 | Documento nuevo `manuales/administrador.md`; manual del alumno con pedir clases; resto al día |
+| 0.8 | 2026-10-23 | B07, B08, B09, B11 | SOL-02..08, PRF-01..05, ALU-10..12, AVI-05, AVI-06 | Documento técnico nuevo `solicitudes-gestion-y-retencion-b07-b11.md`, secuencia `solicitar-reserva`; manuales y funcional al día; DEC-39 pendiente |

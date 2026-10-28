@@ -9,7 +9,7 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '../soporte/evidencia';
 import { cerrar, sql } from '../soporte/bd';
 import { SITEKEY_PRUEBA } from '../soporte/captcha';
-import { esperarMail } from '../soporte/correo';
+import { esperarMail, contarMails } from '../soporte/correo';
 import { entorno, RAIZ } from '../soporte/entorno';
 import { fijarReloj, limpiarReloj } from '../soporte/reloj';
 import { profesorId, SLUG_A, SLUG_B } from '../soporte/usuarios';
@@ -35,8 +35,7 @@ async function fijarRelojNavegador(page: Page, iso: string) {
 }
 
 async function mailsA(m: string): Promise<number> {
-  const r = await fetch(`${entorno().mailpitUrl}/api/v1/search?query=${encodeURIComponent(`to:"${m}"`)}`);
-  return ((await r.json()) as { messages: unknown[] }).messages.length;
+  return contarMails(m);
 }
 
 /** Entra con código: reintenta hasta que el widget de prueba entrega el token y lee el código del mail nuevo. */

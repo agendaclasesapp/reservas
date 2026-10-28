@@ -11,7 +11,7 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '../soporte/evidencia';
 import { cerrar, sql } from '../soporte/bd';
 import { SITEKEY_PRUEBA } from '../soporte/captcha';
-import { esperarMail, mailUnico } from '../soporte/correo';
+import { esperarMail, mailUnico, contarMails } from '../soporte/correo';
 import { entorno, RAIZ } from '../soporte/entorno';
 import { fijarReloj, limpiarReloj } from '../soporte/reloj';
 import { MAIL_PROFESOR, SLUG_A } from '../soporte/usuarios';
@@ -27,8 +27,7 @@ const estadoDe = async (alumnoId: string) => (await inscripcionDe(alumnoId))?.es
 test.use({ locale: 'es-UY', viewport: { width: 1280, height: 900 } });
 
 async function mailsA(m: string): Promise<number> {
-  const r = await fetch(`${entorno().mailpitUrl}/api/v1/search?query=${encodeURIComponent(`to:"${m}"`)}`);
-  return ((await r.json()) as { messages: unknown[] }).messages.length;
+  return contarMails(m);
 }
 
 /** Entrar con código: reintenta hasta que el widget de prueba entrega el token y lee el código del mail nuevo. */
@@ -116,7 +115,7 @@ test.describe('profesor', () => {
       async () => {
         await page.getByRole('button', { name: `Aprobar cuenta de ${nombre}` }).click();
         await expect(page.getByRole('dialog', { name: 'Posible alumno repetido' })).toBeVisible({ timeout: 15_000 });
-        await expect(page.getByText('T05 Viejo sin cuenta').first()).toBeVisible();
+        await expect(page.getByRole('dialog', { name: 'Posible alumno repetido' }).getByText('T05 Viejo sin cuenta').first()).toBeVisible();
         await expect.poll(() => estadoDe(cuenta)).toBe('aprobado');
       },
       { esperado: 'La cuenta queda aprobada y un diálogo compara «Cuenta aprobada» con «Alumno sin cuenta» (mismo teléfono normalizado)' },

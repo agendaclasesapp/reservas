@@ -1,0 +1,17 @@
+{
+  "id": "CA-10",
+  "titulo": "A borra a un alumno sin cuenta y sin otro profesor: se anonimiza",
+  "prueba": "tests/integracion/retencion/borrado.test.ts::CA-10_sin_cuenta_y_sin_otro_profesor_sus_datos_se_borran_como_en_ALU-10",
+  "request": {
+    "metodo": "POST",
+    "url": "{{api_url}}/rest/v1/rpc/borrar_alumno",
+    "cabeceras": {
+      "apikey": "{{anon_key}}",
+      "Authorization": "Bearer {{token}}"
+    },
+    "cuerpo": {
+      "p_alumno_id": "{{alumno_id}}"
+    }
+  },
+  "notas": "Esperado 200 {clases_canceladas:1, solicitudes_anuladas:0}"
+}

@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { sql } from './bd';
 import { TOKEN_CAPTCHA } from './captcha';
-import { esperarMail, mailUnico } from './correo';
+import { contarMails, esperarMail, mailUnico } from './correo';
 import { entorno, RAIZ } from './entorno';
 
 // Dos profesores y el Administrador del seed (ADR-018): A = profesor@example.test, B = profesora.b@example.test.
@@ -115,11 +115,6 @@ export async function ingresarPorCodigo(mail: string): Promise<{ accessToken: st
     return { accessToken: v.data.session.access_token, userId: v.data.user!.id };
   }
   throw new Error(`No se pudo ingresar ${mail}`);
-}
-
-async function contarMails(mail: string): Promise<number> {
-  const r = await fetch(`${entorno().mailpitUrl}/api/v1/search?query=${encodeURIComponent(`to:"${mail}"`)}`);
-  return ((await r.json()) as { messages: unknown[] }).messages.length;
 }
 
 async function vigente(s: Sesion & { exp: number; apiUrl: string }): Promise<boolean> {

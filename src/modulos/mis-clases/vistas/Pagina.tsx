@@ -1,4 +1,6 @@
-// Página vacía de B01. El bolt del módulo la completa; rutas.tsx importa este archivo (default export).
+// Página `#/mis-clases` (WEB-05). rutas.tsx importa este archivo (default export).
+import { PaginaMisClases } from './PaginaMisClases';
+
 export default function Pagina() {
-  return <h1>Mis clases</h1>;
+  return <PaginaMisClases />;
 }

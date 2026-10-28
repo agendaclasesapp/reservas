@@ -1,0 +1,5 @@
+# B07 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
+# Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated.
+# T07.1: `responder_solicitud(p_solicitud_id, p_decision, p_motivo)` [P]. Las vistas nuevas (`v_mis_clases`,
+# `v_clases`, `v_solicitudes_pendientes`) no son funciones: las cubren SEC-05 y SEC-02.
+authenticated responder_solicitud

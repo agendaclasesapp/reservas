@@ -1,22 +1,26 @@
 // Vista `#/lista` del profesor, parte de cuentas y alumnos (WEB-07, ALU-03..05, ALU-07..09, SEC-16; F-11 y F-13).
 // Recibe los datos y las acciones por props: la página los conecta con `logica/` y las pruebas con datos fijos.
 // Los errores se muestran con el mensaje del módulo de la lista (`FalloLista.mensaje`), no con el genérico.
+// B11 (ALU-12): «Borrar» abre un diálogo destructivo y, al confirmar, anuncia el resumen de clases canceladas.
 // B14 (ADR-020): con el profesor inactivo (PRF-08) aprobar y dar de alta quedan deshabilitados con el aviso;
 // una ficha que no es editable (DEC-32) se ve sin «Editar»; un alta con el mail de una persona existente la
 // asocia sin tocar su ficha y lo dice (DEC-29 b).
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { Dia } from '../../../lib/fechas';
 import { Alerta, Cargando, ErrorCarga } from '../../../ui';
 import {
   CUENTA_NO_PENDIENTE,
   MENSAJES_LISTA,
+  nombreVisible,
   permisosLista,
   separarPendientes,
   UNION_NO_VALIDA,
   type AlumnoEntrada,
   type AlumnoLista,
   type EstadoAlumnos,
+  resumenBorrado,
   type ResultadoAlta,
+  type ResultadoBorrado,
   type ResultadoCuenta,
   type ResultadoEdicion,
   type ResultadoSugerencias,
@@ -24,8 +28,8 @@ import {
   type Sugerencia,
 } from '../logica';
 import { AlumnoDialogo } from './AlumnoForm';
+import { BorradoDialogo } from './BorradoDialogo';
 import { CuentasPendientes } from './CuentasPendientes';
-import { nombreVisible } from './formato';
 import { ListaAlumnos } from './ListaAlumnos';
 import { RechazoDialogo } from './RechazoDialogo';
 import { SugerenciaUnion, type FichaComparada, type OcupadoUnion } from './SugerenciaUnion';
@@ -41,6 +45,8 @@ export type AccionesLista = {
   descartar: (cuentaId: string, sinCuentaId: string) => Promise<ResultadoUnion>;
   alta: (datos: AlumnoEntrada) => Promise<ResultadoAlta>;
   editar: (alumnoId: string, datos: AlumnoEntrada) => Promise<ResultadoEdicion>;
+  /** ALU-12: `borrar_alumno`; devuelve cuántas clases y solicitudes se cancelaron. */
+  borrar: (alumnoId: string) => Promise<ResultadoBorrado>;
 };
 
 export type VistaListaProps = {
@@ -52,6 +58,11 @@ export type VistaListaProps = {
   /** `sesion.profesor.activo`: inactivo, no aprueba accesos ni da de alta alumnos (PRF-08). Por defecto, activo. */
   profesorActivo?: boolean;
   acciones: AccionesLista;
+  /**
+   * B07 (WEB-07): «Solicitudes pendientes» y «Clases», que la página conecta con sus propios datos. Van arriba de
+   * las cuentas y de los alumnos y no dependen de la carga de `v_alumnos`.
+   */
+  secciones?: ReactNode;
 };
 
 type Aviso = { tipo: 'exito' | 'info' | 'error'; texto: string };
@@ -74,13 +85,14 @@ function ficha(alumno: AlumnoLista): FichaComparada {
   };
 }
 
-export function VistaLista({ datos, hoy, onRecargar, profesorActivo = true, acciones }: VistaListaProps) {
+export function VistaLista({ datos, hoy, onRecargar, profesorActivo = true, acciones, secciones }: VistaListaProps) {
   const permisos = permisosLista(profesorActivo);
   const [aviso, setAviso] = useState<Aviso | null>(null);
   const [ocupada, setOcupada] = useState<{ id: string; accion: AccionCuenta } | null>(null);
   const [buscandoId, setBuscandoId] = useState<string | null>(null);
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [rechazo, setRechazo] = useState<AlumnoLista | null>(null);
+  const [borrado, setBorrado] = useState<AlumnoLista | null>(null);
   const [union, setUnion] = useState<EstadoUnion | null>(null);
   const [formAlumno, setFormAlumno] = useState<FormAlumno | null>(null);
   const avisoRef = useRef<HTMLDivElement>(null);
@@ -121,6 +133,21 @@ export function VistaLista({ datos, hoy, onRecargar, profesorActivo = true, acci
     setRechazo(null);
     setAviso({ tipo: 'exito', texto: `Rechazaste la cuenta de ${nombreVisible(rechazo.nombre)}. Se le enviará un mail.` });
     return r;
+  };
+
+  // ALU-12: con `ok` se cierra el diálogo, se recarga la lista y el resumen (clases canceladas) se anuncia en el aviso,
+  // que recibe el foco porque la fila y su botón ya no existen. Si ya no existe (404), también se recarga.
+  const borrar = async () => {
+    if (borrado === null) return { ok: false as const, mensaje: '' };
+    const r = await acciones.borrar(borrado.id);
+    if (!r.ok) {
+      if (r.codigo === 'NO_ENCONTRADO') onRecargar();
+      return { ok: false as const, mensaje: r.mensaje };
+    }
+    onRecargar();
+    setBorrado(null);
+    setAviso({ tipo: 'exito', texto: resumenBorrado(r) });
+    return { ok: true as const };
   };
 
   const revisarUnion = async (alumno: AlumnoLista) => {
@@ -221,6 +248,7 @@ export function VistaLista({ datos, hoy, onRecargar, profesorActivo = true, acci
           <Alerta tipo={aviso.tipo}>{aviso.texto}</Alerta>
         </div>
       ) : null}
+      {secciones}
       {cargandoPorPrimeraVez ? <Cargando etiqueta="Cargando la lista de alumnos…" renglones={4} /> : null}
       {datos.estado === 'error' ? (
         <ErrorCarga
@@ -247,11 +275,20 @@ export function VistaLista({ datos, hoy, onRecargar, profesorActivo = true, acci
             onEditar={(alumno) => setFormAlumno({ alumno })}
             onAprobar={(alumno) => void aprobar(alumno)}
             onRevisarUnion={(alumno) => void revisarUnion(alumno)}
+            onBorrar={setBorrado}
           />
         </>
       ) : null}
       {rechazo ? (
         <RechazoDialogo nombre={nombreVisible(rechazo.nombre)} onEnviar={rechazar} onCerrar={() => setRechazo(null)} />
+      ) : null}
+      {borrado ? (
+        <BorradoDialogo
+          nombre={nombreVisible(borrado.nombre)}
+          alumno={borrado}
+          onConfirmar={borrar}
+          onCerrar={() => setBorrado(null)}
+        />
       ) : null}
       {union && candidatos.length > 0 ? (
         <SugerenciaUnion

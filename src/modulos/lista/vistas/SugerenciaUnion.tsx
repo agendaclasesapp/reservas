@@ -1,7 +1,8 @@
 // Sugerencia de unión al aprobar una cuenta (WEB-07, ALU-04, ALU-05; componentes-profesor.md C-64).
 // Muestra las dos fichas lado a lado y pide confirmar: nunca se une sin confirmar; «No unir» no cambia nada.
 import { Alerta, Boton, Dialogo } from '../../../ui';
-import { formatearNacimiento, nombreVisible, textoEdad, textoOpcional } from './formato';
+import { nombreVisible } from '../logica';
+import { formatearNacimiento, textoEdad, textoOpcional } from './formato';
 import estilos from './SugerenciaUnion.module.css';
 
 /** Ficha de un alumno para comparar; todo es texto plano (SEC-16). */

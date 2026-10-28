@@ -1,0 +1,80 @@
+.tarjeta {
+  display: grid;
+  gap: var(--e-2);
+  padding: var(--e-4);
+  border: var(--borde-fino) solid var(--c-borde);
+  border-radius: var(--r-md);
+  background: var(--c-superficie);
+}
+
+/* Las solicitudes pendientes se destacan arriba de Próximas (flujos.md F-06): borde grueso, no solo color. */
+.destacada {
+  border: var(--borde-ancho) solid var(--c-primario);
+  background: var(--c-info-fondo);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--t-md);
+  overflow-wrap: anywhere;
+}
+
+.estado,
+.aviso {
+  margin: 0;
+}
+
+.estado {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+  font-weight: var(--peso-fuerte);
+}
+
+.aviso {
+  color: var(--c-texto-suave);
+}
+
+.datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--e-2) var(--e-4);
+  margin: 0;
+}
+
+.datos dt {
+  font-size: var(--t-xs);
+  font-weight: var(--peso-fuerte);
+  color: var(--c-texto-suave);
+}
+
+.datos dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* La observación la escribe la persona: se respetan sus saltos de línea y nada se interpreta como HTML. */
+.observacion {
+  white-space: pre-line;
+}
+
+/* Mover y Avisar que no voy (B08): en fila y con salto de línea en 320 px (reflujo). */
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
+
+.pedido:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+.parrafo {
+  margin: 0;
+}
+
+.salteadas {
+  margin: var(--e-1) 0 0;
+  padding-inline-start: var(--e-4);
+}

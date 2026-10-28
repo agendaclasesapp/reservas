@@ -1,5 +1,6 @@
-// Rechazo de una cuenta con motivo opcional (WEB-07, ALU-03, AVI-03; componentes-profesor.md C-62).
-// Avisa que la persona va a ver el motivo. El texto se envía tal cual: se muestra siempre como texto (SEC-16).
+// Rechazo con motivo opcional (WEB-07, ALU-03, AVI-03, SOL-04, SEC-09; componentes-profesor.md C-62): de una
+// cuenta (por defecto) o de una solicitud de reserva (`titulo`, `textoAccion` y `aviso`). Avisa que la persona va
+// a ver el motivo. El texto se envía tal cual: se muestra siempre como texto (SEC-16).
 import { useId, useState, type FormEvent } from 'react';
 import { Boton, Campo, Dialogo } from '../../../ui';
 import { esquemaMotivo, LARGO_MAX_MOTIVO, MENSAJES_LISTA } from '../logica';
@@ -8,12 +9,18 @@ import type { ResultadoGuardado } from './formato';
 export type RechazoDialogoProps = {
   /** Nombre de la cuenta que se rechaza (texto). */
   nombre: string;
+  /** Título del diálogo; por defecto «Rechazar la cuenta de <nombre>». */
+  titulo?: string;
+  /** Texto del botón que rechaza; por defecto «Rechazar cuenta». */
+  textoAccion?: string;
+  /** Aviso bajo la etiqueta; por defecto el de la cuenta («... en su ficha y en Mis clases ...»). */
+  aviso?: string;
   /** `rechazar_cuenta`: con `ok` el padre cierra el diálogo; con error el diálogo lo muestra. */
   onEnviar: (motivo: string) => Promise<ResultadoGuardado>;
   onCerrar: () => void;
 };
 
-export function RechazoDialogo({ nombre, onEnviar, onCerrar }: RechazoDialogoProps) {
+export function RechazoDialogo({ nombre, titulo, textoAccion = 'Rechazar cuenta', aviso, onEnviar, onCerrar }: RechazoDialogoProps) {
   const idMotivo = useId();
   const [motivo, setMotivo] = useState('');
   const [error, setError] = useState('');
@@ -45,12 +52,12 @@ export function RechazoDialogo({ nombre, onEnviar, onCerrar }: RechazoDialogoPro
   return (
     <Dialogo
       abierto
-      titulo={`Rechazar la cuenta de ${nombre}`}
+      titulo={titulo ?? `Rechazar la cuenta de ${nombre}`}
       onCerrar={onCerrar}
       textoCerrar="Cancelar"
       acciones={
         <Boton variante="peligro" cargando={enviando} textoCargando="Rechazando…" onClick={() => void enviar()}>
-          Rechazar cuenta
+          {textoAccion}
         </Boton>
       }
     >
@@ -62,7 +69,7 @@ export function RechazoDialogo({ nombre, onEnviar, onCerrar }: RechazoDialogoPro
           valor={motivo}
           onCambio={setMotivo}
           error={error}
-          ayuda={`${MENSAJES_LISTA.avisoMotivoVisible} Hasta ${LARGO_MAX_MOTIVO} caracteres.`}
+          ayuda={`${aviso ?? MENSAJES_LISTA.avisoMotivoVisible} Hasta ${LARGO_MAX_MOTIVO} caracteres.`}
         />
       </form>
     </Dialogo>

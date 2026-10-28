@@ -1,7 +1,7 @@
 ---
 titulo: Técnica · Configuración, despliegue y operación local
-version: 0.2
-fecha: 2026-10-21
+version: 0.4
+fecha: 2026-10-23
 publico: equipo técnico, operación
 ---
 # Configuración, despliegue y operación local
@@ -36,6 +36,7 @@ btree_gist, pg_cron y pg_net se crean en el stack local sin plan B (S03; `spikes
 
 | Secreto | Dónde vive | Cómo se carga |
 | --- | --- | --- |
+| `url_sitio` (opcional) | Vault de Supabase: dirección del sitio publicado, para el enlace completo del mail de alta de un profesor (B15, ADM-02) | A mano, por quien opera (`ops/mails.md`, `ops/puesta-en-marcha.md`); sin él el mail trae solo `#/p/<slug>` |
 | `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `MAIL_SECRETO` | Secretos de Edge Functions y Vault de Supabase | A mano, por quien opera (`ops/mails.md`) |
 | Secreto OAuth de Google | Panel de Supabase Auth | A mano; no se declara en `config.toml` |
 | SMTP de Auth | Panel de Supabase Auth | A mano; el límite `rate_limit.email_sent` también se fija y verifica en el panel (`ops/auth.md`) |
@@ -52,6 +53,8 @@ Pasos: `supabase link`, `db push`, despliegue de la función, `config push` (env
 - **Conexión a la base del proyecto:** por el pooler de sesión `aws-1-sa-east-1.pooler.supabase.com:5432`, usuario `postgres.<ref>`. El host directo es solo IPv6 y el pooler `aws-0` no conoce el proyecto (S01). El host va como variable del environment.
 - **Guardia de `config push`** (S02, H-005, H-022): la CLI 2.121 manda la sección entera y cambia todo lo que `config.toml` no declare igual que el proyecto; una variable `env()` sin definir se empuja como el literal `env(...)`. Por eso el workflow define `RTC_SITE_URL`, `RTC_REDIRECT_URL` y `RTC_GOOGLE_CLIENT_ID` (variables del environment) y deja `RTC_GOOGLE_SECRET` vacía. Antes del push corre `scripts/seguridad/guardia-config.mjs`, que ejecuta `config diff -o json` y falla si la salida contiene `127.0.0.1` o `env(`, o si trae un `update` de un campo fuera de `scripts/seguridad/config-permitida.json`; el diff queda en el resumen del job para el revisor.
 - `config.toml` iguala a los valores del proyecto los campos que no son de la app (pooler, `storage.vector`, MFA TOTP). `[auth.captcha]` ya está declarado (CR-001). El guardia usa `config diff --output-format json`. Resto de la plataforma: `plataforma.md`.
+- **Guía para el equipo del cliente (B07, H-024):** `despliegue/otro/README.md` explica el despliegue en GitHub Pages y Supabase Free para un ambiente propio, con `PLACEHOLDERS.md` (lo que depende de su ambiente) y `tramos-prod.md`; no contiene secretos.
+- Los jobs `recordatorios` y `retencion` de pg_cron se programan con la migración `202611001107` y se revisan cada semana según `ops/operacion.md` (ver `solicitudes-gestion-y-retencion-b07-b11.md` §5).
 - El workflow no escribe `supabase/.env` ni ningún `.env*`; `npm run build` en CI corre sin `.env.local`.
 
 ## 6. Ingreso (S02)
@@ -72,3 +75,5 @@ La agenda pública se lee con `@supabase/postgrest-js` (clave anon, sin sesión)
 | --- | --- | --- | --- | --- |
 | 0.1 | 2026-10-21 | construcción (hito spikes S01-S03 y CR-001) | ADR-005, 006, 007, 012, 017, DEC-14, DEC-15, DEC-17, CR-001, H-018, H-020, H-022 | Primera versión: lo medido en los spikes y lo fijado en los ADR |
 | 0.2 | 2026-10-21 | B01 y B04 (parte documental de T04.3) | ADR-012, ADR-016, DEC-13 | `[auth.captcha]` declarado, secreto de Turnstile a mano, variable `VITE_TURNSTILE_SITEKEY`, guardia con salida JSON; enlaces a `ops/` |
+| 0.3 | 2026-10-23 | B15 | ADM-02 | Secreto opcional `url_sitio` |
+| 0.4 | 2026-10-23 | B07, B11 | NFR-09, ADR-008, SEC-28 | Enlace a la guía de despliegue del cliente; jobs de retención y recordatorios |

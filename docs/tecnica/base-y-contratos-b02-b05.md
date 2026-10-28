@@ -1,6 +1,6 @@
 ---
 titulo: Técnica · Base de datos, RPC y errores construidos (B02 a B05)
-version: 0.2
+version: 0.3
 fecha: 2026-10-23
 publico: equipo técnico
 ---
@@ -31,14 +31,14 @@ Las migraciones ya aplicadas no se editan: un cambio nuevo va en una migración 
 
 | RPC | Rol | Bolt | Notas |
 | --- | --- | --- | --- |
-| `agenda_publica(p_dia)` | anon y alumno | B02 | `[{inicio, fin, estado}]` con libre, ocupado o bloqueado; nada más. Día válido entre hoy menos 366 días y hoy más el horizonte más 31 días; fuera de eso, 422 `DATOS_INVALIDOS` con `p_dia` |
+| `agenda_publica(p_dia)` (hoy `agenda_publica(p_slug, p_dia)`, ver `varios-profesores-b14.md`) | anon y alumno | B02 | `[{inicio, fin, estado}]` con libre, ocupado o bloqueado; nada más. La forma sin slug quedó eliminada por la contracción de B15 (migración `202611000539`); solo existe `agenda_publica(p_slug, p_dia)`. Día válido entre hoy menos 366 días y hoy más el horizonte más 31 días; fuera de eso, 422 `DATOS_INVALIDOS` con `p_dia` |
 | `guardar_configuracion`, `guardar_grilla` | profesor | B02 | Duración 1 a 1440 min; anticipación 0 a 8784 h; huso IANA; hasta 50 tramos sin solape. Sin pantalla aún |
 | `sesion_actual()` | sesión | B04 | `{rol, alumno_id, estado, nombre, mail, motivo_rechazo}`; el motivo solo si está rechazado |
 | `completar_ficha` | alumno | B04 | `{estado: "pendiente"}`; 409 `FICHA_YA_COMPLETA` (la web lo toma como éxito); 429 `LIMITE_EXCEDIDO` con 10 fichas por hora |
 | `guardar_persona_a_cargo` | alumno | B04 | Alta con id nulo, edición con id; sin baja |
 | `aprobar_cuenta`, `rechazar_cuenta` | profesor | B05 | Aprobar acepta pendiente o rechazada y borra el motivo anterior (H-037); rechazar, solo pendiente |
 | `sugerencias_union`, `unir_alumnos`, `descartar_union` | profesor | B05 | Unir reasigna toda FK hacia `alumno(id)` y borra el alumno sin cuenta en una transacción |
-| `alta_alumno`, `editar_alumno` | profesor | B05 | Con mail queda aprobado sin usuario; sin mail, sin cuenta; el mail de una cuenta con usuario no se edita |
+| `alta_alumno`, `editar_alumno` | profesor | B05 | Con mail queda aprobado sin usuario; sin mail, sin cuenta; el mail de una cuenta con usuario no se edita. Desde B15 (DEC-38, migración `202611000526`) agregar por edición un mail nuevo a un alumno sin cuenta encola el mismo aviso `alumno_sumado` del alta |
 
 Lecturas nuevas: `v_mails_fallidos` (B03; `id`, `fecha` = `creado_en`, destinatario, tipo, motivo; nunca asunto ni cuerpo) y `v_alumnos` (B05; incluye `con_usuario` y `edad` calculada con `app_ahora()` en el huso del profesor; excluye fichas incompletas y borrados).
 
@@ -87,3 +87,4 @@ El profesor lee de `mail_salida` solo `id`, `tipo`, `destinatario`, `estado`, `m
 | --- | --- | --- | --- | --- |
 | 0.1 | 2026-10-22 | B02-B05 | AGE-07, AVI-02, AVI-03, AVI-08, ALU-02..09, ALU-13, NFR-07, ADR-005, ADR-013 | Primera versión: migraciones, RPC, errores y topes construidos |
 | 0.2 | 2026-10-23 | B14 | CR-002 | Nota: topes por profesor y global desde B14 |
+| 0.3 | 2026-10-23 | B15 | DEC-38, AVI-04, ADR-021 | `agenda_publica` solo con slug; `editar_alumno` avisa al sumar un mail |

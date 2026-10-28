@@ -1,0 +1,6 @@
+# B08 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
+# Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated.
+# T08.1: `solicitar_movimiento(p_clase_id, p_destino, p_alcance)` y `solicitar_cancelacion(p_clase_id, p_alcance)` [U].
+# Las ramas nuevas de `responder_solicitud` (B07) son funciones de `privado`: no van en la lista.
+authenticated solicitar_cancelacion
+authenticated solicitar_movimiento

@@ -1,0 +1,73 @@
+.panel {
+  display: grid;
+  gap: var(--e-4);
+  min-inline-size: 0;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--t-md);
+  line-height: var(--interlineado-titulo);
+}
+
+.titulo:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+.formulario {
+  display: grid;
+  gap: var(--e-4);
+  min-inline-size: 0;
+}
+
+.alumnos {
+  max-block-size: 16rem;
+  overflow-y: auto;
+  padding-inline-end: var(--e-1);
+}
+
+.datos {
+  display: grid;
+  gap: var(--e-2);
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.datos dt {
+  color: var(--c-texto-suave);
+  font-size: var(--t-xs);
+}
+
+.datos dd {
+  margin: 0;
+  font-size: var(--t-base);
+}
+
+.botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
+
+.nota {
+  margin: 0;
+  color: var(--c-texto-suave);
+  font-size: var(--t-xs);
+}
+
+.pregunta {
+  margin: 0;
+  font-size: var(--t-base);
+  overflow-wrap: anywhere;
+}
+
+.enlace {
+  color: var(--c-primario);
+  text-decoration: underline;
+}
+
+.enlace:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}

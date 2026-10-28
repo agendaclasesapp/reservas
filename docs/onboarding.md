@@ -1,12 +1,12 @@
 ---
 titulo: Onboarding · Agenda Clases App
-version: 0.6
+version: 0.8
 fecha: 2026-10-23
 publico: equipo nuevo
 ---
 # Onboarding · Agenda Clases App
 
-> Estado: **B01 (plataforma) construido**. La web y la base tienen su estructura, scripts y pipeline; las funciones de los módulos se suman por bolt. Lo marcado «(diseñado)» aún no existe.
+> Estado: **construidos B01 a B05, B14 (varios profesores), B15 (Administrador) y B06 (pedir clases)**. Lo marcado «(diseñado)» aún no existe. Desde el último hito también están construidos B07 (responder solicitudes, Mis clases), B08 (mover y avisar que no voy), B09 (panel del profesor y gestión directa) y B11 (retención, recordatorios y borrado de alumnos); falta B10 (bloqueos).
 
 ## 1. Qué es
 
@@ -61,7 +61,7 @@ Los mails salen al buzón de prueba local (Mailpit); ahí se ve el código de in
 
 **Producción:** proyecto Supabase Free, Gmail 465 desde la cuenta dedicada `agendaclasesapp@gmail.com` (`GMAIL_USER`, `GMAIL_APP_PASSWORD` como secretos, la contraseña sin espacios; DEC-15), web en `https://agendaclasesapp.github.io/reservas/` (DEC-14). El despliegue de la función va sin Docker (`--use-api`), la conexión a la base por el pooler de sesión `aws-1-sa-east-1` y `config push` detrás del guardia de `config diff` (ADR-012). Operación y secretos en `ops/` (ADR-012). Guías de producción: `ops/puesta-en-marcha.md`, `ops/auth.md`, `ops/mails.md`, `ops/rotacion.md`, `ops/incidentes.md` y `ops/verificar-repo.md`; política de seguridad en `SECURITY.md`.
 
-**Puesta en marcha en producción:** el repositorio es público y no lleva datos personales: antes del primer ingreso el operador corre a mano `privado.configurar_administrador('<mail>')` y, para cada profesor, `privado.configurar_profesor('<mail>', '<nombre>', '<slug>')` (hasta que B15 permita darlos de alta desde `#/admin`); pasos en `ops/puesta-en-marcha.md`. Para pasar una instalación de un solo profesor a varios, seguir `ops/migracion-multiprofesor.md` (migración en dos fases con vuelta atrás ensayada). Revisar cada semana `privado.ejecucion_proceso`.
+**Puesta en marcha en producción:** el repositorio es público y no lleva datos personales: antes del primer ingreso el operador corre a mano `privado.configurar_administrador('<mail>')`; los profesores se dan de alta desde `#/admin` (B15) y `privado.configurar_profesor('<mail>', '<nombre>', '<slug>')` queda como herramienta del operador. Opcional: el secreto de Vault `url_sitio` para que el mail de alta lleve el enlace completo. Pasos en `ops/puesta-en-marcha.md`. Para pasar una instalación de un solo profesor a varios, seguir `ops/migracion-multiprofesor.md` (migración en dos fases, desplegada por tramos `prod-b14` → `prod-b15a` → `prod-b15b` → `prod-b06`, con vuelta atrás ensayada hasta la contracción). Revisar cada semana `privado.ejecucion_proceso`.
 
 ## 5. Dónde está cada cosa
 
@@ -81,7 +81,8 @@ Los mails salen al buzón de prueba local (Mailpit); ahí se ve el código de in
 - Un hueco admite una sola reserva pendiente o confirmada, garantizado por la base (RES-01, ADR-002).
 - Un solo huso horario: el del profesor (ADR-004).
 - Las series se materializan con horizonte de 26 semanas (ADR-003).
-- Se anonimiza en lugar de borrar (ADR-011).
+- Se anonimiza en lugar de borrar (ADR-011): a los 6 meses de la última clase con cualquier profesor, con aviso 7 días antes (ALU-10, AVI-06). DEC-39 (período de gracia si el proceso estuvo parado) está pendiente del humano.
+- Los procesos programados `recordatorios` y `retencion` se revisan cada semana con `ops/operacion.md`.
 - La hora de negocio sale de `public.app_ahora()`, nunca de `now()`; el reloj de prueba solo se habilita en local con `seed.sql` (ADR-014).
 - El rol y el vínculo con alumno o profesor se asignan solo con el mail confirmado (ADR-007).
 - Topes anti-abuso fijos (DEC-12, DEC-27): 10 solicitudes pendientes por alumno con cada profesor, 10 fichas por hora por profesor de origen, 20 mails por hora y 200 por día por profesor y 400 por día en toda la aplicación; cambiarlos exige un CR. El pedido de código lleva CAPTCHA (Turnstile, DEC-13).
@@ -93,7 +94,7 @@ Los mails salen al buzón de prueba local (Mailpit); ahí se ve el código de in
 
 ## 7. Glosario
 
-Enlace del profesor, vínculo, profesor inactivo (pausa), Administrador, Agenda Clases App, grilla semanal (tramos horarios por día), tramo, hueco (espacio de una clase), libre/ocupado/bloqueado, bloqueo, anticipación mínima, titular, persona a cargo, alumno sin cuenta, alumno pendiente, ficha, reserva, serie, solicitud, alcance («solo esta clase» / «de acá en adelante»), unión de alumnos, teléfono normalizado, RLS, registro de mails fallidos. Definiciones completas: `.aidlc/reservatuclase/analisis/glosario.md`.
+Enlace del profesor, vínculo, serie (clases que se repiten cada semana o cada quince días), solicitud pendiente (pedido de clase que espera respuesta), profesor inactivo (pausa), Administrador, Agenda Clases App, grilla semanal (tramos horarios por día), tramo, hueco (espacio de una clase), libre/ocupado/bloqueado, bloqueo, anticipación mínima, titular, persona a cargo, alumno sin cuenta, alumno pendiente, ficha, reserva, serie, solicitud, alcance («solo esta clase» / «de acá en adelante»), unión de alumnos, teléfono normalizado, RLS, registro de mails fallidos. Definiciones completas: `.aidlc/reservatuclase/analisis/glosario.md`.
 
 ## 8. A quién preguntar
 
@@ -109,3 +110,5 @@ Por área, según los perfiles del ciclo: requisitos (funcional), diseño técni
 | 0.4 | 2026-10-21 | B01 | SEC-12, SEC-13, SEC-16, SEC-20, ADR-007, 012, 016, 017 | Arranque local (`npx supabase`, `.env.example`, scripts), cómo correr cada suite, enlaces a `ops/` y `tecnica/plataforma.md` |
 | 0.5 | 2026-10-22 | B02-B05 | SEC-16, CA-44 | Notas para correr las pruebas: CAPTCHA de prueba, reinicio del stack, `AIDLC_EVIDENCIAS` |
 | 0.6 | 2026-10-23 | B14 | CR-002, CR-003, ADR-018..021, ADM-01, WEB-12, DEC-25..37 | Varios profesores, Administrador, enlace por profesor, topes nuevos, puesta en marcha y migración; nombre «Agenda Clases App» |
+| 0.7 | 2026-10-23 | B15, B06 | ADM-02, ADM-05, SOL-10, ADR-021, DEC-38 | Estado de los bolts construidos, alta de profesores desde `#/admin`, secreto `url_sitio`, despliegue por tramos, glosario |
+| 0.8 | 2026-10-23 | B07, B08, B09, B11 | ALU-10, AVI-05, AVI-06, DEC-39, SEC-28 | Estado de los bolts construidos, retención y runbook de operación |

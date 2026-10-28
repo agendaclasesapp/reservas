@@ -77,7 +77,36 @@ function navegadorDe(info: TestInfo): string {
   return uso.channel || uso.browserName || "chromium";
 }
 
-function nuevoRecorrido(page: Page, info: TestInfo, datos: DatosCu): { recorrido: Recorrido; guardar: () => void } {
+/**
+ * Páginas de la prueba con su última actividad. Las pruebas que abren sus propios contextos
+ * (`browser.newContext()`, p. ej. alumna y profesor) navegan en páginas distintas de la `page` del
+ * fixture, que queda en about:blank: la captura se toma de la página con actividad más reciente (H-390).
+ */
+type Registro = { paginas: Map<Page, number> };
+function registrar(reg: Registro, pagina: Page) {
+  if (reg.paginas.has(pagina)) return;
+  const marca = () => reg.paginas.set(pagina, performance.now());
+  marca();
+  pagina.on("request", marca);
+  pagina.on("framenavigated", marca);
+  pagina.on("domcontentloaded", marca);
+  pagina.on("close", () => reg.paginas.delete(pagina));
+}
+function paginaActiva(reg: Registro, porDefecto: Page): Page {
+  let mejor = porDefecto;
+  let t = -1;
+  for (const [p, marca] of reg.paginas) {
+    if (p.isClosed()) continue;
+    const url = p.url();
+    const vacia = url === "about:blank" || url === "";
+    if (vacia && p !== porDefecto) continue;
+    if (p === porDefecto && vacia) { if (t < 0) mejor = p; continue; }
+    if (marca >= t) { mejor = p; t = marca; }
+  }
+  return mejor;
+}
+
+function nuevoRecorrido(page: Page, info: TestInfo, datos: DatosCu, reg: Registro): { recorrido: Recorrido; guardar: () => void } {
   const carpeta = path.join(carpetaBase(), datos.cu.replace(/[^\w.-]+/g, "-"));
   const capturas = path.join(carpeta, "capturas");
   fs.rmSync(capturas, { recursive: true, force: true });
@@ -115,7 +144,7 @@ function nuevoRecorrido(page: Page, info: TestInfo, datos: DatosCu): { recorrido
           error = e;
         }
       });
-      await page.screenshot({ path: path.join(capturas, archivo), fullPage: true }).catch(() => undefined);
+      await paginaActiva(reg, page).screenshot({ path: path.join(capturas, archivo), fullPage: true }).catch(() => undefined);
       ev.pasos.push({
         n,
         titulo,
@@ -137,13 +166,26 @@ function nuevoRecorrido(page: Page, info: TestInfo, datos: DatosCu): { recorrido
 }
 
 export const test = base.extend<{ evidencia: (datos: DatosCu) => Recorrido }>({
-  evidencia: async ({ page }, usar, info) => {
+  evidencia: async ({ page, browser }, usar, info) => {
     const abiertos: (() => void)[] = [];
-    await usar((datos) => {
-      const { recorrido, guardar } = nuevoRecorrido(page, info, datos);
-      abiertos.push(guardar);
-      return recorrido;
-    });
+    const reg: Registro = { paginas: new Map() };
+    registrar(reg, page);
+    const newContext = browser.newContext.bind(browser);
+    (browser as unknown as { newContext: unknown }).newContext = async (...args: Parameters<typeof newContext>) => {
+      const ctx = await newContext(...args);
+      ctx.pages().forEach((p) => registrar(reg, p));
+      ctx.on("page", (p) => registrar(reg, p));
+      return ctx;
+    };
+    try {
+      await usar((datos) => {
+        const { recorrido, guardar } = nuevoRecorrido(page, info, datos, reg);
+        abiertos.push(guardar);
+        return recorrido;
+      });
+    } finally {
+      (browser as unknown as { newContext: unknown }).newContext = newContext;
+    }
     abiertos.forEach((guardar) => guardar());
   },
 });

@@ -98,11 +98,13 @@ insert into public.persona_a_cargo (id, alumno_id, nombre) values
   ('a0600000-0000-0000-0000-0000000000c4', current_setting('rtc.al_04')::uuid, 'Hijo de Dani');
 
 -- 1. CA-13 / AGE-04 (T-AGE-06, T-AGE-08): anticipación de 24 h con reloj fijo ----------------------------------------------
+-- Base compartida con otras pruebas/E2E: se cuenta el delta de filas, no el total global (H-373).
+select set_config('rtc.filas0', ((select count(*)::int from public.solicitud) + (select count(*)::int from public.reserva) + (select count(*)::int from public.clase))::text, true) is not null as _;
 select is(pg_temp.err(pg_temp.sol('a0600000-0000-0000-0000-000000000001', 'pa', '2026-11-03 08:00-03', 'suelta')), 'PT422 ANTICIPACION_INSUFICIENTE',
   'CA-13/T-AGE-06: un hueco libre a +20 h se rechaza con ANTICIPACION_INSUFICIENTE');
 select is(pg_temp.det(pg_temp.sol('a0600000-0000-0000-0000-000000000001', 'pa', '2026-11-03 08:00-03', 'suelta'))->>'horas_minimas', '24',
   'CA-13: el rechazo trae el motivo (horas mínimas = 24)');
-select is((select count(*)::int from public.solicitud) + (select count(*)::int from public.reserva) + (select count(*)::int from public.clase), 0,
+select is((select count(*)::int from public.solicitud) + (select count(*)::int from public.reserva) + (select count(*)::int from public.clase) - current_setting('rtc.filas0')::int, 0,
   'CA-13/T-AGE-06: el rechazo por anticipación no crea solicitud, reserva ni clase');
 select is(pg_temp.err(pg_temp.sol('a0600000-0000-0000-0000-000000000001', 'pa', '2026-11-03 11:00-03', 'suelta')), 'PT422 ANTICIPACION_INSUFICIENTE',
   'CA-13: +23 h también se rechaza');

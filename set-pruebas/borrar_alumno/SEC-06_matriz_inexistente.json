@@ -1,0 +1,17 @@
+{
+  "id": "SEC-06",
+  "titulo": "Matriz rol x RPC: borrar_alumno con un id inexistente (403 persona/Administrador, 404 profesores, anon sin permiso)",
+  "prueba": "tests/integracion/seguridad/matriz/11.ts (SEC-06_borrar_alumno_como_<rol>)",
+  "request": {
+    "metodo": "POST",
+    "url": "{{api_url}}/rest/v1/rpc/borrar_alumno",
+    "cabeceras": {
+      "apikey": "{{anon_key}}",
+      "Authorization": "Bearer {{token}}"
+    },
+    "cuerpo": {
+      "p_alumno_id": "00000000-0000-0000-0000-00000000dead"
+    }
+  },
+  "notas": "Un request por rol; el token cambia según el rol"
+}

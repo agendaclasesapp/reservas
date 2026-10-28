@@ -10,7 +10,7 @@ import type { Page } from '@playwright/test';
 import { expect, test } from '../soporte/evidencia';
 import { cerrar, sql } from '../soporte/bd';
 import { SITEKEY_PRUEBA } from '../soporte/captcha';
-import { esperarMail, mailUnico, remitenteDe } from '../soporte/correo';
+import { esperarMail, mailUnico, remitenteDe, contarMails } from '../soporte/correo';
 import { entorno, RAIZ } from '../soporte/entorno';
 import { fijarReloj, limpiarReloj } from '../soporte/reloj';
 import { profesorId, SLUG_A } from '../soporte/usuarios';
@@ -59,8 +59,7 @@ test.afterEach(async () => {
 test.afterAll(cerrar);
 
 async function mailsA(m: string): Promise<number> {
-  const r = await fetch(`${entorno().mailpitUrl}/api/v1/search?query=${encodeURIComponent(`to:"${m}"`)}`);
-  return ((await r.json()) as { messages: unknown[] }).messages.length;
+  return contarMails(m);
 }
 
 /** Elige el código por mail, escribe el mail y pide el código; reintenta hasta que el widget de prueba entrega el token. */
