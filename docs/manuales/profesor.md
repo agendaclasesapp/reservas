@@ -1,6 +1,6 @@
 ---
 titulo: Manual de usuario · Agenda Clases App · Profesor
-version: 0.6
+version: 0.7
 fecha: 2026-10-28
 publico: profesor
 ---
@@ -94,7 +94,11 @@ En la sección **Alumnos** cada fila tiene **Borrar**. Se abre un diálogo que e
 Tu enlace pasa a decir que no tomás reservas por ahora; nadie te pide acceso ni crea solicitudes nuevas. Todas tus solicitudes pendientes, también las vencidas, se anulan (sin mail a los alumnos) y los huecos que ocupaban se liberan; las reservas y clases confirmadas se mantienen. En tu panel seguís viendo todo y podés cancelar clases o series y rechazar; la lista avisa que tu agenda está inactiva, no deja aprobar accesos y «Agregar alumno» queda deshabilitado. Al reactivarte todo vuelve como estaba, y los huecos que ocupaban las solicitudes anuladas vuelven a figurar libres para pedirse de nuevo, pero **las solicitudes anuladas no se restablecen**; recargá la página para ver tu agenda activa. Mientras estás inactivo tu agenda pública no se muestra. La pausa la aplica el Administrador (`manuales/administrador.md`). Fuente: `WEB-01-inactivo/` y `WEB-07-inactivo/` (AGE-11, PRF-08, ADM-05, DEC-35, DEC-37).
 
 ## Revisar los mails fallidos
-En **Configuración**, la sección «Mails fallidos» lista fecha (en tu huso), destinatario, tipo y motivo de cada mail que no salió: tope de envío superado, envío sin confirmar, dirección inválida o un error del servidor de correo (con pista cuando son las credenciales). La operación que originó el mail se completó igual. No se muestran asunto ni cuerpo. Los mails que mandás a tus alumnos (respuestas, clases creadas, movidas o canceladas y el recordatorio del día anterior a cada clase confirmada) salen con tu nombre y con tu mail en «Responder a». Cada profesor puede encolar 20 mails por hora y 200 por día, y toda la aplicación 400 por día: pasado un tope el mail queda fallido con motivo «tope» (AVI-08). Estado: construida y verificada con pruebas automáticas; la prueba con la casilla Gmail real está pendiente de G3. Fuente: handoff de UX y de pruebas de B03 (NFR-07, CA-34).
+En **Configuración**, la sección «Mails fallidos» lista fecha (en tu huso), destinatario, tipo y motivo de cada mail que no salió: tope de envío superado, envío sin confirmar, dirección inválida o un error del servidor de correo (con pista cuando son las credenciales). La operación que originó el mail se completó igual. No se muestran asunto ni cuerpo. Los mails que mandás a tus alumnos (respuestas, clases creadas, movidas o canceladas y el recordatorio del día anterior a cada clase confirmada) salen con tu nombre y con tu mail en «Responder a». Cada profesor puede encolar 20 mails por hora y 200 por día, y toda la aplicación 400 por día: pasado un tope el mail queda fallido con motivo «tope» (AVI-08). Estado: construida y verificada con pruebas automáticas. Fuente: handoff de UX y de pruebas de B03 (NFR-07, CA-34).
+
+Si el servidor de correo está caído cuando el sistema intenta enviar, el mail queda en esta lista con fecha, destinatario, tipo y el motivo que devolvió el servidor (en la prueba de verificación, «connect ECONNREFUSED …»); aparece unos segundos después del intento, no se pierde nada y la operación que lo originó (una respuesta, una clase) quedó hecha. **Un mail fallido no se reintenta solo**: si importa, avisale a la persona por otro medio. Tus alumnos no ven esta lista ni el error (CA-34, CA-52, DEC-10). Verificado en local con Mailpit detenido; con la casilla Gmail real la comprobación manual está pendiente (MAN-03, H-441).
+
+Si la página no puede conectarse con el servidor, la agenda, la página de inicio y el ingreso muestran un mensaje de error con el botón **Reintentar** (verificado, DEP-C); el panel y la configuración tienen el mismo botón en sus errores, pero la prueba de API caída no los recorrió.
 
 ## Si lo usás desde el celular o con teclado
 
@@ -110,3 +114,4 @@ Todas las pantallas, también el panel, la lista, la configuración y los bloque
 | 0.4 | 2026-10-23 | B07, B08, B09, B11 | SOL-04..08, PRF-01..06, AVI-01, AVI-04, AVI-05, ALU-10, ALU-12, WEB-06, WEB-07, CA-52, CA-55, CA-57 | Responder solicitudes, cambios y avisos de ausencia, panel con agenda del día y gestión directa, borrar alumno, remitente de mails |
 | 0.5 | 2026-10-26 | B10 | AGE-03, AGE-05, AGE-06, AGE-08, WEB-08, ADR-022 | Bloquear horarios y configurar la agenda (grilla, duración, anticipación, huso) |
 | 0.6 | 2026-10-28 | B12 | NFR-05, NFR-06, CA-37, CA-38 | Uso en celular y con teclado; navegadores verificados |
+| 0.7 | 2026-10-28 | verificación | AVI-01, NFR-07, CA-34, CA-52, DEC-10 | Qué ve el profesor cuando el correo cae; remitente real pendiente |

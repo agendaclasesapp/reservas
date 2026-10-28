@@ -1,6 +1,6 @@
 ---
 titulo: Manual de usuario · Agenda Clases App · Alumno y visitante
-version: 0.6
+version: 0.7
 fecha: 2026-10-28
 publico: alumnos y visitantes
 ---
@@ -12,7 +12,7 @@ publico: alumnos y visitantes
 1. Abrí el **enlace que te dio tu profesor** (termina en `#/p/<enlace>`). Se muestra su nombre y la agenda del día de hoy según el huso del profesor, aunque tu dispositivo esté en otro huso.
 2. Cada horario aparece como **Libre**, **Ocupado** o **Bloqueado**. No se ven nombres ni observaciones de nadie.
 3. Para cambiar de día usá el campo de fecha o pasá al día siguiente o al anterior. Un día sin horarios (por ejemplo un domingo) dice «No hay huecos este día».
-4. Si falla la conexión aparece un error con el botón **Reintentar**.
+4. Si falla la conexión con el servidor, en lugar de la agenda aparece el mensaje «No se pudo cargar la agenda. No hay conexión con el servidor. Revisá tu conexión y probá de nuevo.» con el botón **Reintentar**; la página no queda en blanco y el encabezado sigue visible. Lo mismo vale para la página de inicio y para `#/ingreso`. Cuando vuelve la conexión, tocá **Reintentar**. Verificado en local con la API caída de verdad (DEP-C, WEB-01, WEB-02); con una conexión real de celular no se probó.
 
 Si el enlace no corresponde a nadie, dice «Enlace no válido, pedile el enlace a tu profesor». Si tu profesor tiene la agenda en pausa, dice «<nombre> no toma reservas por ahora» y no muestra horarios ni permite pedir acceso. Si abrís la página de inicio sin enlace, dice «Pedile el enlace a tu profesor» y ofrece ingresar: la aplicación no lista profesores.
 Fuente: `calidad/evidencias/ui/WEB-01/caso.md` (CA-15, CA-16, WEB-01, AGE-09, AGE-11, WEB-09).
@@ -115,3 +115,4 @@ Todas las pantallas se pueden usar en un celular de 360 píxeles de ancho sin de
 | 0.4 | 2026-10-23 | B07, B08, B11 | SOL-02, SOL-03, SOL-07, SOL-10, WEB-05, RES-06, AVI-05, AVI-06, ALU-10, ALU-11, DEC-39 | Mis clases, Mover, Avisar que no voy, recordatorio, retención y borrado |
 | 0.5 | 2026-10-26 | B11 | ALU-10, AVI-06, DEC-39 | DEC-39 cerrada: se acepta el borrado sin aviso tras una parada larga |
 | 0.6 | 2026-10-28 | B12 | NFR-05, NFR-06, CA-37, CA-38 | Uso en celular y con teclado; navegadores verificados |
+| 0.7 | 2026-10-28 | verificación | WEB-01, WEB-02, DEP-C | Qué se ve cuando la API no responde, según la prueba de dependencias |

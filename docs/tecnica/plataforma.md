@@ -1,6 +1,6 @@
 ---
 titulo: Técnica · Plataforma (B01)
-version: 0.5
+version: 0.7
 fecha: 2026-10-28
 publico: equipo técnico
 ---
@@ -106,6 +106,57 @@ Todas las pantallas se verificaron contra WCAG 2.1 AA (NFR-05, CA-37) y a 360 x 
 
 Fuente: handoffs `handoff-tester-a11y.md`, `handoff-tester-celular.md`, `handoff-tester-2.md` y `handoff-ux-web.md` de B12.
 
+## 10. Rendimiento de la agenda y cómo medirlo (B13)
+
+NFR-04 y CA-36 piden que la agenda de un día se vea en menos de 2 s (p95) con el perfil 4G. Por **DEC-41**, «4G» es el preset **Fast 4G** de Chrome DevTools (9 Mbit/s de bajada, 165 ms de latencia); «Slow 4G» (1,6 Mbit/s, 562 ms) queda fuera del criterio y solo se mide como dato.
+
+**Qué hace la carga de `#/p/<slug>` (T13.2, `src/modulos/agenda/logica/precarga.ts`, `src/main.tsx`):**
+- Pide `config_publica` y `agenda_publica` **a la vez**, en lugar de una detrás de otra. Como la agenda necesita un día y el día sale de la configuración, usa el que se puede suponer sin ella: el de `?d=` si está entre hoy - 365 y hoy + 30 días, o si no hoy en el huso del navegador.
+- Si con la configuración sale otro día, o el profesor está inactivo, o el enlace no es válido, esa respuesta se **descarta sin mostrarse** y se pide el día correcto. La pantalla nunca muestra datos de un día equivocado.
+- Cuando la dirección inicial es `#/p/...`, `src/main.tsx` adelanta el código de la ruta y esas lecturas **antes de que se resuelva la sesión**, así no esperan a `supabase-js`.
+
+**Resultado verificado** (PERF-05 y PERF-06; Chromium con CDP, stack local, bundle servido con gzip, sin TLS ni DNS reales):
+
+| Medición | Antes de T13.2 | Después |
+| --- | --- | --- |
+| Agenda, Fast 4G, 40 cargas en frío (CA-36, umbral p95 2000 ms) | p95 1498 ms | p50 1121, p95 1168, máx 1183 ms, 0 % de errores |
+| Agenda, Slow 4G, 30 cargas (informativo) | p95 4505 ms | p95 3453 ms |
+| Peso de la ruta de agenda (T-NFR-10, tope 200 kB gzip) | 151,2 kB | 152,9 kB |
+| CA-17 bajo carga (24 alumnos por hueco, 12 huecos) | 12 aceptadas, 276 `HUECO_NO_LIBRE`, sin doble reserva | no se repitió |
+
+En producción el tiempo será algo mayor (TLS y DNS de Supabase). El panel del profesor con Fast 4G quedó en p95 2051 ms (informativo, no es requisito).
+
+**Cómo repetir las mediciones** (carpeta `perf/`, necesita el stack local en marcha; los scripts escriben el formato de k6 pero no usan k6):
+
+1. `node perf/preparar.mjs` crea los datos de prueba («PERF …»); al terminar, `node perf/preparar.mjs limpiar` los borra.
+2. Compilar a una carpeta aparte: `VITE_SUPABASE_URL=http://127.0.0.1:54321 VITE_SUPABASE_ANON_KEY=<anon> npx vite build --outDir perf/.dist --emptyOutDir --manifest`. `perf/servidor.mjs` sirve ese resultado con gzip, como GitHub Pages (`vite preview` no comprime).
+3. `node perf/medir-agenda.mjs --ruta agenda --perfil fast4g --n 40 --salida <carpeta>` (también `--perfil slow4g` y `--ruta panel`).
+4. `node perf/medir-bundle.mjs perf/.dist <json>` mide el peso; `node perf/cascada.mjs --perfil <p> --salida <md>` dibuja la cascada de carga; `node perf/concurrencia-ca17.mjs` prueba la concurrencia por hueco; `node perf/diagnostico-sql.mjs` muestra los planes EXPLAIN de las consultas.
+
+La evidencia queda en `.aidlc/reservatuclase/calidad/evidencias/performance/PERF-nn/`. `perf/.gitignore` excluye `.dist`, `.estado` (lleva JWT locales) y `resultados`.
+
+**Guardia `esLocal`.** Los scripts de `perf/` firman JWT con el secreto por defecto del stack local, y las pruebas hacen lo mismo con la clave de servicio. Para que eso no apunte a la nube por error, `esLocal(url)` (`perf/lib.mjs`) acepta solo los nombres de host `127.0.0.1`, `localhost` y `::1`; `perf/lib.mjs` exige API y base locales y `tests/soporte/entorno.ts` hace lo mismo con `apiUrl` y `dbUrl` (prueba `tests/unit/soporte/entorno-local.test.ts`). Con una URL remota lanzan error (H-420, H-408). `eslint.config.js` ignora `perf/.dist/`, `perf/.estado/` y `perf/resultados/`.
+
+**Conocido:** H-421 (abierto, baja): en E2E, dos ingresos del mismo profesor con menos de 60 s de diferencia reciben 429 de Auth y el test espera el mail hasta agotar 15 s. No es del producto; cada prueba pasa sola.
+
+Fuente: handoffs del Developer (T13.2), `handoff-tester.md` y `handoff-tester-2.md` de B13, `PERF-05/informe.md`.
+
+## 11. Prueba de fallos de dependencias (opt-in)
+
+`tests/e2e/dependencias.spec.ts` comprueba que, con la API caída, la web muestra un mensaje de error y no una pantalla en blanco (DEP-C, WEB-01, WEB-02). **No corre con la suite**: baja de verdad el contenedor `supabase_kong_reservas` (y lo sube en `finally`), así que solo se ejecuta si se pide:
+
+    RTC_DEPENDENCIAS=1 npx playwright test tests/e2e/dependencias.spec.ts --project=chromium
+
+Recorre `#/p/profesor-prueba`, `#/` e `#/ingreso`: el encabezado queda visible y la agenda dice «No se pudo cargar la agenda. No hay conexión con el servidor. Revisá tu conexión y probá de nuevo.» con **Reintentar**. Necesita el stack local en marcha y el bundle compilado; no usarla contra la nube. Captura: `.aidlc/reservatuclase/calidad/evidencias/dependencias/DEP-01-api-caida.png`.
+
+Los otros dos casos de la verificación son manuales (comandos en `verificacion/informe-pruebas.md` §3):
+- **DEP-A, correo caído:** `docker stop supabase_inbucket_reservas`, encolar un mail con `privado.encolar_mail(...)` y mirar a los 12 s: la fila queda `fallido` con el motivo del servidor y aparece en `v_mails_fallidos`; no se reintenta sola (DEC-10).
+- **DEP-B, reinicio de la base:** `docker restart supabase_db_reservas` con una reserva y un mail pendientes: todo sigue, `privado.barrer_mails()` reenvía el mail y los 4 jobs de pg_cron siguen activos.
+
+Otras notas de la verificación: `npm run seguridad:dist` falla tras una E2E que recompila `dist/` con la clave JWT demo (H-442; reconstruir con la clave `sb_publishable_` y `VITE_SUPABASE_URL` local antes de escanear), y H-440 (prueba unitaria intermitente de `precarga.test.tsx`) era del test y está corregida.
+
+Fuente: `verificacion/informe-pruebas.md` §1, §3 y §5, `handoff-tester.md`.
+
 ## Bitácora de versiones
 
 | Versión | Fecha | Bolt | IDs | Cambio |
@@ -115,3 +166,5 @@ Fuente: handoffs `handoff-tester-a11y.md`, `handoff-tester-celular.md`, `handoff
 | 0.3 | 2026-10-23 | B15 | ADR-018, ADR-021, ADM-02 | `configurar_profesor` con tres argumentos tras la contracción, funciones sin slug eliminadas, secreto opcional `url_sitio` |
 | 0.4 | 2026-10-23 | B07, B11 | ADR-008, SEC-28, ALU-10, AVI-05 | Procesos programados y su registro de corridas; enlace a la guía de despliegue del cliente |
 | 0.5 | 2026-10-28 | B12 | NFR-05, NFR-06, CA-37, CA-38, H-404, H-405 | Accesibilidad y uso en celular: `EnlaceAccion`, botón sin transición, pruebas y verificación manual pendiente |
+| 0.6 | 2026-10-28 | B13 | NFR-04, CA-36, CA-17, DEC-41, H-420, H-408, H-421 | Rendimiento: lecturas en paralelo y carga adelantada, mediciones con `perf/`, perfil Fast 4G, guardia `esLocal` |
+| 0.7 | 2026-10-28 | verificación | WEB-01, WEB-02, NFR-07, H-440, H-442 | Prueba opt-in de fallos de dependencias (`RTC_DEPENDENCIAS=1`) y casos DEP-A y DEP-B |

@@ -235,7 +235,7 @@ describe('useAgendaDia con precarga (NFR-04, CA-36, AGE-07)', () => {
     const inicio = Date.now();
     precargarAgendaPublica(ANA, null, { obtenerConfig, obtenerAgenda, ahora: AHORA, zona: ZONA });
     expect(tomarPrecargaAgenda(ANA, '2026-11-02', otra)).toBeNull();
-    vi.spyOn(Date, 'now').mockReturnValue(inicio + VIGENCIA_PRECARGA_MS + 1);
+    vi.spyOn(Date, 'now').mockReturnValue(inicio + VIGENCIA_PRECARGA_MS + 1_000);
     expect(tomarPrecargaAgenda(ANA, '2026-11-02', obtenerAgenda)).toBeNull();
   });
 });

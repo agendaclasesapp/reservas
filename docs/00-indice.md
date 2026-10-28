@@ -1,6 +1,6 @@
 ---
 titulo: Índice de la documentación · Agenda Clases App
-version: 0.10
+version: 0.12
 fecha: 2026-10-28
 publico: todos
 ---
@@ -16,7 +16,7 @@ Estado: B01 a B05 (plataforma, agenda pública, mails, ingreso y cuentas), B14 (
 | [funcional/varios-profesores.md](funcional/varios-profesores.md) | Enlace por profesor, vínculos, selector, Administrador, pausa, mails y topes, nombre del producto | Negocio, equipo |
 | [funcional/profesor-y-avisos.md](funcional/profesor-y-avisos.md) | Gestión directa, vista lista, avisos y mails | Negocio, equipo |
 | [tecnica/configuracion-y-despliegue.md](tecnica/configuracion-y-despliegue.md) | Entornos, correo local, secretos, despliegue, ingreso, carga de la agenda (medido en spikes) | Equipo técnico, operación |
-| [tecnica/plataforma.md](tecnica/plataforma.md) | Estructura del repo, scripts npm, pipeline, sesión, UI compartida, CAPTCHA de prueba, puesta en marcha del profesor, accesibilidad y celular (B12) | Equipo técnico |
+| [tecnica/plataforma.md](tecnica/plataforma.md) | Estructura del repo, scripts npm, pipeline, sesión, UI compartida, CAPTCHA de prueba, puesta en marcha del profesor, accesibilidad y celular (B12), rendimiento y mediciones (B13), prueba opt-in de fallos de dependencias | Equipo técnico |
 | [tecnica/base-y-contratos-b02-b05.md](tecnica/base-y-contratos-b02-b05.md) | Migraciones, RPC, errores del catálogo y topes construidos en B02 a B05 | Equipo técnico |
 | [tecnica/varios-profesores-b14.md](tecnica/varios-profesores-b14.md) | Modelo multiprofesor, contratos, rutas, mails y topes, nombre visible, migración y vuelta atrás | Equipo técnico, operación |
 | [tecnica/configuracion-y-bloqueos-b10.md](tecnica/configuracion-y-bloqueos-b10.md) | `bloquear`, `desbloquear`, configuración de la agenda y huso por reserva (ADR-022) | Equipo técnico |
@@ -44,3 +44,5 @@ Pendientes de escribir: resto de la documentación técnica (arquitectura, model
 | 0.8 | 2026-10-23 | B07, B08, B09, B11 | SOL-02..08, PRF-01..05, ALU-10..12, AVI-05, AVI-06 | Documento técnico nuevo `solicitudes-gestion-y-retencion-b07-b11.md`, secuencia `solicitar-reserva`; manuales y funcional al día; DEC-39 pendiente |
 | 0.9 | 2026-10-26 | B03, B10, B11 | AGE-05, AGE-06, AGE-08, WEB-08, ADR-022, H-130, DEC-39 | Documento técnico de B10; manual del profesor con configuración y bloqueos; firma HMAC de mails; DEC-39 cerrada |
 | 0.10 | 2026-10-28 | B12 | NFR-05, NFR-06, CA-37, CA-38 | Accesibilidad y uso en celular (B12) en plataforma, manuales y onboarding |
+| 0.11 | 2026-10-28 | B13 | NFR-04, CA-36, DEC-41 | Rendimiento y mediciones (B13) en plataforma y onboarding; manuales sin cambios |
+| 0.12 | 2026-10-28 | verificación | WEB-01, WEB-02, AVI-01 | Fallos de dependencias (correo y API) verificados en manuales y funcional; prueba opt-in y entorno limpio en plataforma y onboarding |

@@ -1,6 +1,6 @@
 ---
 titulo: Onboarding · Agenda Clases App
-version: 0.10
+version: 0.12
 fecha: 2026-10-28
 publico: equipo nuevo
 ---
@@ -52,6 +52,19 @@ Los mails salen al buzón de prueba local (Mailpit); ahí se ve el código de in
 | `npm run test:integracion` | Sí | Vitest contra el stack local (toma el entorno de `supabase status`, nunca de la nube) |
 | `npm run build` y luego `npm run test:e2e` | Sí | Playwright en chromium contra el bundle servido por `preview` (puerto 4173 por defecto, `RTC_PREVIEW_PORT`) |
 | `npm run seguridad:dist` | No (necesita `dist/`) | Escaneo de credenciales en lo compilado |
+| `RTC_DEPENDENCIAS=1 npx playwright test tests/e2e/dependencias.spec.ts --project=chromium` | Sí (baja y sube Kong) | Opt-in: API caída muestra error y «Reintentar» (`tecnica/plataforma.md` §11) |
+| `node perf/preparar.mjs` y luego `node perf/medir-agenda.mjs …` | Sí | Mediciones de rendimiento de la agenda con Fast 4G (`tecnica/plataforma.md` §10) |
+
+**Rearmar el entorno limpio** (como en la verificación, `.aidlc/reservatuclase/verificacion/entorno.md`; Git Bash con Docker Desktop en el `PATH`):
+
+    npx supabase stop --no-backup && npx supabase start      # base y seed desde cero, aplica las migraciones
+    npm ci
+    # compilar con VITE_SUPABASE_URL=http://127.0.0.1:54321, VITE_SUPABASE_ANON_KEY=<sb_publishable_ de `npx supabase status`>
+    # y VITE_TURNSTILE_SITEKEY=1x00000000000000000000AA; no definir VITE_BASE en Git Bash
+    npm run build
+    node scripts/seguridad/escanear-dist.mjs dist --ref 127  # en local `npm run seguridad:dist` a secas falla por la clave demo (H-442)
+
+`npx supabase db reset` solo para volver al estado del seed. Playwright levanta `vite preview` por su cuenta. Entre tandas de E2E que repiten el login del mismo profesor, esperar más de 60 s (límite de Auth, H-421). Versiones probadas y diferencias con producción: `entorno.md` §1 y §7.
 
 **Notas para correr las pruebas (B02 a B05):**
 - **CAPTCHA de prueba.** El pedido de código exige el desafío. En local y en CI se usan las claves de prueba públicas de Cloudflare que ya trae `.env.example`; el E2E de ingreso necesita salida a internet porque carga el script de Turnstile.
@@ -93,10 +106,11 @@ Los mails salen al buzón de prueba local (Mailpit); ahí se ve el código de in
 - Las decisiones DEC-01..23 están cerradas en G1: ver `.aidlc/reservatuclase/analisis/decisiones-abiertas.md` (la tabla de arriba es la vigente). Los cambios que trajeron están en `.aidlc/reservatuclase/cambios/CR-001.md`.
 
 - **Accesibilidad y celular (B12).** Todo control táctil mide al menos 44 px (`--tactil-min`); un enlace que va solo en su renglón usa `EnlaceAccion` de `src/ui/`, no un `<a>` suelto. Las pruebas `accesibilidad.spec.ts` y `celular.spec.ts` fallan si una pantalla nueva rompe axe, desborda a 360 px o tiene controles chicos. Detalle y verificación manual pendiente en `tecnica/plataforma.md` §9.
+- **Rendimiento (B13).** La agenda debe verse en menos de 2 s (p95) con Fast 4G; «4G» es Fast 4G por DEC-41, no Slow 4G. `#/p/<slug>` pide la configuración y los huecos del día a la vez y `src/main.tsx` adelanta esa carga desde la entrada (`src/modulos/agenda/logica/precarga.ts`): no la vuelvas a poner en serie. Para medir, `perf/` (ver `tecnica/plataforma.md` §10). Los scripts de `perf/` y de pruebas solo aceptan un stack local (`esLocal`).
 
 ## 7. Glosario
 
-Enlace del profesor, vínculo, serie (clases que se repiten cada semana o cada quince días), solicitud pendiente (pedido de clase que espera respuesta), profesor inactivo (pausa), Administrador, Agenda Clases App, grilla semanal (tramos horarios por día), tramo, hueco (espacio de una clase), libre/ocupado/bloqueado, bloqueo, anticipación mínima, titular, persona a cargo, alumno sin cuenta, alumno pendiente, ficha, reserva, serie, solicitud, alcance («solo esta clase» / «de acá en adelante»), unión de alumnos, teléfono normalizado, RLS, registro de mails fallidos. Definiciones completas: `.aidlc/reservatuclase/analisis/glosario.md`.
+Enlace del profesor, vínculo, serie (clases que se repiten cada semana o cada quince días), solicitud pendiente (pedido de clase que espera respuesta), profesor inactivo (pausa), Administrador, Agenda Clases App, grilla semanal (tramos horarios por día), tramo, hueco (espacio de una clase), libre/ocupado/bloqueado, bloqueo, anticipación mínima, titular, persona a cargo, alumno sin cuenta, alumno pendiente, ficha, reserva, serie, solicitud, alcance («solo esta clase» / «de acá en adelante»), unión de alumnos, teléfono normalizado, RLS, registro de mails fallidos. Definiciones completas: `.aidlc/reservatuclase/analisis/glosario.md`. Perfil 4G (el preset «Fast 4G» de Chrome DevTools: 9 Mbit/s y 165 ms; DEC-41).
 
 ## 8. A quién preguntar
 
@@ -116,3 +130,5 @@ Por área, según los perfiles del ciclo: requisitos (funcional), diseño técni
 | 0.8 | 2026-10-23 | B07, B08, B09, B11 | ALU-10, AVI-05, AVI-06, DEC-39, SEC-28 | Estado de los bolts construidos, retención y runbook de operación |
 | 0.9 | 2026-10-26 | B10, B11 | AGE-08, DEC-39, ADR-022 | Huso por reserva y DEC-39 cerrada |
 | 0.10 | 2026-10-28 | B12 | NFR-05, NFR-06, CA-37, CA-38 | Regla de accesibilidad y uso en celular |
+| 0.11 | 2026-10-28 | B13 | NFR-04, CA-36, DEC-41 | Regla de rendimiento, Fast 4G y cómo medir con `perf/` |
+| 0.12 | 2026-10-28 | verificación | NFR-02, H-421, H-442 | Prueba opt-in de dependencias y cómo rearmar el entorno limpio |

@@ -1,7 +1,7 @@
 ---
 titulo: Funcional · Gestión del profesor y avisos
-version: 0.7
-fecha: 2026-10-26
+version: 0.8
+fecha: 2026-10-28
 publico: negocio y equipo
 ---
 # Gestión del profesor y avisos
@@ -17,7 +17,7 @@ publico: negocio y equipo
 - Configuración: grilla, duración, anticipación, huso horario y registro de mails fallidos (WEB-08, NFR-07).
 
 ## Construido en B03 y B05
-- **Mails (B03).** Los mails se encolan en la misma operación que los origina y salen por SMTP desde la casilla configurada. Con el stack local salen `cuenta_nueva`, `solicitud_nueva` y `recordatorio` con remitente `GMAIL_USER` (CA-33). Con credenciales SMTP inválidas la fila queda fallida con el texto del servidor (por ejemplo 535) y el profesor la ve; el alumno no ve ninguna (CA-34).
+- **Mails (B03).** Los mails se encolan en la misma operación que los origina y salen por SMTP desde la casilla configurada. Con el stack local salen `cuenta_nueva`, `solicitud_nueva` y `recordatorio` con remitente `GMAIL_USER` (CA-33). Con credenciales SMTP inválidas la fila queda fallida con el texto del servidor (por ejemplo 535) y el profesor la ve; el alumno no ve ninguna (CA-34). **Verificado en la UAT (DEP-A):** con el servidor de correo caído la fila queda `fallido` con el motivo del servidor, visible solo para el profesor en «Mails fallidos», sin perder la operación; no se reintenta sola (DEC-10) y tras un reinicio de la base el barrido reenvía los mails pendientes (DEP-B). Pendiente de comprobación manual: remitente y entrega con la casilla Gmail real (AVI-01, CA-33, MAN-03, H-441) y la cuota diaria de Gmail (MAN-11).
 - **Aviso al sumar un mail (DEC-38, AVI-04).** Cuando el profesor agrega por edición un mail nuevo a un alumno sin cuenta, la persona recibe el aviso «te sumó como alumno» igual que en el alta; no sale si el mail no cambia, se quita o se cambia el de quien ya tenía uno. Construido en B15.
 - **«Mails fallidos» en Configuración (WEB-08, NFR-07).** Tabla con fecha (en el huso del profesor), destinatario, tipo en palabras y motivo en palabras: tope superado, envío sin confirmar tras 10 minutos, dirección inválida o el texto del servidor SMTP (con una pista cuando son las credenciales). Nunca muestra asunto ni cuerpo. Solo el profesor la ve.
 - **Mails de cuentas (B05).** `cuenta_nueva` al profesor cuando se completa una ficha (AVI-02) y `cuenta_respondida` al titular al aprobar o rechazar, con el motivo si lo hay (AVI-03). No se encolan mails a alumnos sin cuenta, borrados o sin mail (AVI-04).
@@ -57,3 +57,4 @@ publico: negocio y equipo
 | 0.5 | 2026-10-23 | B15, B06 | DEC-38, AVI-04, SOL-01 | Aviso al sumar un mail por edición; mail `solicitud_nueva` |
 | 0.6 | 2026-10-23 | B07, B08, B09, B11 | AVI-01, AVI-03, AVI-04, AVI-05, AVI-06, PRF-01..06, DEC-10 | Mails de respuesta, movimiento, cancelación y gestión directa; recordatorio y aviso de inactividad; gestión directa construida |
 | 0.7 | 2026-10-26 | B10 | WEB-08 | La configuración de la agenda ya está construida (ver `agenda-reservas-solicitudes.md`) |
+| 0.8 | 2026-10-28 | verificación | AVI-01, CA-33, CA-34, NFR-07, DEC-10 | Fallo del correo verificado en la UAT; Gmail real sigue pendiente (H-441) |

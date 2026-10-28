@@ -1,7 +1,7 @@
 ---
 titulo: Funcional · Agenda, reservas y solicitudes
-version: 0.8
-fecha: 2026-10-26
+version: 0.9
+fecha: 2026-10-28
 publico: negocio y equipo
 ---
 # Agenda, reservas y solicitudes
@@ -9,6 +9,8 @@ publico: negocio y equipo
 > Estado por tema tras B02-B05: **construido y verificado** la agenda pública por día (AGE-01 semilla, AGE-07, AGE-08, WEB-01; CA-15, CA-16) y la configuración de grilla en la base. Tras B06 también está **construido y verificado** pedir una clase suelta o una serie (SOL-01, SOL-10, WEB-04, CA-41 en lo del tope); tras B07, B08 y B09 también **construido y verificado**: confirmar y rechazar solicitudes, mover y avisar que no voy, la agenda del profesor y su gestión directa. Tras B10 también **construido y verificado**: la configuración de la agenda del profesor (WEB-08) y los bloqueos (AGE-05, AGE-06).
 
 ## Agenda y disponibilidad
+**Si el servidor no responde (verificado en la UAT, WEB-01, WEB-02).** La agenda, la página de inicio y el ingreso muestran «No se pudo cargar la agenda. No hay conexión con el servidor. Revisá tu conexión y probá de nuevo.» con **Reintentar**, nunca una pantalla en blanco. Probado en local bajando la API; no con una red móvil real.
+
 **Agenda pública por día (B02, verificado; WEB-01, CA-15, CA-16).** Desde B14 es la agenda **de un profesor**: se abre en su enlace `#/p/<slug>` (AGE-09; ver `varios-profesores.md`) y, sin enlace, `#/` no muestra agenda. La pantalla muestra los huecos de un día en el huso del profesor, sin iniciar sesión. Abre en «hoy» según el huso del profesor, aunque el navegador esté en otro huso (con el navegador en Asia/Tokyo abre el lunes 2 y no el martes 3). Cada hueco se ve libre, ocupado o bloqueado; no aparecen nombres, observaciones ni motivos. Con la grilla inicial (lunes a viernes, 08:00-13:00 y 14:00-18:00, creada por la migración) y clases de 60 min un lunes tiene 9 huecos; con 90 min son 08:00, 09:30 y 11:00 más dos de la tarde. Un día sin huecos (por ejemplo un domingo) dice «No hay huecos este día». El día se elige con un campo de fecha y se guarda en la dirección (`?d=AAAA-MM-DD`); un `d` ausente, mal formado o fuera de los días válidos vuelve a hoy sin mensaje. Mientras carga se anuncia «Cargando los huecos del día…» y, si falla la red, hay un error con «Reintentar».
 
 **Configuración (B02 en la base; pantalla en B10, WEB-08).** El profesor configura su grilla semanal, la duración de clase (1 a 1440 minutos), la anticipación mínima (0 a 8784 horas) y su huso. Cambiar el huso pide confirmación, solo cambia su agenda y las clases guardadas mantienen su momento real; las series ya pactadas siguen a la misma hora real, y las nuevas usan el huso nuevo (AGE-08, DEC-08, ADR-022). Cambiar la duración o la grilla no mueve clases ni pedidos (AGE-03).
@@ -83,3 +85,4 @@ El alumno ve sus clases próximas, pendientes y pasadas con **todos** sus profes
 | 0.6 | 2026-10-23 | B06 | SOL-01, SOL-10, WEB-01, WEB-04, CA-41, CA-46, ADM-05 | Pedir clase suelta y serie construido y verificado, vista previa de la serie, tope de 10 verificado |
 | 0.7 | 2026-10-23 | B07, B08, B09 | SOL-02..08, SOL-10, RES-06, PRF-01..05, AVI-01, WEB-05, WEB-06, CA-52 | Responder solicitudes, mover y avisar que no voy, Mis clases, panel y gestión directa construidos y verificados |
 | 0.8 | 2026-10-26 | B10 | AGE-03, AGE-05, AGE-06, AGE-08, WEB-08, CA-14, ADR-022 | Configuración y bloqueos construidos; cambio de huso y series |
+| 0.9 | 2026-10-28 | verificación | WEB-01, WEB-02 | Comportamiento ante API caída verificado |
