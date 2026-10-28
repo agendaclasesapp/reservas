@@ -2,17 +2,19 @@
 // flujos-profesor.md F-07 y F-08). Presentación pura: recibe las lecturas y las acciones ya conectadas por
 // `PaginaPanel`. Agenda del día con nombres, contadores en texto con enlace a la lista y, al tocar un hueco, sus
 // acciones: un diálogo en móvil y una columna en escritorio. Con el profesor inactivo, aviso y «Crear clase» y «Mover»
-// deshabilitados; «Cancelar» sigue (PRF-08). El éxito se anuncia y se muestra sobre la agenda. «Bloquear» y
-// «Desbloquear» son de B10.
+// deshabilitados; «Cancelar» sigue (PRF-08). El éxito se anuncia y se muestra sobre la agenda. B10 (AGE-05, AGE-06,
+// CA-14, F-09): «Bloquear horarios» abre, en un diálogo, el bloqueo de un rango de horas o de días completos; un hueco
+// libre ofrece «Bloquear este horario» y uno bloqueado ofrece «Desbloquear».
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Alerta, Boton, Cargando, Dialogo, ErrorCarga, Icono, Vacio } from '../../../ui';
 import { formatearFecha, type Dia } from '../../../lib/fechas';
 import type { LimitesAgenda } from '../../agenda/logica';
 import type { EstadoAlumnos } from '../../lista/logica';
 import { MENSAJES_PANEL, type Contadores, type EstadoLecturaPanel, type FilaAgendaProfesor } from '../logica';
+import { BloqueoForm } from './BloqueoForm';
 import { ContadoresPanel } from './ContadoresPanel';
 import type { AccionesPanel, ResultadoPanel } from './contrato';
-import { fechaConHora, textoRango, TEXTOS_PANEL } from './formato';
+import { fechaConHora, textoRango, TEXTOS_BLOQUEO, TEXTOS_PANEL } from './formato';
 import { ListaAgendaProfesor } from './ListaAgendaProfesor';
 import { PanelAcciones } from './PanelAcciones';
 import { SelectorDiaPanel } from './SelectorDiaPanel';
@@ -60,7 +62,9 @@ function useEscritorio(): boolean {
 
 function tituloDelHueco(fila: FilaAgendaProfesor, zona: string): string {
   const cuando = `${formatearFecha(fila.inicio, zona)}, ${textoRango(fila, zona)}`;
-  return fila.estado === 'libre' ? `Hueco libre del ${cuando}` : `Clase del ${cuando}`;
+  if (fila.estado === 'libre') return `Hueco libre del ${cuando}`;
+  if (fila.estado === 'bloqueado') return `Horario bloqueado del ${cuando}`;
+  return `Clase del ${cuando}`;
 }
 
 export function VistaPanel({
@@ -82,6 +86,7 @@ export function VistaPanel({
   const enEscritorio = escritorio ?? detectado;
   const [seleccion, setSeleccion] = useState<string | null>(null);
   const [resultado, setResultado] = useState<ResultadoPanel | null>(null);
+  const [bloqueando, setBloqueando] = useState(false);
   const resultadoRef = useRef<HTMLDivElement>(null);
   const columnaRef = useRef<HTMLHeadingElement>(null);
 
@@ -122,6 +127,7 @@ export function VistaPanel({
       acciones={acciones}
       onHecho={hecho}
       onDesactualizada={onRecargarAgenda}
+      onIrAConflicto={cerrar}
     />
   ) : null;
 
@@ -151,6 +157,18 @@ export function VistaPanel({
         <div className={estilos.principal}>
           <ContadoresPanel lectura={contadores} onReintentar={onRecargarContadores} />
           {!profesorActivo ? <Alerta tipo="aviso">{MENSAJES_PANEL.profesorInactivo}</Alerta> : null}
+          <div className={estilos.barra}>
+            <Boton
+              variante="secundario"
+              onClick={() => {
+                setResultado(null);
+                setSeleccion(null);
+                setBloqueando(true);
+              }}
+            >
+              {TEXTOS_BLOQUEO.abrir}
+            </Boton>
+          </div>
           {/* Región siempre montada para que el resultado se anuncie sin mover el foco antes de tiempo. */}
           <div ref={resultadoRef} tabIndex={-1} role="status" aria-live="polite" className={estilos.resultado}>
             {resultado !== null ? (
@@ -199,6 +217,20 @@ export function VistaPanel({
           </aside>
         ) : null}
       </div>
+      <Dialogo abierto={bloqueando} titulo={TEXTOS_BLOQUEO.tituloDialogo} onCerrar={() => setBloqueando(false)}>
+        <BloqueoForm
+          origen={{ tipo: 'periodo', dia }}
+          zona={zona}
+          limites={limites}
+          acciones={acciones}
+          onHecho={(r) => {
+            setBloqueando(false);
+            hecho(r);
+          }}
+          onDesactualizada={onRecargarAgenda}
+          onIrAConflicto={() => setBloqueando(false)}
+        />
+      </Dialogo>
       {!enEscritorio && fila ? (
         <Dialogo abierto titulo={tituloDelHueco(fila, zona)} onCerrar={cerrar}>
           {contenido}

@@ -1,9 +1,10 @@
 // Agenda del día del profesor con nombres (WEB-06, PRF-05, CA-28, NFR-05): cada hueco dice su hora y su estado con
 // texto + ícono + patrón y, si está ocupado, quién toma la clase, el titular, la observación y el estado de la clase.
 // Un hueco libre o una clase confirmada que no pasó y no tiene pedidos sin responder es un botón (tocarlo abre las
-// acciones); lo demás es solo lectura. «Bloquear» y «Desbloquear» llegan en B10. Nombres y observaciones son texto (SEC-16).
+// acciones); un hueco bloqueado con un bloqueo suyo también es un botón (abre «Desbloquear», AGE-06); lo demás es
+// solo lectura. Nombres, observaciones y motivos son texto (SEC-16).
 import { IconoEstado, Insignia } from '../../../ui';
-import { accionesFila, MENSAJES_PANEL, type FilaAgendaProfesor } from '../logica';
+import { accionesBloqueo, accionesFila, MENSAJES_PANEL, type FilaAgendaProfesor } from '../logica';
 import { fechaCorta, textoRango, TEXTOS_PANEL } from './formato';
 import { nombreVisible } from '../../lista/logica';
 import estilos from './ListaAgendaProfesor.module.css';
@@ -19,14 +20,14 @@ export type ListaAgendaProfesorProps = {
   onElegir: (fila: FilaAgendaProfesor) => void;
 };
 
-/** ¿Tocar esta fila abre acciones? Libre y futuro; u ocupado con algo que hacer (mover o cancelar). */
+/** ¿Tocar esta fila abre acciones? Libre y futuro; ocupado con algo que hacer (mover o cancelar); o bloqueado por él. */
 export function esElegible(fila: FilaAgendaProfesor, profesorActivo: boolean): boolean {
   if (fila.estado === 'libre') return !fila.pasada;
   if (fila.estado === 'ocupado') {
     const a = accionesFila(fila, profesorActivo);
     return a.mover || a.cancelar;
   }
-  return false;
+  return accionesBloqueo(fila).desbloquear;
 }
 
 function DetalleOcupado({ fila }: { fila: FilaAgendaProfesor }) {

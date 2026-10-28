@@ -1,5 +1,6 @@
 // Tipos, esquemas y textos del panel del profesor (B09): `agenda_profesor`, `contadores`, `crear_clase`,
 // `mover_clase` y `cancelar_clase` (contratos.md §3). Tipos a mano contra supabase/migrations/2026110009*.
+// B10 (T10.1): `bloquear` y `desbloquear` (AGE-05, AGE-06), contra supabase/migrations/2026110010*.
 // PRF-01..05, PRF-08, AVI-01, AVI-04, SEC-09, SEC-16 (todo texto se muestra como texto).
 import { z } from 'zod';
 
@@ -34,7 +35,11 @@ export const esquemaFilaAgenda = z.object({
   fin: z.string(),
   estado: z.enum(ESTADOS_HUECO_PROFESOR),
   clase_id: z.string().nullable(),
-  /** Solicitud pendiente que toca esa clase (reserva, movimiento o cancelación): se responde en la lista. */
+  /**
+   * contratos.md §3 (`agenda_profesor`, H-371): la solicitud pendiente y no vencida que alcanza esa clase con la regla
+   * de `SOLICITUD_EN_CURSO` (contratos.md §1; la más antigua), o la que la creó si la clase es `pendiente`. Con ella
+   * la web no ofrece mover ni cancelar (la base daría 409); se responde en la lista.
+   */
   solicitud_id: z.string().nullable(),
   quien_toma: z.string().nullable(),
   titular: z.string().nullable(),
@@ -125,4 +130,55 @@ export const MENSAJES_PANEL = {
     pendiente: 'Pendiente de respuesta',
     confirmada: 'Confirmada',
   } satisfies Record<EstadoClaseAgenda, string>,
+} as const;
+
+/** SEC-09: el motivo de un bloqueo llega hasta 500 caracteres tras recortar; es opcional (AGE-05). */
+export const LARGO_MAX_MOTIVO_BLOQUEO = 500;
+/** SEC-09, H-015: un bloqueo abarca hasta 366 días (en el huso del profesor). */
+export const MAX_DIAS_BLOQUEO = 366;
+
+/** Lo que manda la vista a `bloquear`: período `[desde, hasta)` en instantes ISO con desplazamiento. */
+export interface EntradaBloqueo {
+  desde: string;
+  hasta: string;
+  motivo?: string | null;
+}
+
+/** `bloquear`: el bloqueo creado. */
+export const esquemaBloqueoCreado = z.object({ bloqueo_id: z.string() });
+export type BloqueoCreado = z.infer<typeof esquemaBloqueoCreado>;
+
+/**
+ * Detalle de 409 `BLOQUEO_CON_RESERVAS` (AGE-05, CA-14): cada clase pendiente o confirmada que el bloqueo cubre,
+ * por `inicio`. `alumno` es quien toma la clase; null si la persona ya no está en su lista.
+ */
+export const esquemaConflictoBloqueo = z.object({
+  clase_id: z.string(),
+  inicio: z.string(),
+  estado: z.enum(ESTADOS_CLASE_AGENDA),
+  alumno: z.string().nullable(),
+});
+export type ConflictoBloqueo = z.infer<typeof esquemaConflictoBloqueo>;
+
+/** Campos que puede marcar un 422 `DATOS_INVALIDOS` de `bloquear`. */
+export const CAMPOS_BLOQUEO = ['p_desde', 'p_hasta', 'p_motivo'] as const;
+export type CampoBloqueo = (typeof CAMPOS_BLOQUEO)[number];
+
+export const MENSAJES_BLOQUEO = {
+  bloqueado: 'Listo: el horario quedó bloqueado. Nadie puede pedirlo hasta que quites el bloqueo.',
+  desbloqueado: 'Listo: quitaste el bloqueo y esos horarios vuelven a estar libres.',
+  /** 409 `BLOQUEO_CON_RESERVAS`: la vista lista debajo cada clase con `textoConflicto`. */
+  conReservas:
+    'No se puede bloquear: en ese horario hay clases confirmadas o pedidos sin responder. Cancelalas o respondé los pedidos primero:',
+  /** Sin inicio, o 422 `{"campo":"p_desde"}` de la base: antes de las 00:00 de hoy − 366 días (H-394). */
+  desdeInvalido: 'Elegí desde cuándo bloquear: el inicio no puede ser de hace más de un año.',
+  hastaAntesDeDesde: 'El fin del bloqueo tiene que ser posterior al inicio.',
+  rangoLargo: `Un bloqueo puede abarcar hasta ${MAX_DIAS_BLOQUEO} días.`,
+  /** 422 `{"campo":"p_hasta"}` de la base: fin no posterior, rango largo o más allá de hoy + 366 días (H-015). */
+  hastaInvalido: `Revisá el fin del bloqueo: tiene que ser posterior al inicio, abarcar hasta ${MAX_DIAS_BLOQUEO} días y no pasar de un año desde hoy.`,
+  motivoLargo: `El motivo puede tener hasta ${LARGO_MAX_MOTIVO_BLOQUEO} caracteres.`,
+  /** 404 de `desbloquear`: no existe o no es suyo (CA-52). */
+  bloqueoNoEncontrado: 'Ese bloqueo ya no está en tu agenda. Actualizá la página.',
+  /** Conflicto con una persona que ya no está en su lista. */
+  alumnoDadoDeBaja: 'Alumno dado de baja',
 } as const;

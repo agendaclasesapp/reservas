@@ -1,17 +1,20 @@
 // Contenido del panel de acciones de un hueco (WEB-06, F-07 paso 3, F-08): hueco libre → «Crear clase»; clase
-// ocupada → sus datos y «Mover» / «Cancelar». Se muestra en un diálogo en móvil y en una columna en escritorio
-// (`VistaPanel` elige el contenedor). «Bloquear» y «Desbloquear» son de B10: no están. Con el profesor inactivo, «Crear
-// clase» y «Mover» quedan deshabilitados y «Cancelar» sigue (PRF-08).
+// ocupada → sus datos y «Mover» / «Cancelar»; hueco libre → además «Bloquear este horario» (AGE-05); hueco
+// bloqueado → «Desbloquear» (AGE-06). Se muestra en un diálogo en móvil y en una columna en escritorio (`VistaPanel`
+// elige el contenedor). Con el profesor inactivo, «Crear clase» y «Mover» quedan deshabilitados y «Cancelar» sigue
+// (PRF-08); bloquear y desbloquear no dependen de que esté activo.
 import { useEffect, useRef, useState } from 'react';
 import { Boton, Insignia } from '../../../ui';
 import type { Dia } from '../../../lib/fechas';
 import type { LimitesAgenda } from '../../agenda/logica';
 import type { EstadoAlumnos } from '../../lista/logica';
-import { accionesFila, MENSAJES_PANEL, permisosPanel, type FilaAgendaProfesor } from '../logica';
+import { accionesBloqueo, accionesFila, MENSAJES_PANEL, permisosPanel, type FilaAgendaProfesor } from '../logica';
+import { BloqueoForm } from './BloqueoForm';
 import { CancelarClaseForm } from './CancelarClaseForm';
 import type { AccionesPanel, ResultadoPanel } from './contrato';
 import { CrearClaseForm } from './CrearClaseForm';
-import { TEXTOS_PANEL } from './formato';
+import { DesbloquearForm } from './DesbloquearForm';
+import { TEXTOS_BLOQUEO, TEXTOS_PANEL } from './formato';
 import { MoverClaseForm } from './MoverClaseForm';
 import { nombreVisible } from '../../lista/logica';
 import estilos from './Acciones.module.css';
@@ -29,15 +32,19 @@ export type PanelAccionesProps = {
   onHecho: (resultado: ResultadoPanel) => void;
   /** La agenda quedó desactualizada: hay que volver a leerla. */
   onDesactualizada: () => void;
+  /** Se sigue el enlace de una clase que impide un bloqueo: se cierra el diálogo o la columna. */
+  onIrAConflicto: () => void;
 };
 
-type Modo = 'menu' | 'mover' | 'cancelar';
+type Modo = 'menu' | 'mover' | 'cancelar' | 'bloquear';
 
-const TITULO_MODO: Record<Modo | 'crear', string> = {
+const TITULO_MODO: Record<Modo | 'crear' | 'desbloquear', string> = {
   crear: 'Crear clase',
   menu: 'Elegí qué hacer con la clase',
   mover: 'Mover la clase',
   cancelar: 'Cancelar la clase',
+  bloquear: TEXTOS_BLOQUEO.tituloBloquearHueco,
+  desbloquear: TEXTOS_BLOQUEO.tituloDesbloquear,
 };
 
 export function PanelAcciones({
@@ -51,12 +58,21 @@ export function PanelAcciones({
   acciones,
   onHecho,
   onDesactualizada,
+  onIrAConflicto,
 }: PanelAccionesProps) {
   const [modo, setModo] = useState<Modo>('menu');
   const tituloRef = useRef<HTMLHeadingElement>(null);
   const permisos = permisosPanel(profesorActivo);
   const puede = accionesFila(fila, profesorActivo);
-  const vista = fila.estado === 'libre' ? 'crear' : modo;
+  const bloqueos = accionesBloqueo(fila);
+  const vista =
+    fila.estado === 'libre'
+      ? modo === 'bloquear' && bloqueos.bloquear
+        ? 'bloquear'
+        : 'crear'
+      : fila.estado === 'bloqueado'
+        ? 'desbloquear'
+        : modo;
 
   // Al cambiar de paso el foco pasa al título del paso: quien usa lector de pantalla sabe dónde está.
   useEffect(() => {
@@ -81,6 +97,29 @@ export function PanelAcciones({
           onHecho={onHecho}
           onDesactualizada={onDesactualizada}
         />
+      ) : null}
+      {vista === 'crear' && bloqueos.bloquear ? (
+        <div className={estilos.otraAccion}>
+          <p className={estilos.nota}>{TEXTOS_BLOQUEO.ofrecerBloquear}</p>
+          <Boton variante="secundario" onClick={() => setModo('bloquear')}>
+            {TEXTOS_BLOQUEO.bloquearHueco}
+          </Boton>
+        </div>
+      ) : null}
+      {vista === 'bloquear' ? (
+        <BloqueoForm
+          origen={{ tipo: 'hueco', fila }}
+          zona={zona}
+          limites={limites}
+          acciones={acciones}
+          onHecho={onHecho}
+          onDesactualizada={onDesactualizada}
+          onVolver={volver}
+          onIrAConflicto={onIrAConflicto}
+        />
+      ) : null}
+      {vista === 'desbloquear' ? (
+        <DesbloquearForm fila={fila} zona={zona} acciones={acciones} onHecho={onHecho} onDesactualizada={onDesactualizada} />
       ) : null}
       {vista === 'menu' ? (
         <>

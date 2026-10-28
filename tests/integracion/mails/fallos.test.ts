@@ -93,7 +93,7 @@ describe('CA-34 rama de registro: credenciales inválidas', () => {
     const para = direccion('credenciales');
     // Sin disparo de pg_net: así solo la función local (SMTP que rechaza) procesa la fila.
     const id = await insertarFila({ estado: 'pendiente', destinatario: para }, true);
-    const r = await invocar({ ids: [id] }, { 'x-mail-secreto': SECRETO_LOCAL }, 'POST', URL_LOCAL);
+    const r = await invocar({ ids: [id] }, undefined, 'POST', URL_LOCAL);
     const [fila] = await sql<{ estado: string; motivo_fallo: string | null }>('select estado, motivo_fallo from public.mail_salida where id = $1', [id]);
     const vistaProfesor = await rest('profesor', 'GET', `v_mails_fallidos?destinatario=eq.${encodeURIComponent(para)}&select=id,fecha,destinatario,tipo,motivo`);
     const vistaAlumno = await rest('alumno', 'GET', `v_mails_fallidos?destinatario=eq.${encodeURIComponent(para)}&select=id`);
@@ -117,7 +117,7 @@ describe('CA-34 rama de registro: credenciales inválidas', () => {
   it('SEC-17_los_logs_de_la_funcion_no_traen_destinatario_asunto_ni_motivo', async () => {
     const para = direccion('logs');
     const id = await insertarFila({ estado: 'pendiente', destinatario: para }, true);
-    await invocar({ ids: [id] }, { 'x-mail-secreto': SECRETO_LOCAL }, 'POST', URL_LOCAL);
+    await invocar({ ids: [id] }, undefined, 'POST', URL_LOCAL);
     await dormir(500);
     const edge = logsDelEdgeRuntime();
     registrar('SEC-17_logs', { destinatario: para }, { lineasDenoLocal: salidaDeno.split('\n').filter((l) => l.includes('"evento"')).slice(-3), apareceEnLogsDelStack: edge.includes(para.split('@')[0]) });

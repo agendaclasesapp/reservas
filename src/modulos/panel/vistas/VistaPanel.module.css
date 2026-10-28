@@ -96,3 +96,9 @@
     inset-block-start: var(--e-4);
   }
 }
+
+.barra {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}

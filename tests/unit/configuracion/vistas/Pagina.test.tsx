@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
-// Montaje mínimo de la página de Configuración (T03.2, T14.4): WEB-08, CA-34, AGE-09, PRF-08. El profesor sale de la
-// sesión (`fijarSesion(profesor())`), no de un mock de los hooks.
+// Montaje de la página de Configuración (T03.2, T14.4, T10.2): WEB-08, CA-34, AGE-09, PRF-08. El profesor sale de la
+// sesión (`fijarSesion(profesor())`), no de un mock de los hooks; la lectura de la agenda (`useConfiguracionAgenda`)
+// se simula con un estado fijo (el detalle de la pantalla está en ConfiguracionAgenda.test.tsx).
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { profesor } from '../../estado/soporte';
@@ -14,8 +15,27 @@ const configPublica = vi.hoisted(() => ({
 vi.mock('../../../../src/modulos/agenda/logica', () => ({
   useConfigPublica: () => configPublica.actual,
 }));
+const agendaConfigurada = vi.hoisted(() => ({
+  lectura: {
+    estado: 'listo',
+    datos: {
+      config: { zona_horaria: 'America/Montevideo', duracion_min: 60, anticipacion_horas: 24, horizonte_semanas: 26 },
+      grilla: [{ dia_semana: 1, desde: '08:00', hasta: '13:00' }],
+    },
+    error: null,
+  } as Record<string, unknown>,
+}));
+
 vi.mock('../../../../src/modulos/configuracion/logica', async (importarOriginal) => ({
   ...(await importarOriginal<object>()),
+  // Con los ~400 husos reales axe tarda segundos por prueba en jsdom: acá basta una lista corta.
+  zonasHorarias: (actual: string | null) => [actual ?? 'America/Montevideo', 'America/Argentina/Buenos_Aires'],
+  useConfiguracionAgenda: () => ({
+    lectura: agendaConfigurada.lectura,
+    recargar: () => {},
+    guardarConfiguracion: () => Promise.resolve({ ok: false }),
+    guardarGrilla: () => Promise.resolve({ ok: false }),
+  }),
   useMailsFallidos: () => ({ datos: { estado: 'listo', mails: [], error: null }, recargar: () => {} }),
 }));
 
@@ -33,6 +53,27 @@ describe('Página de Configuración (WEB-08)', () => {
     const { container } = render(<Pagina />);
     expect(screen.getByRole('heading', { level: 1, name: 'Configuración' })).toBeTruthy();
     expect(screen.getByText('Cargando la configuración…')).toBeTruthy();
+    await sinViolacionesAxe(container);
+  });
+
+  it('WEB_08_con_la_configuracion_lista_monta_las_secciones_de_agenda_y_los_mails_fallidos', async () => {
+    configPublica.actual = {
+      estado: 'listo',
+      config: { zona_horaria: 'America/Montevideo', activo: true },
+      error: null,
+      recargar: () => {},
+    };
+    await fijarSesion(profesor());
+    const { container } = render(<Pagina />);
+    const titulos = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(titulos).toEqual([
+      'Tu enlace',
+      'Grilla semanal',
+      'Duración de clase',
+      'Anticipación mínima',
+      'Huso horario',
+      'Mails fallidos',
+    ]);
     await sinViolacionesAxe(container);
   });
 

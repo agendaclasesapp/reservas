@@ -71,3 +71,42 @@ export function normalizarBusqueda(texto: string): string {
     .toLowerCase()
     .trim();
 }
+
+/** Textos de los bloqueos del panel (AGE-05, AGE-06, WEB-06, F-09). Los mensajes de la base están en `MENSAJES_BLOQUEO`. */
+export const TEXTOS_BLOQUEO = {
+  abrir: 'Bloquear horarios',
+  tituloDialogo: 'Bloquear horarios',
+  bloquearHueco: 'Bloquear este horario',
+  tituloBloquearHueco: 'Bloquear el horario',
+  tituloDesbloquear: 'Desbloquear el horario',
+  ayudaBloquearHueco: 'Nadie va a poder pedirlo hasta que lo desbloquees.',
+  ofrecerBloquear: '¿No querés que nadie pida este horario?',
+  alcance: 'Qué querés bloquear',
+  alcanceRango: 'Un rango de horas de un día',
+  alcanceDias: 'Días completos',
+  dia: 'Día',
+  desde: 'Desde (HH:MM)',
+  hasta: 'Hasta (HH:MM)',
+  ayudaHora: 'Por ejemplo 09:00. «Hasta» puede ser 24:00 para llegar al fin del día.',
+  primerDia: 'Primer día',
+  ultimoDia: 'Último día',
+  motivo: 'Motivo (opcional)',
+  ayudaMotivo: 'Solo lo ves vos: el calendario público no lo muestra. Hasta 500 caracteres.',
+  bloquear: 'Bloquear',
+  bloqueando: 'Bloqueando…',
+  volver: 'Volver',
+  desbloquear: 'Desbloquear',
+  desbloqueando: 'Desbloqueando…',
+  tituloErrorBloquear: 'No se puede bloquear',
+  tituloErrorDesbloquear: 'No se pudo desbloquear',
+  verEnElPanel: ' (ver ese día en el panel)',
+  /** El bloqueo puede abarcar más que el hueco tocado: se avisa antes de quitarlo. */
+  avisoDesbloquear:
+    'Al desbloquear, este horario y todos los que cubre el mismo bloqueo (pueden ser más horarios u otros días) vuelven a estar libres.',
+  horaInicioInvalida: 'Escribí la hora de inicio como HH:MM, por ejemplo 09:00.',
+  horaFinInvalida: 'Escribí la hora de fin como HH:MM, por ejemplo 12:00. Puede ser 24:00.',
+  diaInvalido: 'Elegí un día.',
+  ultimoAntesDelPrimero: 'El último día tiene que ser el mismo o uno posterior al primero.',
+  motivoDe: 'Motivo',
+  horarioDe: 'Horario',
+} as const;

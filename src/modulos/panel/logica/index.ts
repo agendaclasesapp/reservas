@@ -10,10 +10,19 @@
 //   const r = await cancelarClase(fila.clase_id, 'solo_esta' | 'desde_aca');
 //   r.ok ? mensajeExito('crear', tipo) + r.salteadas : r.mensaje (r.campo marca el campo del 422)
 //   permisosPanel(sesion.profesor.activo)                           // PRF-08: inactivo solo cancela
+//
+// B10 · T10.1 · Bloqueos (AGE-05, AGE-06, AGE-10, SEC-09):
+//   const b = accionesBloqueo(fila);                                // { bloquear: libre y futuro, desbloquear: hay bloqueo_id }
+//   const e = bloqueoDeHuecos(fila) | bloqueoDeHuecos(primera, ultima) | bloqueoDeHoras(dia, '09:00', '12:00', zona)
+//             | bloqueoDeDias(primerDia, ultimoDia, zona);          // + motivo opcional (hasta 500)
+//   const r = await bloquear(e, zona);                              // { ok: true, bloqueo_id } | FalloBloqueo
+//   r.ok || r.conflictos.map((c) => textoConflicto(c, zona))        // 409 BLOQUEO_CON_RESERVAS (CA-14)
+//   const r = await desbloquear(fila.bloqueo_id);                   // { ok: true } | FalloBloqueo (404: no es suyo)
 import { cargarSupabase } from '../../../lib/supabase';
 import type { Dia } from '../../../lib/fechas';
+import * as bloqueos from './bloqueos';
 import * as panel from './panel';
-import type { Alcance, Contadores, EntradaCrearClase, FilaAgendaProfesor } from './tipos';
+import type { Alcance, Contadores, EntradaBloqueo, EntradaCrearClase, FilaAgendaProfesor } from './tipos';
 import {
   useAgendaProfesor as useAgendaConLector,
   useContadores as useContadoresConLector,
@@ -22,26 +31,36 @@ import {
 
 export {
   ALCANCES,
+  CAMPOS_BLOQUEO,
   CAMPOS_PANEL,
   ESTADOS_CLASE_AGENDA,
   ESTADOS_HUECO_PROFESOR,
+  esquemaBloqueoCreado,
   esquemaClaseCreada,
   esquemaClaseMovida,
   esquemaClasesCanceladas,
+  esquemaConflictoBloqueo,
   esquemaContadores,
   esquemaFilaAgenda,
   FRECUENCIAS,
+  LARGO_MAX_MOTIVO_BLOQUEO,
   LARGO_MAX_OBSERVACION,
+  MAX_DIAS_BLOQUEO,
+  MENSAJES_BLOQUEO,
   MENSAJES_PANEL,
   TIPOS_CLASE,
 } from './tipos';
 export type {
   Alcance,
+  BloqueoCreado,
+  CampoBloqueo,
   CampoPanel,
   ClaseCreada,
   ClaseMovida,
   ClasesCanceladas,
+  ConflictoBloqueo,
   Contadores,
+  EntradaBloqueo,
   EntradaCrearClase,
   EstadoClaseAgenda,
   EstadoHuecoProfesor,
@@ -69,6 +88,25 @@ export type {
   ResultadoCrear,
   ResultadoMover,
 } from './panel';
+export {
+  accionesBloqueo,
+  bloqueoDeDias,
+  bloqueoDeHoras,
+  bloqueoDeHuecos,
+  conflictosDelError,
+  falloBloqueo,
+  normalizarMotivo,
+  textoConflicto,
+  validarBloqueo,
+} from './bloqueos';
+export type {
+  AccionesBloqueo,
+  DependenciasBloqueo,
+  FalloBloqueo,
+  OperacionBloqueo,
+  ResultadoBloquear,
+  ResultadoDesbloquear,
+} from './bloqueos';
 export type { EstadoLecturaPanel, LectorAgendaProfesor, LectorContadores } from './usePanel';
 
 /** Dependencias reales: supabase-js cargado con import() (ADR-017). */
@@ -101,6 +139,23 @@ export function cancelarClase(
   deps: panel.DependenciasPanel = dependenciasPanel(),
 ): Promise<panel.ResultadoCancelar> {
   return panel.cancelarClase(claseId, alcance, deps);
+}
+
+/** `bloquear` (AGE-05, CA-14): `zona` es el huso del profesor (`useHusoDelProfesor`), para validar el rango. */
+export function bloquear(
+  entrada: EntradaBloqueo,
+  zona: string,
+  deps: bloqueos.DependenciasBloqueo = dependenciasPanel(),
+): Promise<bloqueos.ResultadoBloquear> {
+  return bloqueos.bloquear(entrada, zona, deps);
+}
+
+/** `desbloquear` (AGE-06, CA-52). */
+export function desbloquear(
+  bloqueoId: string,
+  deps: bloqueos.DependenciasBloqueo = dependenciasPanel(),
+): Promise<bloqueos.ResultadoDesbloquear> {
+  return bloqueos.desbloquear(bloqueoId, deps);
 }
 
 /** `agenda_profesor(p_dia)` (PRF-05). Lanza el error de postgrest-js. */

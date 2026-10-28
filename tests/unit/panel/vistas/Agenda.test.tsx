@@ -44,12 +44,18 @@ describe('agenda con nombres (F-07, PRF-05, CA-28)', () => {
     expect(screen.getByRole('link', { name: /Responder en la lista/ }).getAttribute('href')).toBe('#/lista');
   });
 
-  it('WEB_06_un_hueco_bloqueado_muestra_el_motivo_y_no_se_puede_tocar_hasta_B10', () => {
+  it('WEB_06_AGE_06_un_hueco_bloqueado_muestra_el_motivo_y_se_puede_tocar_para_desbloquearlo', () => {
     montar([fila({ estado: 'bloqueado', bloqueo_id: 'b1', bloqueo_motivo: 'Vacaciones' })]);
     expect(screen.getByText('Bloqueado')).toBeTruthy();
     expect(screen.getByText('Motivo: Vacaciones')).toBeTruthy();
+    // El bloqueo es suyo (bloqueo_id): el hueco es un botón que abre «Desbloquear» (los detalles en Bloqueos.test).
+    expect(screen.getByRole('button', { name: /10:00 a 11:00/ })).toBeTruthy();
+  });
+
+  it('WEB_06_un_hueco_bloqueado_sin_bloqueo_propio_no_se_puede_tocar', () => {
+    montar([fila({ estado: 'bloqueado', bloqueo_id: null })]);
+    expect(screen.getByText('Bloqueado')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /10:00 a 11:00/ })).toBeNull();
-    expect(screen.queryByRole('button', { name: /Bloquear|Desbloquear/ })).toBeNull();
   });
 
   it('PRF_05_los_huecos_que_ya_pasaron_se_ven_y_no_se_pueden_tocar', () => {

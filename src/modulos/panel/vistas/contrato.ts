@@ -4,10 +4,13 @@ import type { Dia } from '../../../lib/fechas';
 import type { PersonaACargo } from '../../ficha/logica';
 import type {
   Alcance,
+  EntradaBloqueo,
   EntradaCrearClase,
   FilaAgendaProfesor,
+  ResultadoBloquear,
   ResultadoCancelar,
   ResultadoCrear,
+  ResultadoDesbloquear,
   ResultadoMover,
 } from '../logica';
 
@@ -18,6 +21,10 @@ export type AccionesPanel = {
   mover: (claseId: string, destino: string, alcance: Alcance) => Promise<ResultadoMover>;
   /** `cancelarClase` (PRF-03, PRF-08). */
   cancelar: (claseId: string, alcance: Alcance) => Promise<ResultadoCancelar>;
+  /** `bloquear` de `logica/` (AGE-05, CA-14): `zona` es el huso del profesor. Devuelve un resultado, no lanza. */
+  bloquear: (entrada: EntradaBloqueo, zona: string) => Promise<ResultadoBloquear>;
+  /** `desbloquear` (AGE-06, CA-52): quita un bloqueo suyo por su id. Devuelve un resultado, no lanza. */
+  desbloquear: (bloqueoId: string) => Promise<ResultadoDesbloquear>;
   /** `leerAgendaProfesor`: los huecos de otro día, para elegir el destino de «Mover» (lanza el error de postgrest-js). */
   leerDia: (dia: Dia) => Promise<FilaAgendaProfesor[]>;
   /**

@@ -2,8 +2,9 @@
 // sintéticas con prefijo `t03.` que cada prueba limpia, y la función `enviar-mail` del stack local.
 // Todo contra el stack local (NFR-02); direcciones solo @example.test; sin secretos en el repositorio:
 // el secreto de la función es el valor de prueba de supabase/.env.development y la clave de servicio se lee
-// del contenedor del edge runtime en cada corrida.
+// del contenedor del edge runtime en cada corrida. Las llamadas se firman como `privado.disparar_mail` (H-130).
 import { execSync } from 'node:child_process';
+import { createHmac } from 'node:crypto';
 import { appendFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type pg from 'pg';
@@ -176,12 +177,25 @@ export async function cuentaGlobal(): Promise<number> {
   return Number(f.n);
 }
 
-/** Llama a `enviar-mail` del stack (o de `url`) con las cabeceras dadas. */
-export async function invocar(cuerpo: unknown, cabeceras: Record<string, string> = { 'x-mail-secreto': SECRETO_LOCAL }, metodo = 'POST', url = URL_FUNCION) {
+/** Texto exacto del cuerpo que `invocar` manda. */
+export const textoDe = (cuerpo: unknown): string => (typeof cuerpo === 'string' ? cuerpo : JSON.stringify(cuerpo));
+
+/**
+ * H-130: cabeceras `x-mail-ts` y `x-mail-firma` = hex(HMAC-SHA256(secreto, ts + '.' + cuerpo)), las mismas que
+ * arma `privado.disparar_mail`. `ts` en segundos desde epoch (por defecto, ahora).
+ */
+export function firmar(texto: string, secreto: string = SECRETO_LOCAL, ts: number = Math.floor(Date.now() / 1000)): Record<string, string> {
+  const firma = createHmac('sha256', Buffer.from(secreto, 'utf8')).update(Buffer.from(`${ts}.${texto}`, 'utf8')).digest('hex');
+  return { 'x-mail-ts': String(ts), 'x-mail-firma': firma };
+}
+
+/** Llama a `enviar-mail` del stack (o de `url`); sin `cabeceras`, firmada con el secreto local (H-130). */
+export async function invocar(cuerpo: unknown, cabeceras?: Record<string, string>, metodo = 'POST', url = URL_FUNCION) {
+  const enviado = metodo === 'POST' ? textoDe(cuerpo) : undefined;
   const r = await fetch(url, {
     method: metodo,
-    headers: { 'Content-Type': 'application/json', ...cabeceras },
-    body: metodo === 'POST' ? (typeof cuerpo === 'string' ? cuerpo : JSON.stringify(cuerpo)) : undefined,
+    headers: { 'Content-Type': 'application/json', ...(cabeceras ?? firmar(enviado ?? '')) },
+    body: enviado,
   });
   const texto = await r.text();
   let json: unknown = null;

@@ -10,6 +10,7 @@ import {
   encolar,
   esperarEstado,
   esperarMailPara,
+  firmar,
   insertarFila,
   invocar,
   limpiarFilas,
@@ -17,6 +18,7 @@ import {
   mailsPara,
   registrar,
   SECRETO_LOCAL,
+  textoDe,
 } from './ayuda';
 
 beforeAll(async () => {
@@ -32,18 +34,24 @@ afterAll(async () => {
   await cerrar();
 });
 
-describe('SEC-11 la función exige el secreto y valida `ids`', () => {
-  it('SEC-11_sin_secreto_con_secreto_erroneo_o_vacio_es_401_y_la_fila_pendiente_no_se_toca', async () => {
+describe('SEC-11 / H-130 la función exige la firma HMAC y valida `ids`', () => {
+  it('SEC-11_H-130_sin_firma_con_firma_mala_ts_fuera_de_ventana_cuerpo_alterado_o_el_x_mail_secreto_viejo_es_401_y_la_fila_pendiente_no_se_toca', async () => {
     const id = await insertarFila({ estado: 'pendiente' }, true);
+    const texto = textoDe({ ids: [id] });
+    const ahora = Math.floor(Date.now() / 1000);
     const respuestas = {
       sinCabecera: await invocar({ ids: [id] }, {}),
-      erroneo: await invocar({ ids: [id] }, { 'x-mail-secreto': 'secreto-equivocado' }),
-      vacio: await invocar({ ids: [id] }, { 'x-mail-secreto': '' }),
-      prefijo: await invocar({ ids: [id] }, { 'x-mail-secreto': SECRETO_LOCAL.slice(0, -1) }),
-      ampliado: await invocar({ ids: [id] }, { 'x-mail-secreto': `${SECRETO_LOCAL}x` }),
+      secretoViejo: await invocar({ ids: [id] }, { 'x-mail-secreto': SECRETO_LOCAL }),
+      otraClave: await invocar({ ids: [id] }, firmar(texto, 'secreto-equivocado')),
+      prefijo: await invocar({ ids: [id] }, firmar(texto, SECRETO_LOCAL.slice(0, -1))),
+      firmaVacia: await invocar({ ids: [id] }, { ...firmar(texto), 'x-mail-firma': '' }),
+      sinTs: await invocar({ ids: [id] }, { 'x-mail-firma': firmar(texto)['x-mail-firma'] }),
+      tsViejo: await invocar({ ids: [id] }, firmar(texto, SECRETO_LOCAL, ahora - 301)),
+      tsFuturo: await invocar({ ids: [id] }, firmar(texto, SECRETO_LOCAL, ahora + 301)),
+      cuerpoAlterado: await invocar({ ids: [id] }, firmar(textoDe({ ids: [] }))),
     };
     const [fila] = await sql<{ estado: string; intentado_en: Date | null }>('select estado, intentado_en from public.mail_salida where id = $1', [id]);
-    registrar('SEC-11_secreto', { ids: [id], secretos: ['ninguno', 'erroneo', 'vacio', 'prefijo', 'ampliado'] }, { status: Object.fromEntries(Object.entries(respuestas).map(([k, v]) => [k, v.status])), fila });
+    registrar('H-130_firma', { ids: [id], casos: Object.keys(respuestas) }, { status: Object.fromEntries(Object.entries(respuestas).map(([k, v]) => [k, v.status])), fila });
     for (const [k, r] of Object.entries(respuestas)) expect(r.status, k).toBe(401);
     expect(fila).toEqual({ estado: 'pendiente', intentado_en: null });
   });
@@ -65,9 +73,42 @@ describe('SEC-11 la función exige el secreto y valida `ids`', () => {
       salida[nombre] = r.status;
       expect(r.status, nombre).toBe(esperado);
     }
-    const get = await invocar(undefined, { 'x-mail-secreto': SECRETO_LOCAL }, 'GET');
+    const get = await invocar(undefined, undefined, 'GET');
     registrar('SEC-11_ids', { casos: casos.map((c) => c[0]) }, { ...salida, GET: get.status });
     expect(get.status).toBe(405);
+  });
+
+  it('H-130_AVI-07_la_llamada_firmada_por_disparar_mail_vale_en_la_funcion_y_su_replay_no_reenvia', async () => {
+    const para = direccion('replay');
+    const id = await insertarFila({ estado: 'pendiente', destinatario: para }, true);
+    // La firma la arma la base (pgcrypto); la llamada de pg_net se deshace y la repetimos dos veces a mano.
+    const c = await (await import('../../soporte/bd')).conectar();
+    await c.query('begin');
+    let llamada: { headers: Record<string, string>; body: string } = { headers: {}, body: '' };
+    try {
+      await c.query('select privado.disparar_mail(array[$1]::uuid[])', [id]);
+      const r = await c.query<{ headers: Record<string, string>; body: string }>(
+        "select headers, convert_from(body, 'UTF8') as body from net.http_request_queue where convert_from(body, 'UTF8')::jsonb = jsonb_build_object('ids', jsonb_build_array($1::text))",
+        [id],
+      );
+      llamada = r.rows[0];
+    } finally {
+      await c.query('rollback');
+    }
+    const cabeceras = { 'x-mail-ts': llamada.headers['x-mail-ts'], 'x-mail-firma': llamada.headers['x-mail-firma'] };
+    const primera = await invocar(llamada.body, cabeceras);
+    const replay = await invocar(llamada.body, cabeceras);
+    await esperarMailPara(para);
+    await dormir(1000);
+    const mails = await mailsPara(para);
+    const [fila] = await sql<{ estado: string }>('select estado from public.mail_salida where id = $1', [id]);
+    registrar('H-130_replay', { id, cabeceras: Object.keys(llamada.headers) }, { primera: primera.json, replay: replay.json, mails: mails.length, estado: fila.estado });
+    expect(Object.keys(llamada.headers)).not.toContain('x-mail-secreto');
+    expect(JSON.stringify(llamada.headers)).not.toContain(SECRETO_LOCAL);
+    expect(primera).toMatchObject({ status: 200, json: { enviados: 1, fallidos: 0 } });
+    expect(replay).toMatchObject({ status: 200, json: { enviados: 0, fallidos: 0 } });
+    expect(mails).toHaveLength(1);
+    expect(fila.estado).toBe('enviado');
   });
 
   it('SEC-11_un_asunto_con_CR_LF_no_inyecta_cabeceras_y_sale_en_una_linea', async () => {
@@ -143,10 +184,13 @@ describe('SEC-17 los logs de la función no traen el destinatario', () => {
     await c.query('begin');
     try {
       const id = await encolar(c, 'cuenta_nueva', para, 'Asunto-cola', 'Cuerpo-cola');
-      const r = await c.query<{ body: string }>("select convert_from(body, 'UTF8') as body from net.http_request_queue where convert_from(body, 'UTF8') like '%' || $1 || '%'", [id]);
-      registrar('SEC-17_cola', { destinatario: para }, { cuerpos: r.rows.map((x) => x.body) });
+      const r = await c.query<{ body: string; headers: Record<string, string> }>("select convert_from(body, 'UTF8') as body, headers from net.http_request_queue where convert_from(body, 'UTF8') like '%' || $1 || '%'", [id]);
+      registrar('SEC-17_cola', { destinatario: para }, { cuerpos: r.rows.map((x) => x.body), cabeceras: r.rows.map((x) => Object.keys(x.headers)) });
       expect(r.rows).toHaveLength(1);
       expect(JSON.parse(r.rows[0].body)).toEqual({ ids: [id] });
+      // H-130: la cola guarda ts y firma, nunca el secreto.
+      expect(Object.keys(r.rows[0].headers).sort()).toEqual(['Content-Type', 'x-mail-firma', 'x-mail-ts']);
+      expect(JSON.stringify(r.rows[0].headers)).not.toContain(SECRETO_LOCAL);
     } finally {
       await c.query('rollback');
     }

@@ -1,4 +1,4 @@
-// Página `#/panel` (WEB-06, PRF-01..05, PRF-08, AVI-01): conecta los hooks y las operaciones de `logica/` con
+// Página `#/panel` (WEB-06, PRF-01..05, PRF-08, AVI-01; B10: AGE-05, AGE-06): conecta los hooks y las operaciones de `logica/` con
 // `VistaPanel`. El día vive en la dirección (`?d=AAAA-MM-DD`) y se acota a lo que acepta `agenda_profesor`: desde
 // un año atrás hasta un año adelante (SEC-09). El acceso solo del profesor lo decide la guarda de ruta; la base
 // rechaza con 403 a quien no lo es. El huso sale del profesor de la sesión, también inactivo (PRF-08).
@@ -12,8 +12,10 @@ import { useHusoDelProfesor } from '../../configuracion/logica';
 import { leerPersonasACargo } from '../../ficha/logica';
 import { useAlumnos } from '../../lista/logica';
 import {
+  bloquear,
   cancelarClase,
   crearClase,
+  desbloquear,
   leerAgendaProfesor,
   moverClase,
   useAgendaProfesor,
@@ -31,6 +33,8 @@ const ACCIONES: AccionesPanel = {
   crear: (entrada) => crearClase(entrada),
   mover: (claseId, destino, alcance) => moverClase(claseId, destino, alcance),
   cancelar: (claseId, alcance) => cancelarClase(claseId, alcance),
+  bloquear: (entrada, zona) => bloquear(entrada, zona),
+  desbloquear: (bloqueoId) => desbloquear(bloqueoId),
   leerDia: (dia) => leerAgendaProfesor(dia),
   leerPersonasACargo: (alumnoId) => leerPersonasACargo(alumnoId),
 };

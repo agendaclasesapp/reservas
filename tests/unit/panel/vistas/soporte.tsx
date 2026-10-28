@@ -2,7 +2,7 @@
 import { render } from '@testing-library/react';
 import { vi, type Mock } from 'vitest';
 import type { AlumnoLista } from '../../../../src/modulos/lista/logica';
-import type { FalloPanel, FilaAgendaProfesor } from '../../../../src/modulos/panel/logica';
+import type { FalloBloqueo, FalloPanel, FilaAgendaProfesor } from '../../../../src/modulos/panel/logica';
 import type { AccionesPanel } from '../../../../src/modulos/panel/vistas/contrato';
 import { VistaPanel, type VistaPanelProps } from '../../../../src/modulos/panel/vistas/VistaPanel';
 import { alumno } from '../../lista/vistas/soporte';
@@ -55,7 +55,15 @@ export function fallo(codigo: FalloPanel['codigo'], mensaje: string, campo: Fall
   return { ok: false, codigo, mensaje, campo };
 }
 
-export type AccionesSimuladas = { [K in 'crear' | 'mover' | 'cancelar' | 'leerDia']: Mock<AccionesPanel[K]> } & {
+export function falloBloqueo(
+  codigo: FalloBloqueo['codigo'],
+  mensaje: string,
+  extra: Partial<Pick<FalloBloqueo, 'campo' | 'conflictos'>> = {},
+): FalloBloqueo {
+  return { ok: false, codigo, mensaje, campo: null, conflictos: [], ...extra };
+}
+
+export type AccionesSimuladas = { [K in 'crear' | 'mover' | 'cancelar' | 'bloquear' | 'desbloquear' | 'leerDia']: Mock<AccionesPanel[K]> } & {
   leerPersonasACargo: Mock<NonNullable<AccionesPanel['leerPersonasACargo']>>;
 };
 
@@ -65,6 +73,8 @@ export function acciones(): AccionesSimuladas {
     crear: vi.fn<AccionesPanel['crear']>(() => Promise.resolve({ ok: true, reserva_id: 'r1', fechas: [H10], salteadas: [] })),
     mover: vi.fn<AccionesPanel['mover']>(() => Promise.resolve({ ok: true, clase_id: 'c2', fechas: [H11], salteadas: [] })),
     cancelar: vi.fn<AccionesPanel['cancelar']>(() => Promise.resolve({ ok: true, canceladas: 1 })),
+    bloquear: vi.fn<AccionesPanel['bloquear']>(() => Promise.resolve({ ok: true, bloqueo_id: 'b1' })),
+    desbloquear: vi.fn<AccionesPanel['desbloquear']>(() => Promise.resolve({ ok: true })),
     leerDia: vi.fn<AccionesPanel['leerDia']>(() => Promise.resolve([ocupada(), LIBRE_11, LIBRE_12])),
     leerPersonasACargo: vi.fn<NonNullable<AccionesPanel['leerPersonasACargo']>>(() => Promise.resolve([])),
   };

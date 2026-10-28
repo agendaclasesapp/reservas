@@ -4,7 +4,19 @@ Dos caminos, ambos con la cuenta Gmail dedicada (`agendaclasesapp@gmail.com`).
 - Auth (códigos OTP y confirmación): SMTP de Gmail cargado en el panel (Auth > SMTP); no va en `config.toml`.
   El límite `rate_limit.email_sent` se fija y verifica en el panel (`auth.md`).
 - Recordatorios y avisos: Edge Function `enviar-mail` (Gmail 465, se activa en B03), desplegada con
-  `--no-verify-jwt --use-api` y protegida por `MAIL_SECRETO`.
+  `--no-verify-jwt --use-api` y protegida por una firma HMAC-SHA256 con `MAIL_SECRETO` (H-130).
+
+## Cómo se autentica el disparo (H-130, SEC-11)
+`privado.disparar_mail` ya no manda el secreto: manda `x-mail-ts` (epoch en segundos) y `x-mail-firma`
+(HMAC-SHA256 hex de `ts.cuerpo`, con el `mail_secreto` de Vault). `enviar-mail` recalcula la firma con
+`MAIL_SECRETO` y acepta `ts` a lo sumo 300 s del reloj de la función. Sin cabeceras válidas, con la firma mal o con
+el viejo `x-mail-secreto`: 401 sin tocar la base. Los nombres `mail_secreto` y `MAIL_SECRETO` no cambiaron y deben
+tener el mismo valor.
+
+**Despliegue:** la migración `202611001150_firma_hmac_mails.sql` y la función `enviar-mail` van en el mismo
+despliegue. Mientras esté una sin la otra, las llamadas dan 401 y las filas quedan `pendiente`; el barrido de cada
+5 min las vuelve a disparar cuando las dos están desplegadas. En `supabase-deploy.yml` el orden es `db push` y luego
+la función: hay unos minutos de 401 que el barrido absorbe, sin pérdida de mails.
 
 ## Secretos de la función (solo en Supabase)
 `GMAIL_USER`, `GMAIL_APP_PASSWORD` (sin espacios), `MAIL_SECRETO`.
@@ -67,11 +79,12 @@ Nada de esto lo ejecuta el pipeline ni un agente. Proyecto `rmokypmznhobapyghfpi
         npx supabase@2.121.0 functions delete enviar-mail --project-ref rmokypmznhobapyghfpi   # opcional, antes
         npx supabase@2.121.0 functions deploy enviar-mail --no-verify-jwt --use-api --project-ref rmokypmznhobapyghfpi
 
-   `verify_jwt` desactivado (la llama `pg_net` con el secreto, sin JWT; es la única función así, SEC-30). Comprobá en
+   `verify_jwt` desactivado (la llama `pg_net` con firma HMAC, sin JWT; es la única función así, SEC-30). Comprobá en
    el panel (Edge Functions > enviar-mail > Details) que *Verify JWT* está apagado y que la fecha de despliegue es de hoy.
 7. **Rotación de `MAIL_SECRETO`** (también ante sospecha de filtración): repetir los pasos 2, 3 (solo
-   `MAIL_SECRETO`), 4 y 5 con `vault.update_secret`. Entre un paso y otro la función responde 401 y los mails
-   quedan `pendiente`; el barrido (`barrer_mails`) los reintenta.
+   `MAIL_SECRETO`), 4 y 5 con `vault.update_secret`. El secreto de la función y el de Vault cambian juntos: mientras
+   difieren, la firma no coincide, los disparos dan 401 y los mails quedan `pendiente`; el barrido de cada 5 min
+   (`barrer_mails`) los reenvía cuando coinciden.
 8. **Prueba de humo.** Encolá un mail de prueba desde la app y comprobá que llega con la casilla como remitente;
    con una contraseña inválida la fila queda `fallido` con motivo y se ve en «Mails fallidos» (CA-33, CA-34).
 
@@ -99,5 +112,6 @@ Mailpit/Inbucket recibe todo; `MAIL_SECRETO` de prueba en `supabase/.env.develop
 
 ## Fallos frecuentes
 - `535` de Gmail: contraseña de aplicación revocada o con espacios; rota (`rotacion.md`).
-- 401 de la función: `MAIL_SECRETO` distinto entre función y Vault.
+- 401 de la función: `MAIL_SECRETO` distinto de `mail_secreto` de Vault (la firma HMAC no coincide), reloj con más
+  de 300 s de diferencia, o migración `202611001150` y función desplegadas por separado.
 - Límite diario de Gmail agotado: espera 24 h y reduce reintentos.
