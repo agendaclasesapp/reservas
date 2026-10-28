@@ -29,8 +29,3 @@
   padding: 0;
   list-style: none;
 }
-
-.enlace {
-  color: var(--c-primario);
-  font-weight: var(--peso-fuerte);
-}

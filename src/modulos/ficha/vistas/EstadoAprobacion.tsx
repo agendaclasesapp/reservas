@@ -2,7 +2,7 @@
 // motivo del profesor que rechazó (solo si lo escribió) y, si el profesor está inactivo, que no toma reservas
 // (AGE-11). El nombre y el motivo son texto: React los escapa y nunca se interpretan como HTML.
 import { rutaDeProfesor } from '../../../estado';
-import { Insignia } from '../../../ui';
+import { EnlaceAccion, Insignia } from '../../../ui';
 import estilos from './EstadoAprobacion.module.css';
 
 export type EstadoAprobacionProps = {
@@ -63,9 +63,7 @@ export function EstadoAprobacion({
       {profesorActivo ? null : <p className={estilos.detalle}>No toma reservas por ahora.</p>}
       {slug !== undefined ? (
         <p className={estilos.detalle}>
-          <a href={`#${rutaDeProfesor(slug)}`} className={estilos.enlace}>
-            Ver la agenda de {profesorNombre}
-          </a>
+          <EnlaceAccion href={`#${rutaDeProfesor(slug)}`}>Ver la agenda de {profesorNombre}</EnlaceAccion>
         </p>
       ) : null}
     </article>

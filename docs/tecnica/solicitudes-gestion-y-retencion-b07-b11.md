@@ -1,12 +1,12 @@
 ---
 titulo: Técnica · Respuesta, movimientos, gestión del profesor y retención (B07 a B11)
-version: 0.1
-fecha: 2026-10-23
+version: 0.2
+fecha: 2026-10-26
 publico: equipo técnico
 ---
 # Respuesta, movimientos, gestión del profesor y retención (B07, B08, B09, B11)
 
-> Estado: construido y verificado por los testers de cada bolt (pgTAP, integración y E2E). Resumen de lo construido; la fuente completa es `.aidlc/reservatuclase/arquitectura/contratos.md` (§1 errores, §2 lecturas, §3 RPC), `componentes.md` §3 y §4 y ADR-008, ADR-011, ADR-018, ADR-019. DEC-39 está **pendiente del humano** (§7). Sin valores secretos. B10 (bloqueos) aún no se construyó.
+> Estado: construido y verificado por los testers de cada bolt (pgTAP, integración y E2E). Resumen de lo construido; la fuente completa es `.aidlc/reservatuclase/arquitectura/contratos.md` (§1 errores, §2 lecturas, §3 RPC), `componentes.md` §3 y §4 y ADR-008, ADR-011, ADR-018, ADR-019. DEC-39 está cerrada, con el riesgo aceptado (§7). Sin valores secretos. Los bloqueos y la configuración (B10) están en `configuracion-y-bloqueos-b10.md`.
 
 ## 1. Migraciones (`supabase/migrations/`)
 
@@ -93,9 +93,9 @@ Una clase ajena en `solicitar_movimiento` o `solicitar_cancelacion` da 403 `PROH
 
 El cuerpo trae fecha y hora en el huso del profesor con su nombre, quién toma la clase y, en una serie, las fechas salteadas; nunca fechas de nacimiento (SEC-29). Del recordatorio, la persona a cargo aporta solo el nombre. El motivo del profesor llega al alumno como texto plano sin filtrar enlaces (H-350, baja, sin corregir; alcanza también a los mails de movimiento y cancelación); el asunto y el remitente sí pasan por `privado.nombre_remitente` y `encolar_mail`. Un alumno sin cuenta no recibe mails.
 
-## 7. DEC-39 pendiente del humano
+## 7. DEC-39 cerrada: riesgo aceptado
 
-Si `retencion` estuvo parada más de 7 días, la primera corrida al volver anonimiza a quienes vencieron sin haber recibido el aviso, y el borrado no se deshace. **Comportamiento actual (opción a):** se borra igual; el runbook pide revisar a quién alcanzaría antes de reactivar (`ops/operacion.md` §5). El Arquitecto y SecDevOps recomiendan la opción (b), un período de gracia de 7 días tras el aviso. Si no se decide, queda para G3; SEC-27 se reescribe cuando se decida. Detalle: `.aidlc/reservatuclase/aprobacion/DEC-39-borrado-sin-aviso.md`.
+Si `retencion` estuvo parada más de 7 días, la primera corrida al volver anonimiza a quienes vencieron sin haber recibido el aviso, y el borrado no se deshace. El humano cerró DEC-39 el 2026-10-25 con la opción (a): se deja así. No hay cambio de código ni de spec; el único control es la revisión manual de `ops/operacion.md` §5 antes de reactivar el proceso. Fuente: `analisis/decisiones-abiertas.md` (DEC-39).
 
 ## 8. Capa web
 
@@ -103,7 +103,7 @@ Módulos: `mis-clases` (pestañas, Mover y Avisar que no voy), `lista` (solicitu
 
 ## Preguntas abiertas para su dueño
 
-- DEC-39 (humano) y H-365 (403 o 404 en clase ajena).
+- H-365 (403 o 404 en clase ajena).
 - ADR-016 y algunos pasajes de `contratos.md` aún dicen 5 pendientes: el Arquitecto debe conciliarlos con SOL-10.
 
 ## Bitácora de versiones
@@ -111,3 +111,4 @@ Módulos: `mis-clases` (pestañas, Mover y Avisar que no voy), `lista` (solicitu
 | Versión | Fecha | Bolt | IDs | Cambio |
 | --- | --- | --- | --- | --- |
 | 0.1 | 2026-10-23 | B07, B08, B09, B11 | SOL-02..08, PRF-01..05, AVI-01, AVI-04..06, ALU-10..12, SEC-28, ADR-008, ADR-011, DEC-39 | Primera versión: migraciones, RPC, errores, procesos programados, mails y DEC-39 |
+| 0.2 | 2026-10-26 | B11 | DEC-39 | DEC-39 cerrada con la opción (a); riesgo aceptado, control en el runbook |

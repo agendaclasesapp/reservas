@@ -1,0 +1,8 @@
+/* Enlace autónomo (no dentro de una oración) con área táctil de al menos --tactil-min (NFR-06, CA-38, H-404). */
+.enlace {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tactil-min);
+  color: var(--c-primario);
+  font-weight: var(--peso-fuerte);
+}

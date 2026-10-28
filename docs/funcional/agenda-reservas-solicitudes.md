@@ -1,23 +1,25 @@
 ---
 titulo: Funcional · Agenda, reservas y solicitudes
-version: 0.7
-fecha: 2026-10-23
+version: 0.8
+fecha: 2026-10-26
 publico: negocio y equipo
 ---
 # Agenda, reservas y solicitudes
 
-> Estado por tema tras B02-B05: **construido y verificado** la agenda pública por día (AGE-01 semilla, AGE-07, AGE-08, WEB-01; CA-15, CA-16) y la configuración de grilla en la base. Tras B06 también está **construido y verificado** pedir una clase suelta o una serie (SOL-01, SOL-10, WEB-04, CA-41 en lo del tope); tras B07, B08 y B09 también **construido y verificado**: confirmar y rechazar solicitudes, mover y avisar que no voy, la agenda del profesor y su gestión directa. Siguen **diseñados** los bloqueos (B10).
+> Estado por tema tras B02-B05: **construido y verificado** la agenda pública por día (AGE-01 semilla, AGE-07, AGE-08, WEB-01; CA-15, CA-16) y la configuración de grilla en la base. Tras B06 también está **construido y verificado** pedir una clase suelta o una serie (SOL-01, SOL-10, WEB-04, CA-41 en lo del tope); tras B07, B08 y B09 también **construido y verificado**: confirmar y rechazar solicitudes, mover y avisar que no voy, la agenda del profesor y su gestión directa. Tras B10 también **construido y verificado**: la configuración de la agenda del profesor (WEB-08) y los bloqueos (AGE-05, AGE-06).
 
 ## Agenda y disponibilidad
 **Agenda pública por día (B02, verificado; WEB-01, CA-15, CA-16).** Desde B14 es la agenda **de un profesor**: se abre en su enlace `#/p/<slug>` (AGE-09; ver `varios-profesores.md`) y, sin enlace, `#/` no muestra agenda. La pantalla muestra los huecos de un día en el huso del profesor, sin iniciar sesión. Abre en «hoy» según el huso del profesor, aunque el navegador esté en otro huso (con el navegador en Asia/Tokyo abre el lunes 2 y no el martes 3). Cada hueco se ve libre, ocupado o bloqueado; no aparecen nombres, observaciones ni motivos. Con la grilla inicial (lunes a viernes, 08:00-13:00 y 14:00-18:00, creada por la migración) y clases de 60 min un lunes tiene 9 huecos; con 90 min son 08:00, 09:30 y 11:00 más dos de la tarde. Un día sin huecos (por ejemplo un domingo) dice «No hay huecos este día». El día se elige con un campo de fecha y se guarda en la dirección (`?d=AAAA-MM-DD`); un `d` ausente, mal formado o fuera de los días válidos vuelve a hoy sin mensaje. Mientras carga se anuncia «Cargando los huecos del día…» y, si falla la red, hay un error con «Reintentar».
 
-**Configuración en la base (B02, sin pantalla todavía).** `guardar_configuracion` (duración, anticipación, huso) y `guardar_grilla` (tramos semanales) existen como operaciones del profesor; su pantalla (WEB-08) llega en un bolt posterior.
+**Configuración (B02 en la base; pantalla en B10, WEB-08).** El profesor configura su grilla semanal, la duración de clase (1 a 1440 minutos), la anticipación mínima (0 a 8784 horas) y su huso. Cambiar el huso pide confirmación, solo cambia su agenda y las clases guardadas mantienen su momento real; las series ya pactadas siguen a la misma hora real, y las nuevas usan el huso nuevo (AGE-08, DEC-08, ADR-022). Cambiar la duración o la grilla no mueve clases ni pedidos (AGE-03).
+
+**Bloqueos (B10, AGE-05, AGE-06).** El profesor bloquea un hueco, un rango de horas o días completos, con motivo opcional de hasta 500 caracteres que solo él ve, desde un año atrás hasta un año adelante y hasta 366 días de largo. Si el período tiene clases confirmadas o pedidos pendientes, se rechaza y se listan (fecha, hora, alumno y estado, con enlace al día del panel; CA-14). Desbloquear devuelve los huecos a libres; un profesor no ve ni quita los bloqueos de otro. Un alumno no puede bloquear.
 
 - El profesor define la grilla semanal (uno o más tramos por día; inicial lunes a viernes 08:00-13:00 y 14:00-18:00) y una duración única de clase; los huecos salen consecutivos desde el inicio de cada tramo y un resto menor que la duración no genera hueco (AGE-01, AGE-02).
 - Cambiar grilla o duración no altera clases confirmadas ni solicitudes pendientes (AGE-03; series: DEC-06).
 - **Anticipación mínima**: el alumno no puede pedir, mover ni cancelar clases que empiezan antes del plazo, y recibe el motivo; no limita al profesor (AGE-04, PRF-04). En un movimiento rige para origen y destino (DEC-07, opción por defecto).
 - Bloqueos de un hueco, un rango de horas o días completos, con motivo opcional; se rechazan si cubren una clase confirmada o solicitud pendiente, indicando cuáles; quitarlos libera los huecos (AGE-05, AGE-06).
-- Un único huso horario configurable para todo (AGE-08, DEC-08).
+- Un huso horario configurable por profesor (AGE-08, DEC-08); las series ya pactadas conservan el huso con que se crearon (ADR-022).
 - **Calendario público**: cualquiera ve cada hueco como libre, ocupado o bloqueado, sin nombres, observaciones ni motivos; un hueco con solicitud pendiente se ve ocupado (AGE-07, WEB-01). Si una clase activa solapa en parte un hueco (por ejemplo tras cambiar la duración), ese hueco se ve ocupado; una clase que no solapa ningún hueco de la grilla vigente se agrega como ocupada con su inicio y fin (ADR-006, precisión tras S03).
 - **Invitación al visitante (CR-001, DEC-23, WEB-01, CA-46):** un visitante sin sesión que toca un hueco libre ve una invitación a ingresar, con un acceso a la pantalla de ingreso (WEB-02); no se crea ninguna solicitud ni se pide ningún dato. Un alumno aprobado por ese profesor que toca un hueco libre abre el formulario «Pedir clase a <profesor>»; con el acceso pendiente o rechazado, el toque lleva al aviso de estado. Verificado: sin sesión no se llama a ninguna operación de escritura y el ingreso vuelve a la misma agenda (WEB-01).
 
@@ -80,3 +82,4 @@ El alumno ve sus clases próximas, pendientes y pasadas con **todos** sus profes
 | 0.5 | 2026-10-23 | B14 | CR-002, AGE-09, AGE-10, SOL-10, DEC-27 | Agenda por enlace de profesor; tope de pendientes de 10 por profesor (antes 5) |
 | 0.6 | 2026-10-23 | B06 | SOL-01, SOL-10, WEB-01, WEB-04, CA-41, CA-46, ADM-05 | Pedir clase suelta y serie construido y verificado, vista previa de la serie, tope de 10 verificado |
 | 0.7 | 2026-10-23 | B07, B08, B09 | SOL-02..08, SOL-10, RES-06, PRF-01..05, AVI-01, WEB-05, WEB-06, CA-52 | Responder solicitudes, mover y avisar que no voy, Mis clases, panel y gestión directa construidos y verificados |
+| 0.8 | 2026-10-26 | B10 | AGE-03, AGE-05, AGE-06, AGE-08, WEB-08, CA-14, ADR-022 | Configuración y bloqueos construidos; cambio de huso y series |

@@ -1,7 +1,7 @@
 ---
 titulo: Onboarding · Agenda Clases App
-version: 0.8
-fecha: 2026-10-23
+version: 0.9
+fecha: 2026-10-26
 publico: equipo nuevo
 ---
 # Onboarding · Agenda Clases App
@@ -79,9 +79,9 @@ Los mails salen al buzón de prueba local (Mailpit); ahí se ve el código de in
 
 - Los permisos los aplica solo RLS (ADR-001); la SPA no autoriza.
 - Un hueco admite una sola reserva pendiente o confirmada, garantizado por la base (RES-01, ADR-002).
-- Un solo huso horario: el del profesor (ADR-004).
+- Un solo huso horario por profesor (ADR-004); cada reserva guarda el huso con que se creó, así que cambiar el huso no mueve clases ni series ya pactadas (ADR-022).
 - Las series se materializan con horizonte de 26 semanas (ADR-003).
-- Se anonimiza en lugar de borrar (ADR-011): a los 6 meses de la última clase con cualquier profesor, con aviso 7 días antes (ALU-10, AVI-06). DEC-39 (período de gracia si el proceso estuvo parado) está pendiente del humano.
+- Se anonimiza en lugar de borrar (ADR-011): a los 6 meses de la última clase con cualquier profesor, con aviso 7 días antes (ALU-10, AVI-06). DEC-39 (período de gracia si el proceso estuvo parado) se cerró sin gracia: si el proceso estuvo parado más de 7 días, quien opera revisa a mano antes de reactivarlo (`ops/operacion.md` §5).
 - Los procesos programados `recordatorios` y `retencion` se revisan cada semana con `ops/operacion.md`.
 - La hora de negocio sale de `public.app_ahora()`, nunca de `now()`; el reloj de prueba solo se habilita en local con `seed.sql` (ADR-014).
 - El rol y el vínculo con alumno o profesor se asignan solo con el mail confirmado (ADR-007).
@@ -112,3 +112,4 @@ Por área, según los perfiles del ciclo: requisitos (funcional), diseño técni
 | 0.6 | 2026-10-23 | B14 | CR-002, CR-003, ADR-018..021, ADM-01, WEB-12, DEC-25..37 | Varios profesores, Administrador, enlace por profesor, topes nuevos, puesta en marcha y migración; nombre «Agenda Clases App» |
 | 0.7 | 2026-10-23 | B15, B06 | ADM-02, ADM-05, SOL-10, ADR-021, DEC-38 | Estado de los bolts construidos, alta de profesores desde `#/admin`, secreto `url_sitio`, despliegue por tramos, glosario |
 | 0.8 | 2026-10-23 | B07, B08, B09, B11 | ALU-10, AVI-05, AVI-06, DEC-39, SEC-28 | Estado de los bolts construidos, retención y runbook de operación |
+| 0.9 | 2026-10-26 | B10, B11 | AGE-08, DEC-39, ADR-022 | Huso por reserva y DEC-39 cerrada |

@@ -42,8 +42,3 @@
   white-space: pre-line;
   overflow-wrap: anywhere;
 }
-
-.enlace {
-  color: var(--c-primario);
-  font-weight: var(--peso-fuerte);
-}

@@ -1,7 +1,7 @@
 ---
 titulo: Funcional · Gestión del profesor y avisos
-version: 0.6
-fecha: 2026-10-23
+version: 0.7
+fecha: 2026-10-26
 publico: negocio y equipo
 ---
 # Gestión del profesor y avisos
@@ -56,3 +56,4 @@ publico: negocio y equipo
 | 0.4 | 2026-10-23 | B14 | CR-002, CR-003, AVI-07, AVI-08 | Remitente por profesor, tope global de 400 mails por día |
 | 0.5 | 2026-10-23 | B15, B06 | DEC-38, AVI-04, SOL-01 | Aviso al sumar un mail por edición; mail `solicitud_nueva` |
 | 0.6 | 2026-10-23 | B07, B08, B09, B11 | AVI-01, AVI-03, AVI-04, AVI-05, AVI-06, PRF-01..06, DEC-10 | Mails de respuesta, movimiento, cancelación y gestión directa; recordatorio y aviso de inactividad; gestión directa construida |
+| 0.7 | 2026-10-26 | B10 | WEB-08 | La configuración de la agenda ya está construida (ver `agenda-reservas-solicitudes.md`) |

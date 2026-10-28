@@ -1,7 +1,7 @@
 ---
 titulo: Manual de usuario · Agenda Clases App · Alumno y visitante
-version: 0.4
-fecha: 2026-10-23
+version: 0.5
+fecha: 2026-10-26
 publico: alumnos y visitantes
 ---
 # Manual de usuario · Agenda Clases App · Alumno y visitante
@@ -99,7 +99,7 @@ Los mails de tu profesor (respuesta a tus pedidos, clase creada, movida o cancel
 ## Tus datos y su borrado
 Si pasan **6 meses** desde tu última clase con cualquier profesor (y no tenés clases futuras con ninguno; sin clases, desde que te registraste o te aprobaron), se borran tus datos personales, tus personas a cargo y tu cuenta de ingreso. **7 días antes** te llega un mail de «Agenda Clases App» con la fecha. Entrar a la aplicación vuelve a contar el plazo y, si una clase nueva corre la fecha, recibís un aviso nuevo. Tus clases pasadas quedan sin tus datos. Fuente: ALU-10, ALU-11, AVI-06, ADR-011. Si tu profesor te borra de su lista, se cancelan tus clases futuras con él sin mail; tu cuenta y lo tuyo con otros profesores siguen.
 
-> Pendiente de decisión (DEC-39): si el proceso de borrado estuvo parado más de 7 días, hoy se borra igual a quien venció aunque no haya recibido el aviso; puede cambiar a un plazo de gracia.
+> DEC-39 (cerrada, opción a): si el proceso de borrado estuvo parado más de 7 días, la primera corrida al volver puede borrar sin aviso previo a quien venció en el medio; el control es la revisión manual del runbook antes de reactivarlo.
 
 ## Bitácora de versiones
 
@@ -109,3 +109,4 @@ Si pasan **6 meses** desde tu última clase con cualquier profesor (y no tenés 
 | 0.2 | 2026-10-23 | B14 | CR-002, CR-003, AGE-09, AGE-11, ALU-14, WEB-09, WEB-11, WEB-12, CA-63 | Entrada por enlace, inicio sin enlace, pedir acceso, selector, estado por profesor, profesor en pausa; nombre del producto |
 | 0.3 | 2026-10-23 | B06 | SOL-01, SOL-10, WEB-01, WEB-04, CA-41, CA-46, ADM-05 | Pedir una clase suelta o una serie, vista previa de fechas salteadas, tope de 10, visitante sin sesión, pedidos anulados por pausa |
 | 0.4 | 2026-10-23 | B07, B08, B11 | SOL-02, SOL-03, SOL-07, SOL-10, WEB-05, RES-06, AVI-05, AVI-06, ALU-10, ALU-11, DEC-39 | Mis clases, Mover, Avisar que no voy, recordatorio, retención y borrado |
+| 0.5 | 2026-10-26 | B11 | ALU-10, AVI-06, DEC-39 | DEC-39 cerrada: se acepta el borrado sin aviso tras una parada larga |

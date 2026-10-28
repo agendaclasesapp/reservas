@@ -144,7 +144,7 @@ pausada, restauración):
 4. Si la cifra es la esperada, `call privado.correr_proceso('retencion');` y revisar la fila resultante en §3
    (`anonimizados`).
 
-DEC-39 (pendiente del humano) puede cambiar este paso.
+DEC-39 está cerrada (opción a, 2026-10-25): no habrá período de gracia, así que este paso es **el único control** antes de reactivar el proceso; si el job estuvo parado más de 7 días, quien opera revisa a mano a quién alcanzaría.
 
 Mientras el job esté parado, no borra a nadie: el riesgo aparece solo al volver. Por eso §2 (frecuencia de 7 corridas)
 se revisa cada semana y el hueco no debería pasar de 7 días.

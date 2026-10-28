@@ -1,12 +1,12 @@
 ---
 titulo: Manual de usuario · Agenda Clases App · Profesor
-version: 0.4
-fecha: 2026-10-23
+version: 0.5
+fecha: 2026-10-26
 publico: profesor
 ---
 # Manual de usuario · Agenda Clases App · Profesor
 
-> Este manual cubre solo lo **construido y verificado** hasta B05, B14, B07, B08, B09 y B11: tu enlace, cuentas pendientes, alumnos (incluidos los que ya tienen cuenta con otro profesor), responder solicitudes, el panel con la agenda del día, crear, mover y cancelar clases, borrar alumnos, la agenda en pausa y «Mails fallidos». Los bloqueos (Bloquear y Desbloquear llegan en B10) y el resto de la configuración se suman cuando se construyan y verifiquen. Antes del primer ingreso, el Administrador te da de alta con tu mail, tu nombre y tu enlace (te llega el mail «Tu agenda en Agenda Clases App» con tu enlace); si lo hace quien opera el sistema, ver `tecnica/plataforma.md` §7 y `ops/puesta-en-marcha.md`. Tu nombre es público en tu enlace y tu mail lo ven tus alumnos como dirección de respuesta (DEC-34).
+> Este manual cubre solo lo **construido y verificado** hasta B05, B14, B07, B08, B09 y B11: tu enlace, cuentas pendientes, alumnos (incluidos los que ya tienen cuenta con otro profesor), responder solicitudes, el panel con la agenda del día, crear, mover y cancelar clases, borrar alumnos, la agenda en pausa y «Mails fallidos». Con B10 también: la configuración de tu agenda (grilla, duración, anticipación y huso) y los bloqueos. Antes del primer ingreso, el Administrador te da de alta con tu mail, tu nombre y tu enlace (te llega el mail «Tu agenda en Agenda Clases App» con tu enlace); si lo hace quien opera el sistema, ver `tecnica/plataforma.md` §7 y `ops/puesta-en-marcha.md`. Tu nombre es público en tu enlace y tu mail lo ven tus alumnos como dirección de respuesta (DEC-34).
 
 ## Tu enlace
 En **Configuración** ves tu enlace (`…/reservas/#/p/<enlace>`) con el botón **Copiar enlace**. Es lo que repartís a tus alumnos: quien lo abre ve tu agenda y, al completar su ficha desde ahí, queda pendiente con vos. Solo el Administrador define o cambia el enlace. Si tu cuenta es también la del Administrador, el menú suma **Administración**. Fuente: handoffs de UX y desarrollo de B14 (WEB-08, AGE-09, ADM-04).
@@ -66,7 +66,26 @@ Después de cada acción el resultado se anuncia en una región de estado y el f
 
 Con la **agenda inactiva**, Crear y Mover quedan deshabilitados con su explicación y **Cancelar** sigue; el panel sigue funcionando.
 
-Fuente: handoffs de B09 (PRF-01..05, PRF-08, AVI-01, AVI-04, WEB-06, CA-52, CA-55). Bloquear y Desbloquear llegan en B10.
+Fuente: handoffs de B09 (PRF-01..05, PRF-08, AVI-01, AVI-04, WEB-06, CA-52, CA-55). Para bloquear horarios, ver «Bloquear horarios».
+
+## Bloquear horarios
+En `#/panel`, **Bloquear horarios** abre un diálogo para bloquear un rango de horas de un día o días completos. Un hueco libre ofrece además **Bloquear este horario**. En ambos casos podés poner un motivo (opcional, hasta 500 caracteres) que solo ves vos: el calendario público no lo muestra.
+- Se puede bloquear desde las 00:00 de hace 366 días hasta hoy + 366 días inclusive, con hasta 366 días de largo. Si el inicio es anterior, se ve «Elegí desde cuándo bloquear: el inicio no puede ser de hace más de un año.».
+- Si en el período hay clases confirmadas o pedidos sin responder, **el bloqueo se rechaza** y se listan fecha, hora, alumno y estado de cada uno, con un enlace al día del panel para gestionarlo. Una clase que termina a las 10:00 no impide un bloqueo desde las 10:00.
+- Un hueco bloqueado se toca y ofrece **Desbloquear**, que quita el bloqueo entero (puede cubrir más de un hueco) y devuelve los huecos a libres. Solo ves y quitás tus bloqueos.
+
+Fuente: handoffs de B10 (AGE-05, AGE-06, WEB-08; E2E `WEB-08-bloqueo`).
+
+## Configurar tu agenda
+En **Configuración** (`#/configuracion`) ves, de arriba abajo: «Tu enlace», «Grilla semanal», «Duración de clase», «Anticipación mínima», «Huso horario» y «Mails fallidos». Cada sección se guarda con su botón.
+- **Grilla semanal** (**Guardar grilla**): se edita por día con tramos Inicio y Fin escritos como HH:MM (el fin puede ser 24:00); al editar muestra, por ejemplo, «Lunes: 9 huecos».
+- **Duración de clase** (**Guardar duración**): de 1 a 1440 minutos.
+- **Anticipación mínima** (**Guardar anticipación**): de 0 a 8784 horas (366 días).
+- **Huso horario** (**Guardar huso horario**): pide confirmación. Solo cambia tu agenda: la grilla se lee en el huso nuevo, las clases ya guardadas mantienen su momento real y las series ya pactadas siguen a la misma hora real, también en las fechas que se agreguen después, por lo que en el huso nuevo se ven corridas. Las series nuevas usan el huso nuevo.
+- Un valor fuera de rango (o una duración 0) muestra el error junto al campo y no guarda nada.
+- Cambiar la duración o la grilla no mueve clases ni pedidos ya hechos.
+
+Fuente: handoffs de B10 (WEB-08, AGE-03, AGE-08, DEC-08, ADR-022; E2E `WEB-08-configuracion`).
 
 ## Borrar un alumno
 En la sección **Alumnos** cada fila tiene **Borrar**. Se abre un diálogo que explica qué pasa: se cancelan sus clases futuras con vos y se liberan los horarios; sus solicitudes pendientes se anulan; sus series se cierran; **no se avisa por mail**. Si la persona **tiene cuenta**, su cuenta y su ficha siguen y deja de figurar en tu lista (lo suyo con otros profesores no cambia); si **no tenía cuenta** ni otro profesor, se borran sus datos y sus personas a cargo. Confirmá con **Borrar alumno**; la pantalla anuncia el resumen de clases canceladas. Sus clases pasadas quedan como **Alumno dado de baja**, igual que cuando una persona se borra por inactividad (6 meses; ver `funcional/alumnos-y-cuentas.md`). Borrar sigue disponible con la agenda inactiva. Fuente: handoffs de B11 (ALU-12, DEC-05, DEC-26, CA-57).
@@ -85,3 +104,4 @@ En **Configuración**, la sección «Mails fallidos» lista fecha (en tu huso), 
 | 0.2 | 2026-10-23 | B14 | CR-002, CR-003, AGE-09, AGE-11, ALU-07, ALU-08, PRF-08, WEB-08, AVI-08, DEC-29, DEC-32, DEC-35..37 | Tu enlace, alta con persona existente, ficha no editable, agenda en pausa, remitente y topes por profesor; nombre del producto |
 | 0.3 | 2026-10-23 | B15, B06 | ADM-02, ADM-05, DEC-38, AVI-04, CA-63 | Alta por el Administrador, aviso al sumar un mail, pausa que anula pendientes |
 | 0.4 | 2026-10-23 | B07, B08, B09, B11 | SOL-04..08, PRF-01..06, AVI-01, AVI-04, AVI-05, ALU-10, ALU-12, WEB-06, WEB-07, CA-52, CA-55, CA-57 | Responder solicitudes, cambios y avisos de ausencia, panel con agenda del día y gestión directa, borrar alumno, remitente de mails |
+| 0.5 | 2026-10-26 | B10 | AGE-03, AGE-05, AGE-06, AGE-08, WEB-08, ADR-022 | Bloquear horarios y configurar la agenda (grilla, duración, anticipación, huso) |

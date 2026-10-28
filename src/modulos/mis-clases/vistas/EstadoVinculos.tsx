@@ -2,7 +2,7 @@
 // el motivo del profesor que rechazó —solo si lo escribió— junto a ese profesor y, si no toma reservas, que no
 // toma reservas (AGE-11, CA-63). Los datos salen de `profesoresDeMisClases` (la sesión), sin duplicarlos.
 import { rutaDeProfesor } from '../../../estado';
-import { Insignia, type TipoInsignia } from '../../../ui';
+import { EnlaceAccion, Insignia, type TipoInsignia } from '../../../ui';
 import type { ProfesorDeMisClases } from '../logica';
 import estilos from './EstadoVinculos.module.css';
 
@@ -43,9 +43,7 @@ export function EstadoVinculos({ profesores }: EstadoVinculosProps) {
               {p.profesorActivo === false ? <p>No toma reservas por ahora.</p> : null}
               {p.estado !== null && p.slug !== null ? (
                 <p>
-                  <a href={`#${rutaDeProfesor(p.slug)}`} className={estilos.enlace}>
-                    Ver la agenda de {p.profesorNombre}
-                  </a>
+                  <EnlaceAccion href={`#${rutaDeProfesor(p.slug)}`}>Ver la agenda de {p.profesorNombre}</EnlaceAccion>
                 </p>
               ) : null}
             </article>

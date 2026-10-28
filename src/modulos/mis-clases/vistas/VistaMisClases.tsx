@@ -6,7 +6,7 @@
 // Recibe sesión y datos por props: la página los conecta con `useSesion()`, `useMisClases()` y `useCambioDeClase()`.
 import { useMemo, useState, type ReactNode } from 'react';
 import { rutaDeProfesor, type EstadoSesion, type SesionActual } from '../../../estado';
-import { Cargando, ErrorCarga, SinPermisos, Vacio } from '../../../ui';
+import { Cargando, EnlaceAccion, ErrorCarga, SinPermisos, Vacio } from '../../../ui';
 import {
   agruparMisClases,
   hayVariosHusos,
@@ -147,11 +147,7 @@ function Clases({ clases, profesores, onRecargar, cambio, obtenerConfig, obtener
               <Vacio
                 nivel={3}
                 titulo={MENSAJES_VISTA.sinProximas}
-                accion={
-                  <a href={destinoAgenda(profesores)} className={estilos.enlace}>
-                    {MENSAJES_VISTA.verAgenda}
-                  </a>
-                }
+                accion={<EnlaceAccion href={destinoAgenda(profesores)}>{MENSAJES_VISTA.verAgenda}</EnlaceAccion>}
               />
             ),
           },

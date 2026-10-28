@@ -12,7 +12,6 @@
   font-weight: var(--peso-fuerte);
   line-height: var(--interlineado-titulo);
   cursor: pointer;
-  transition: background-color var(--mov);
 }
 
 .boton:focus-visible {

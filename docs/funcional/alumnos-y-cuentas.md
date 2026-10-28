@@ -1,7 +1,7 @@
 ---
 titulo: Funcional · Alumnos y cuentas
-version: 0.6
-fecha: 2026-10-23
+version: 0.7
+fecha: 2026-10-26
 publico: negocio y equipo
 ---
 # Alumnos y cuentas
@@ -42,7 +42,7 @@ El titular registra y edita personas a cargo (nombre, fecha de nacimiento), por 
 - **Qué se borra.** Nombre, mail, teléfono, nacimiento, cómo llegó, motivo de rechazo, personas a cargo, observaciones de reservas, motivos de solicitudes, los datos de los mails que la nombran (un mail suyo en cola o saliendo queda fallido, sin destinatario, asunto ni cuerpo, y no se envía) y la cuenta de ingreso, incluido lo que Auth guarda del usuario. El diseño anonimiza en lugar de borrar la fila (ADR-011): las clases pasadas quedan, sin datos de la persona. En las listas del profesor la persona figura como «Alumno dado de baja».
 - **Renovación y aviso.** Cada ingreso renueva el plazo (ALU-11). Siete días antes el titular recibe un mail de «Agenda Clases App» con la fecha (huso de la aplicación) (AVI-06); si ingresa antes, el plazo vuelve a contar, y si una clase posterior corre el vencimiento después de un aviso, llega un aviso nuevo con la fecha nueva. El proceso corre cada noche a las 03:30 UTC.
 - **Borrar alumno (ALU-12, DEC-05).** El profesor puede borrar a un alumno en cualquier momento, también con su agenda inactiva: se cancelan sus clases futuras con él y se liberan los horarios, se anulan sus solicitudes pendientes, se cierran sus series, y todo **sin mandar mails**; sus clases pasadas quedan como «Alumno dado de baja» y sale de su lista. Si no tenía cuenta ni otro profesor se borran sus datos y sus personas a cargo; si tiene cuenta, su cuenta y su ficha siguen y lo suyo con otros profesores no cambia.
-- **DEC-39, pendiente del humano.** Si el proceso estuvo parado más de 7 días, al volver borra a quienes vencieron en el medio aunque no hayan recibido el aviso, y no hay vuelta atrás (comportamiento actual). Se recomienda un período de gracia de 7 días tras el aviso; si se acepta, el borrado podría ocurrir hasta 7 días después del aviso y la política de privacidad lo dice. Mientras no se decida, el runbook `ops/operacion.md` §5 pide revisar antes de reactivar el proceso.
+- **DEC-39, cerrada (2026-10-25, opción a).** Si el proceso diario estuvo parado más de 7 días, la primera corrida al volver puede borrar, sin aviso previo, a quien venció en el medio, y no hay vuelta atrás. Se aceptó el riesgo y no hay período de gracia: el único control es que una persona revise a mano, antes de reactivar el proceso, a quién alcanzaría (`ops/operacion.md` §5). Fuente: `analisis/decisiones-abiertas.md` (DEC-39).
 
 ## Bitácora de versiones
 
@@ -54,3 +54,4 @@ El titular registra y edita personas a cargo (nombre, fecha de nacimiento), por 
 | 0.4 | 2026-10-22 | B04, B05 | ALU-01..09, ALU-13, AVI-02, AVI-03, CA-01, CA-02, CA-04, CA-05, CA-43, CA-44, CA-45, WEB-02, WEB-03, WEB-07 | Ingreso, CAPTCHA, ficha, tope de fichas, personas a cargo, aprobación, rechazo con motivo, unión y alta marcados como construidos y verificados |
 | 0.5 | 2026-10-23 | B14 | CR-002, ALU-13, ALU-14 | Nota de vínculo por profesor y tope de fichas por profesor de origen |
 | 0.6 | 2026-10-23 | B11 | ALU-10, ALU-11, ALU-12, AVI-06, DEC-05, DEC-26, DEC-32, DEC-39, CA-57 | Retención, aviso previo y borrado de alumno construidos; DEC-39 pendiente; el profesor edita solo fichas sin cuenta que cargó |
+| 0.7 | 2026-10-26 | B11 | ALU-10, AVI-06, DEC-39 | DEC-39 cerrada: se acepta el borrado sin aviso tras una parada larga; el control es la revisión del runbook |

@@ -3,7 +3,7 @@
 -- este archivo. Lo único por bolt es supabase/tests/lista_rpc/BB.txt (developer), que se incrusta abajo con
 -- `node tests/soporte/sincronizar-lista-rpc.mjs` (pg_prove corre dentro del contenedor y no lee el repositorio).
 begin;
-select plan(22);
+select plan(25);
 
 create temp table lista_rpc (rol text, funcion text) on commit drop;
 -- LISTA_RPC:INICIO (generado por tests/soporte/sincronizar-lista-rpc.mjs; no editar a mano)
@@ -219,6 +219,31 @@ select is(
       and c.conrelid::regclass::text in ('privado.union_descartada', 'inscripcion') group by 1) x),
   array['inscripcion', 'privado.union_descartada'],
   'ADR-013 regla 3: la lista blanca es exactamente union_descartada e inscripcion (esta última con fusión previa)');
+
+-- H-131 (aceptado, opción a): pg_net deja a anon y authenticated ejecutar net.http_* y leer la cola y las respuestas.
+-- No se puede revocar desde una migración (son de supabase_admin). Estas pruebas fijan el estado aceptado y fallan si
+-- cambia en cualquier dirección (si la plataforma lo cierra, actualizar el esperado y la ficha H-131). La otra mitad,
+-- que `net` no esté en [api].schemas, está en tests/integracion/plataforma/config-toml.test.ts.
+select is(
+  (select coalesce(array_agg(distinct (rol || ':' || p.proname)::text), '{}')
+     from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    cross join unnest(array['anon', 'authenticated']) rol
+    where n.nspname = 'net' and p.proname in ('http_get', 'http_post', 'http_delete')
+      and has_function_privilege(rol, p.oid, 'execute')),
+  array['anon:http_delete', 'anon:http_get', 'anon:http_post',
+        'authenticated:http_delete', 'authenticated:http_get', 'authenticated:http_post'],
+  'H-131: anon y authenticated ejecutan net.http_get, http_post y http_delete (estado aceptado; si cambia, revisar H-131)');
+select is(
+  (select coalesce(array_agg((rol || ':' || c.relname)::text order by rol, c.relname), '{}')
+     from pg_class c join pg_namespace n on n.oid = c.relnamespace
+    cross join unnest(array['anon', 'authenticated']) rol
+    where n.nspname = 'net' and c.relname in ('http_request_queue', '_http_response')
+      and has_table_privilege(rol, c.oid, 'select')),
+  array['anon:_http_response', 'anon:http_request_queue', 'authenticated:_http_response', 'authenticated:http_request_queue'],
+  'H-131: anon y authenticated leen net.http_request_queue y net._http_response (estado aceptado; si cambia, revisar H-131)');
+select is(
+  (has_schema_privilege('anon', 'net', 'usage'), has_schema_privilege('authenticated', 'net', 'usage')),
+  (true, true), 'H-131: USAGE sobre el esquema net para anon y authenticated (estado aceptado; si cambia, revisar H-131)');
 
 select * from finish();
 rollback;
