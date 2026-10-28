@@ -20,6 +20,13 @@ Reglas:
 - Antes del tramo 1: respaldo completo de la base fuera del repositorio. La migración inversa de `ops/vuelta-atras/` sirve
   solo antes de la contracción y con un único profesor; después, o con más de un profesor, solo el dump.
 - Se aplican por entorno: primero `qa` (`${QA_SUPABASE_PROJECT_REF}`) con los cuatro tramos, después `prod`
-  (`${PROD_SUPABASE_PROJECT_REF}`). En `prod` aprueba el revisor del environment `produccion`.
+  (`${PROD_SUPABASE_PROJECT_REF}`). En `prod` aprueba el revisor del environment `produccion`. Si el cliente no tiene
+  `qa` (PREG-004, opción c), se va directo a `prod`, un tramo por vez, cada uno con su humo.
+- El revisor del environment aprueba **antes** de que el job arranque: el `db push --dry-run` del workflow se ve
+  después de aprobar y `db push` corre enseguida. Por eso la comprobación de la fila se hace **antes de lanzar**, con el
+  mismo `db push --dry-run` desde un checkout de la etiqueta (`git worktree add ../tramo <etiqueta>`, `supabase link`).
+- Los tramos 2 y 3 salen de un mismo commit de B15. Si el repositorio no tiene un commit con exactamente las migraciones
+  de la fila, se crea un commit de tramo que solo borra de su árbol las migraciones posteriores (`git rm`) y se
+  etiqueta ese commit; la secuencia de comandos está en `.aidlc/<proyecto>/operacion/runbook-despliegue-prod.md` §3.
 - `supabase-deploy.yml` despliega el árbol del ref desde el que se lanza: se lanza con "Use workflow from" la etiqueta
   del tramo (`${TRAMO_ETIQUETA}`), no desde `main` si `main` ya trae tramos posteriores.

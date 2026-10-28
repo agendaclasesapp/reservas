@@ -40,7 +40,8 @@ ADM-02) y se carga **antes del alta de profesores en `#/admin`** (§7b):
 Detalle y actualización: `mails.md`.
 
 ## 6. Primer `supabase-deploy`
-Actions > supabase-deploy > Run workflow; apruébalo como revisor del environment tras mirar el
+Actions > supabase-deploy > Run workflow; apruébalo como revisor del environment (la aprobación es previa al job: el
+`db push --dry-run` se mira antes, en local, desde el mismo árbol; el del workflow queda como evidencia) tras mirar el
 `db push --dry-run` y el diff de configuración del resumen. Aplica migraciones (crea `public.ping` y la fila
 única de `profesor`), despliega la función si existe y empuja la configuración de Auth.
 **No corras `supabase config push` a mano (H-181):** la CLI carga `supabase/.env.development` con el secreto de

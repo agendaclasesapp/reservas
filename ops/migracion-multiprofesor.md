@@ -80,6 +80,7 @@ con la web nueva y la base vieja no anda nada. `web.yml` publica en cuanto algo 
    request** (campo «Use workflow from»), con el pull request en verde y **antes** de fusionarlo. Si el environment
    `produccion` solo admite `main`, fusionar y lanzar `supabase-deploy` de inmediato (la web tarda unos minutos en
    publicar; hacerlo en el horario sin uso). Como revisor del environment, mirar antes de aprobar:
+   - (el revisor aprueba antes de que el job arranque: el dry-run del workflow se lee después, así que esta comprobación se hace **antes de lanzar**, con `db push --dry-run` desde un checkout de la etiqueta)
    - `db push --dry-run`: debe figurar exactamente la fila 1 de la tabla de §1 (`202611000510` a `0513` y `0520` a `0525`) y **ninguna** `0526`, `0530`, `0531`, `0539` ni `2026110006*`; se despliega desde `prod-b14`;
    - el artefacto `esquema-previo` (solo estructura);
    - el diff de configuración: **no se espera ninguno**. La guardia (`config-permitida.json`) detiene el despliegue si
