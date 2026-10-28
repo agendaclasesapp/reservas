@@ -2,7 +2,7 @@
 
 | Campo | Valor |
 | --- | --- |
-| Versión | 1.0 |
+| Versión | 1.1 |
 | Estado | aprobada |
 | Dueño | Fernando Burgueño |
 
@@ -317,6 +317,11 @@ Pages no reescribe direcciones; la agenda de cada profesor es la ruta `#/p/<slug
   encabezado junto al ícono y en las páginas de condiciones y privacidad; el ícono es también el
   favicon. El remitente visible de los mails de la aplicación y de los códigos de ingreso es el mismo
   nombre (AVI-07). Los identificadores internos (slug, rutas, paquetes) no cambian (CR-003).
+- **WEB-13** · Quién está conectado: en todas las pantallas con sesión, el encabezado muestra
+  junto a "Salir" el nombre de la persona (el mail, si la cuenta no tiene nombre) y, cuando la
+  cuenta tiene más de un rol (profesor y Administrador), los dos. El lector de pantalla lo anuncia
+  como "Conectado como …"; en 360 px entra sin romper el encabezado y va en el menú junto a
+  "Salir" (CR-004).
 
 ## 5. Integraciones y API
 
@@ -591,6 +596,10 @@ destinatario, tipo y motivo del fallo.
   encabezado junto al ícono, el favicon es el ícono, y un mail de la aplicación y un código de ingreso
   llegan con "Agenda Clases App" como remitente visible; no queda "ReservaTuClase" en ningún texto
   visible (WEB-12, AVI-07).
+- **CA-66** · Con la sesión iniciada, el encabezado muestra junto a "Salir" el nombre de un
+  profesor o de un alumno, y el mail del Administrador sin nombre; un profesor que además es
+  Administrador ve "Profesor y Administrador" y uno que no, ningún rol; el lector de pantalla
+  anuncia "Conectado como" seguido del nombre, y sin sesión no aparece (WEB-13).
 
 Los CA-37 y CA-38 (accesibilidad y 360 px) alcanzan también a WEB-09, 10 y 11.
 

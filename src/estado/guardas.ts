@@ -178,12 +178,16 @@ function estadoParaNavegacion(s: SesionActual) {
 
 /**
  * Adaptador para `Navegacion` de src/ui (sin usuario = visitante). El profesor que además es Administrador
- * lleva `esAdministrador` para ver también «Administración» (ADM-04, ADR-020).
+ * lleva `esAdministrador` para ver también «Administración» (ADM-04, ADR-020). `nombre` es quién está
+ * conectado: el de la sesión o, sin él (el Administrador), su mail (WEB-13).
  */
 export function usuarioNavegacion(sesion: EstadoSesion): UsuarioNavegacion | undefined {
   if (sesion.tipo !== 'sesion') return undefined;
   const s = sesion.sesion;
-  if (s.rol === 'profesor') return s.es_administrador ? { rol: 'profesor', esAdministrador: true } : { rol: 'profesor' };
-  if (s.rol === 'administrador') return { rol: 'administrador' };
-  return { rol: 'alumno', estado: estadoParaNavegacion(s) };
+  const nombre = s.nombre ?? s.mail ?? undefined;
+  if (s.rol === 'profesor') {
+    return s.es_administrador ? { rol: 'profesor', esAdministrador: true, nombre } : { rol: 'profesor', nombre };
+  }
+  if (s.rol === 'administrador') return { rol: 'administrador', nombre };
+  return { rol: 'alumno', estado: estadoParaNavegacion(s), nombre };
 }

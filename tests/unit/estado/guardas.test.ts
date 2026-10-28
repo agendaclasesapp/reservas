@@ -137,15 +137,15 @@ describe('ruta de vuelta y navegación', () => {
 
   it('WEB_03_navegacion_del_administrador_y_de_la_persona_por_vinculos', () => {
     const sesion = (s: Parameters<typeof enSesion>[0]): EstadoSesion => enSesion(s);
-    expect(usuarioNavegacion(sesion(ADMINISTRADOR))).toEqual({ rol: 'administrador' });
-    expect(usuarioNavegacion(sesion(persona([], 'borrado')))).toEqual({ rol: 'alumno', estado: 'borrado' });
-    expect(usuarioNavegacion(sesion(persona([])))).toEqual({ rol: 'alumno', estado: 'pendiente' });
+    expect(usuarioNavegacion(sesion(ADMINISTRADOR))).toEqual({ rol: 'administrador', nombre: 'admin@example.com' });
+    expect(usuarioNavegacion(sesion(persona([], 'borrado')))).toEqual({ rol: 'alumno', estado: 'borrado', nombre: 'Ana' });
+    expect(usuarioNavegacion(sesion(persona([])))).toEqual({ rol: 'alumno', estado: 'pendiente', nombre: 'Ana' });
     expect(
       usuarioNavegacion(sesion(persona([inscripcion('a-1x', 'rechazado'), inscripcion('b-1x', 'aprobado')]))),
-    ).toEqual({ rol: 'alumno', estado: 'aprobado' });
+    ).toEqual({ rol: 'alumno', estado: 'aprobado', nombre: 'Ana' });
     expect(
       usuarioNavegacion(sesion(persona([inscripcion('a-1x', 'rechazado'), inscripcion('b-1x', 'pendiente')]))),
-    ).toEqual({ rol: 'alumno', estado: 'pendiente' });
+    ).toEqual({ rol: 'alumno', estado: 'pendiente', nombre: 'Ana' });
     expect(usuarioNavegacion({ tipo: 'cargando' })).toBeUndefined();
   });
 
@@ -153,7 +153,15 @@ describe('ruta de vuelta y navegación', () => {
     expect(usuarioNavegacion(enSesion(profesor('ana-perez', true, true)))).toEqual({
       rol: 'profesor',
       esAdministrador: true,
+      nombre: 'Prof ana-perez',
     });
-    expect(usuarioNavegacion(enSesion(profesor()))).toStrictEqual({ rol: 'profesor' });
+    expect(usuarioNavegacion(enSesion(profesor()))).toStrictEqual({ rol: 'profesor', nombre: 'Prof ana-perez' });
+  });
+
+  it('WEB_13_CA_66_la_navegacion_lleva_quien_esta_conectado_y_el_mail_si_no_hay_nombre', () => {
+    expect(usuarioNavegacion(enSesion(persona([])))?.nombre).toBe('Ana');
+    expect(usuarioNavegacion(enSesion(profesor()))?.nombre).toBe('Prof ana-perez');
+    expect(usuarioNavegacion(enSesion(ADMINISTRADOR))?.nombre).toBe('admin@example.com');
+    expect(usuarioNavegacion({ tipo: 'visitante' })).toBeUndefined();
   });
 });

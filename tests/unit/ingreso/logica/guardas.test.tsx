@@ -110,11 +110,11 @@ describe('guardas de ruta (ADR-007, ADR-020, flujos.md §1)', () => {
 
   it('WEB_03_usuario_de_navegacion_por_rol_y_estado', () => {
     expect(usuarioNavegacion(VISITANTE)).toBeUndefined();
-    expect(usuarioNavegacion(PROFESOR)).toEqual({ rol: 'profesor' });
-    expect(usuarioNavegacion(conVinculo('aprobado'))).toEqual({ rol: 'alumno', estado: 'aprobado' });
-    expect(usuarioNavegacion(conVinculo('pendiente'))).toEqual({ rol: 'alumno', estado: 'pendiente' });
-    expect(usuarioNavegacion(conVinculo('rechazado'))).toEqual({ rol: 'alumno', estado: 'rechazado' });
-    expect(usuarioNavegacion(FICHA_INCOMPLETA)).toEqual({ rol: 'alumno', estado: 'ficha_incompleta' });
+    expect(usuarioNavegacion(PROFESOR)).toEqual({ rol: 'profesor', nombre: 'Prof ana-perez' });
+    expect(usuarioNavegacion(conVinculo('aprobado'))).toEqual({ rol: 'alumno', estado: 'aprobado', nombre: 'Ana' });
+    expect(usuarioNavegacion(conVinculo('pendiente'))).toEqual({ rol: 'alumno', estado: 'pendiente', nombre: 'Ana' });
+    expect(usuarioNavegacion(conVinculo('rechazado'))).toEqual({ rol: 'alumno', estado: 'rechazado', nombre: 'Ana' });
+    expect(usuarioNavegacion(FICHA_INCOMPLETA)).toEqual({ rol: 'alumno', estado: 'ficha_incompleta', nombre: 'Ana' });
   });
 });
 
