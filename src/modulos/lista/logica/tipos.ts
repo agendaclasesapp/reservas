@@ -28,6 +28,15 @@ export const MENSAJES_LISTA = {
   mailInvalido: 'Escribí un solo mail válido, o dejalo vacío si el alumno no tiene mail.',
   /** ALU-03: el motivo de un rechazo lo ve la cuenta en su ficha y en Mis clases, y le llega por mail (AVI-03). */
   avisoMotivoVisible: 'La persona va a ver este motivo en su ficha y en Mis clases, y le llega por mail.',
+  /** PRF-08: el profesor inactivo no aprueba accesos ni da de alta alumnos (409 `PROFESOR_INACTIVO`). */
+  profesorInactivo:
+    'Tu agenda está inactiva: no podés aprobar accesos ni dar de alta alumnos hasta que el Administrador la reactive.',
+  /** 409 `MAIL_YA_REGISTRADO` con `alumno_id`: ya es alumna aprobada de quien llama (DEC-29 b). */
+  mailYaEsTuAlumno: 'Esa persona ya es alumna tuya.',
+  /** DEC-29 b: el alta con el mail de una persona existente la asocia aprobada sin tocar su ficha. */
+  altaAsociada: 'Ese mail ya tenía cuenta: la persona quedó como alumna tuya, con la ficha que ya tenía.',
+  /** DEC-32: la ficha la cargó otro, tiene usuario o la comparte con otro profesor. */
+  noEditable: 'Esta ficha no se puede editar: la persona la maneja desde su cuenta o la comparte con otro profesor.',
 } as const;
 
 export const ESTADOS_LISTA = ['pendiente', 'aprobado', 'rechazado', 'sin_cuenta'] as const;
@@ -49,11 +58,13 @@ export const esquemaAlumnoLista = z.object({
   ficha_completada_en: z.string().nullable(),
   aprobado_en: z.string().nullable(),
   edad: z.number().int().nullable(),
+  /** DEC-32: la cargó este profesor, sin usuario y sin otro profesor; si no, la ficha es de solo lectura. */
+  editable: z.boolean(),
 });
 export type AlumnoLista = z.infer<typeof esquemaAlumnoLista>;
 
 export const COLUMNAS_V_ALUMNOS =
-  'id, estado, nombre, mail, telefono, fecha_nacimiento, como_llego, motivo_estado, con_usuario, creado_en, ficha_completada_en, aprobado_en, edad';
+  'id, estado, nombre, mail, telefono, fecha_nacimiento, como_llego, motivo_estado, con_usuario, creado_en, ficha_completada_en, aprobado_en, edad, editable';
 
 /** Sugerencia de unión (ALU-04): un alumno sin cuenta con el mismo teléfono normalizado. */
 export const esquemaSugerencia = z.object({

@@ -70,6 +70,7 @@ beforeAll(async () => {
   await iniciarFuncionLocal();
   await sesionDe('profesor');
   await sesionDe('alumno');
+  await sesionDe('profesorB');
 }, 400_000);
 afterEach(limpiarFilas);
 afterAll(async () => {
@@ -96,7 +97,8 @@ describe('CA-34 rama de registro: credenciales inválidas', () => {
     const [fila] = await sql<{ estado: string; motivo_fallo: string | null }>('select estado, motivo_fallo from public.mail_salida where id = $1', [id]);
     const vistaProfesor = await rest('profesor', 'GET', `v_mails_fallidos?destinatario=eq.${encodeURIComponent(para)}&select=id,fecha,destinatario,tipo,motivo`);
     const vistaAlumno = await rest('alumno', 'GET', `v_mails_fallidos?destinatario=eq.${encodeURIComponent(para)}&select=id`);
-    registrar('CA-34_credenciales_invalidas', { smtp: 'falso 535', destinatario: para, ids: [id] }, { respuesta: r.json, fila, vistaProfesor: vistaProfesor.cuerpo, vistaAlumno: vistaAlumno.cuerpo, intentosAuth });
+    const vistaOtro = await rest('profesorB', 'GET', `v_mails_fallidos?destinatario=eq.${encodeURIComponent(para)}&select=id`);
+    registrar('CA-34_credenciales_invalidas', { smtp: 'falso 535', destinatario: para, ids: [id] }, { respuesta: r.json, fila, vistaProfesor: vistaProfesor.cuerpo, vistaAlumno: vistaAlumno.cuerpo, vistaOtro: vistaOtro.cuerpo, intentosAuth });
     expect(r.status).toBe(200);
     expect(r.json).toEqual({ enviados: 0, fallidos: 1 });
     expect(intentosAuth).toBeGreaterThanOrEqual(1);
@@ -109,6 +111,7 @@ describe('CA-34 rama de registro: credenciales inválidas', () => {
     expect(filas[0].motivo).toBe(fila.motivo_fallo);
     expect(Number.isNaN(Date.parse(filas[0].fecha))).toBe(false);
     expect(vistaAlumno.cuerpo).toEqual([]);
+    expect(vistaOtro.cuerpo, 'CA-52: el otro profesor no ve el fallo').toEqual([]);
   });
 
   it('SEC-17_los_logs_de_la_funcion_no_traen_destinatario_asunto_ni_motivo', async () => {

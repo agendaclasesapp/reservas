@@ -42,7 +42,7 @@ export function crearRepositorio(url: string, clave: string, fetchPropio: Fetch 
     async reclamar(id) {
       const r = await pedir(
         "reclamar",
-        `id=eq.${id}&estado=eq.pendiente&select=id,destinatario,asunto,cuerpo_texto`,
+        `id=eq.${id}&estado=eq.pendiente&select=id,destinatario,asunto,cuerpo_texto,remitente_nombre,responder_a`,
         {
           method: "PATCH",
           headers: cabeceras("return=representation"),
@@ -54,14 +54,19 @@ export function crearRepositorio(url: string, clave: string, fetchPropio: Fetch 
         destinatario: string | null;
         asunto: string | null;
         cuerpo_texto: string | null;
+        remitente_nombre?: string | null;
+        responder_a?: string | null;
       }[];
       const f = filas[0];
       if (!f) return null;
+      // ADR-019: nombre del remitente y Reply-To los fija `privado.encolar_mail` al encolar.
       const mail: MailReclamado = {
         id: f.id,
         destinatario: f.destinatario,
         asunto: f.asunto,
         cuerpo: f.cuerpo_texto,
+        remitente: f.remitente_nombre ?? null,
+        responderA: f.responder_a ?? null,
       };
       return mail;
     },

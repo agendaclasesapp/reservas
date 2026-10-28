@@ -1,5 +1,7 @@
 # B04 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
 # Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated.
+# B14 · T14.2: `completar_ficha` pasa a (p_nombre, p_telefono, p_fecha_nacimiento, p_slug, p_como_llego); la de
+# cuatro argumentos se borró. `sesion_actual` cambia de forma (ADR-020). `pedir_inscripcion` está en 14.txt.
 authenticated sesion_actual
 authenticated completar_ficha
 authenticated guardar_persona_a_cargo

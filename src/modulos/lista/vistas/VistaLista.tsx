@@ -1,11 +1,16 @@
 // Vista `#/lista` del profesor, parte de cuentas y alumnos (WEB-07, ALU-03..05, ALU-07..09, SEC-16; F-11 y F-13).
 // Recibe los datos y las acciones por props: la página los conecta con `logica/` y las pruebas con datos fijos.
 // Los errores se muestran con el mensaje del módulo de la lista (`FalloLista.mensaje`), no con el genérico.
+// B14 (ADR-020): con el profesor inactivo (PRF-08) aprobar y dar de alta quedan deshabilitados con el aviso;
+// una ficha que no es editable (DEC-32) se ve sin «Editar»; un alta con el mail de una persona existente la
+// asocia sin tocar su ficha y lo dice (DEC-29 b).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Dia } from '../../../lib/fechas';
 import { Alerta, Cargando, ErrorCarga } from '../../../ui';
 import {
   CUENTA_NO_PENDIENTE,
+  MENSAJES_LISTA,
+  permisosLista,
   separarPendientes,
   UNION_NO_VALIDA,
   type AlumnoEntrada,
@@ -44,6 +49,8 @@ export type VistaListaProps = {
   hoy: Dia;
   /** Vuelve a leer `v_alumnos`; se llama después de cada operación. */
   onRecargar: () => void;
+  /** `sesion.profesor.activo`: inactivo, no aprueba accesos ni da de alta alumnos (PRF-08). Por defecto, activo. */
+  profesorActivo?: boolean;
   acciones: AccionesLista;
 };
 
@@ -67,7 +74,8 @@ function ficha(alumno: AlumnoLista): FichaComparada {
   };
 }
 
-export function VistaLista({ datos, hoy, onRecargar, acciones }: VistaListaProps) {
+export function VistaLista({ datos, hoy, onRecargar, profesorActivo = true, acciones }: VistaListaProps) {
+  const permisos = permisosLista(profesorActivo);
   const [aviso, setAviso] = useState<Aviso | null>(null);
   const [ocupada, setOcupada] = useState<{ id: string; accion: AccionCuenta } | null>(null);
   const [buscandoId, setBuscandoId] = useState<string | null>(null);
@@ -170,13 +178,17 @@ export function VistaLista({ datos, hoy, onRecargar, acciones }: VistaListaProps
     if (formAlumno.alumno === null) {
       const r = await acciones.alta(datos);
       if (!r.ok) return r;
-      setAviso({
-        tipo: 'exito',
-        texto:
-          r.estado === 'aprobado'
-            ? `Agregaste a ${nombre}: cuenta aprobada.`
-            : `Agregaste a ${nombre} como alumno sin cuenta: no podrá ingresar ni recibirá mails.`,
-      });
+      setAviso(
+        r.asociado
+          ? { tipo: 'info', texto: MENSAJES_LISTA.altaAsociada }
+          : {
+              tipo: 'exito',
+              texto:
+                r.estado === 'aprobado'
+                  ? `Agregaste a ${nombre}: cuenta aprobada.`
+                  : `Agregaste a ${nombre} como alumno sin cuenta: no podrá ingresar ni recibirá mails.`,
+            },
+      );
     } else {
       const r = await acciones.editar(formAlumno.alumno.id, datos);
       if (!r.ok) return r;
@@ -203,6 +215,7 @@ export function VistaLista({ datos, hoy, onRecargar, acciones }: VistaListaProps
   return (
     <div className={estilos.pagina}>
       <h1 className={estilos.titulo}>Lista</h1>
+      {profesorActivo ? null : <Alerta tipo="aviso">{MENSAJES_LISTA.profesorInactivo}</Alerta>}
       {aviso ? (
         <div ref={avisoRef} tabIndex={-1} className={estilos.aviso}>
           <Alerta tipo={aviso.tipo}>{aviso.texto}</Alerta>
@@ -221,11 +234,14 @@ export function VistaLista({ datos, hoy, onRecargar, acciones }: VistaListaProps
             cuentas={pendientes}
             ocupada={ocupada}
             errores={errores}
+            puedeAprobar={permisos.aprobar}
             onAprobar={(cuenta) => void aprobar(cuenta)}
             onRechazar={setRechazo}
           />
           <ListaAlumnos
             alumnos={datos.alumnos}
+            puedeAprobar={permisos.aprobar}
+            puedeAgregar={permisos.alta}
             ocupadoId={ocupada?.id ?? buscandoId}
             onAgregar={() => setFormAlumno({ alumno: null })}
             onEditar={(alumno) => setFormAlumno({ alumno })}

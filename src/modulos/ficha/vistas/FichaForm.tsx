@@ -2,6 +2,8 @@
 // react-hook-form + zod (esquema de `logica/`, límites de SEC-09); el servidor repite toda la validación.
 // - Con Google, nombre y mail vienen cargados; el mail no se edita.
 // - Errores por campo asociados al campo; al enviar con errores el foco va al primero.
+// - «Cómo llegaste» solo se pregunta con un profesor de origen (el del enlace por el que llegó, ALU-14,
+//   DEC-33): se pide a ese profesor y va en su vínculo. Sin enlace, la ficha no lo pregunta ni crea vínculo.
 // - Si el tope de fichas por hora (ALU-13) está superado, se muestra el mensaje de «intentá más tarde» y la
 //   cuenta sigue con la ficha incompleta.
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,21 +19,26 @@ export type FichaFormProps = {
   precargado: { nombre: string | null; mail: string | null };
   /** Hoy en el huso del profesor: la fecha de nacimiento no puede ser posterior. */
   hoy: Dia;
+  /** Profesor del enlace por el que llegó (activo): se le pregunta «cómo llegaste». `null`: no se pregunta. */
+  profesorOrigen?: { nombre: string } | null;
   /** `completar_ficha` (logica/). Con `ok`, la guarda suelta la ficha y la vista cambia sola. */
   onGuardar: (datos: FichaEntrada) => Promise<ResultadoFicha>;
 };
 
-const ETIQUETAS: Readonly<Record<CampoFicha, string>> = {
+const ETIQUETAS = {
   nombre: 'Nombre y apellido',
   telefono: 'Teléfono o WhatsApp',
   fecha_nacimiento: 'Fecha de nacimiento',
-  como_llego: 'Cómo llegaste al profesor',
-};
+} as const;
 
-export function FichaForm({ precargado, hoy, onGuardar }: FichaFormProps) {
+/** Texto como pregunta del campo; el nombre del profesor es texto (SEC-16). */
+export const etiquetaComoLlegaste = (nombre: string) => `Cómo llegaste a ${nombre}`;
+
+export function FichaForm({ precargado, hoy, profesorOrigen = null, onGuardar }: FichaFormProps) {
   const idBase = useId();
   const idDe = (campo: CampoFicha | 'mail') => `${idBase}-${campo}`;
-  const esquema = useMemo(() => crearEsquemaFicha(hoy), [hoy]);
+  const conComoLlego = profesorOrigen !== null;
+  const esquema = useMemo(() => crearEsquemaFicha(hoy, conComoLlego), [hoy, conComoLlego]);
   const [errorGeneral, setErrorGeneral] = useState('');
   const {
     control,
@@ -71,6 +78,9 @@ export function FichaForm({ precargado, hoy, onGuardar }: FichaFormProps) {
       <p className={estilos.intro}>
         Completá tus datos para pedir clases. Mientras no termines la ficha solo podés ver esta pantalla.
       </p>
+      {profesorOrigen ? (
+        <p className={estilos.intro}>Al guardarla le pedimos acceso a {profesorOrigen.nombre}.</p>
+      ) : null}
       {errorGeneral ? <Alerta tipo="error">{errorGeneral}</Alerta> : null}
       <Controller
         name="nombre"
@@ -135,22 +145,24 @@ export function FichaForm({ precargado, hoy, onGuardar }: FichaFormProps) {
           />
         )}
       />
-      <Controller
-        name="como_llego"
-        control={control}
-        render={({ field }) => (
-          <Campo
-            id={idDe('como_llego')}
-            name="como_llego"
-            etiqueta={ETIQUETAS.como_llego}
-            requerido
-            ayuda="Por ejemplo: «me recomendó una amiga» o «te vi en Instagram»."
-            valor={field.value}
-            onCambio={field.onChange}
-            error={mensajeDe('como_llego')}
-          />
-        )}
-      />
+      {profesorOrigen ? (
+        <Controller
+          name="como_llego"
+          control={control}
+          render={({ field }) => (
+            <Campo
+              id={idDe('como_llego')}
+              name="como_llego"
+              etiqueta={etiquetaComoLlegaste(profesorOrigen.nombre)}
+              requerido
+              ayuda="Por ejemplo: «me recomendó una amiga» o «te vi en Instagram». Se lo mostramos a ese profesor."
+              valor={field.value}
+              onCambio={field.onChange}
+              error={mensajeDe('como_llego')}
+            />
+          )}
+        />
+      ) : null}
       <Boton type="submit" cargando={isSubmitting} textoCargando="Guardando…">
         Guardar ficha
       </Boton>

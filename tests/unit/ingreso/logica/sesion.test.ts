@@ -148,13 +148,16 @@ function clienteFalso(rpc: () => Promise<{ data: unknown; error: unknown }>) {
   return { cliente, auth, emitir: (e: string) => oyente?.(e), comoSupabase: cliente as unknown as SupabaseClient };
 }
 
+// Forma de `sesion_actual()` de B14 (ADR-020): el estado de cada profesor va en `inscripciones`.
 const SESION_ALUMNO = {
   rol: 'alumno',
+  es_administrador: false,
+  profesor: null,
   alumno_id: 'a1',
   estado: 'ficha_incompleta',
   nombre: 'Ana',
   mail: 'ana@example.test',
-  motivo_rechazo: null,
+  inscripciones: [],
 };
 
 describe('estado de la sesión (sesion_actual)', () => {
@@ -236,17 +239,47 @@ describe('estado de la sesión (sesion_actual)', () => {
 });
 
 describe('leerSesionActual (contrato, ALU-03)', () => {
-  it('ALU_03_motivo_de_rechazo_solo_con_estado_rechazado', () => {
-    const rechazado = leerSesionActual({ ...SESION_ALUMNO, estado: 'rechazado', motivo_rechazo: 'Sin cupo' });
-    expect(rechazado.motivo_rechazo).toBe('Sin cupo');
-    const aprobado = leerSesionActual({ ...SESION_ALUMNO, estado: 'aprobado', motivo_rechazo: 'viejo' });
-    expect(aprobado.motivo_rechazo).toBeNull();
-    const profesor = leerSesionActual({ rol: 'profesor', alumno_id: null, estado: null, nombre: 'P', mail: 'p@x.y' });
-    expect(profesor).toMatchObject({ rol: 'profesor', motivo_rechazo: null });
+  const vinculo = {
+    profesor_id: 'p1',
+    slug: 'ana-perez',
+    profesor_nombre: 'Ana Pérez',
+    profesor_activo: true,
+    estado: 'rechazado',
+    motivo_rechazo: 'Sin cupo',
+  };
+
+  it('ALU_03_motivo_de_rechazo_solo_con_el_vinculo_rechazado', () => {
+    const s = leerSesionActual({
+      ...SESION_ALUMNO,
+      estado: 'completa',
+      inscripciones: [vinculo, { ...vinculo, profesor_id: 'p2', slug: 'beto', estado: 'aprobado', motivo_rechazo: 'viejo' }],
+    });
+    expect(s.inscripciones.map((i) => i.motivo_rechazo)).toEqual(['Sin cupo', null]);
+    const profesor = leerSesionActual({
+      rol: 'profesor',
+      es_administrador: false,
+      profesor: { id: 'p1', slug: 'ana-perez', nombre: 'P', activo: true },
+      alumno_id: null,
+      estado: null,
+      nombre: 'P',
+      mail: 'p@x.y',
+      inscripciones: [],
+    });
+    expect(profesor).toMatchObject({ rol: 'profesor', inscripciones: [] });
   });
 
   it('WEB_03_respuesta_fuera_de_contrato_lanza', () => {
-    for (const malo of [null, [], 'x', { rol: 'admin' }, { rol: 'alumno', estado: null }, { rol: 'alumno', estado: 'otro' }, { rol: 'alumno', estado: 'aprobado', nombre: 3 }]) {
+    for (const malo of [
+      null,
+      [],
+      'x',
+      { rol: 'admin' },
+      { rol: 'alumno', estado: null },
+      { rol: 'alumno', estado: 'otro', alumno_id: 'a1' },
+      { rol: 'alumno', estado: 'aprobado', alumno_id: 'a1' },
+      { ...SESION_ALUMNO, nombre: 3 },
+      { ...SESION_ALUMNO, inscripciones: [{ ...vinculo, estado: 'baja' }] },
+    ]) {
       expect(() => leerSesionActual(malo)).toThrow(SesionInvalida);
     }
   });

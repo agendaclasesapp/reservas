@@ -13,11 +13,13 @@ export type TarjetaCuentaProps = {
   ocupada?: AccionCuenta | null;
   /** Error de la última operación, con el mensaje del módulo de la lista. */
   error?: string;
+  /** false con el profesor inactivo (PRF-08): «Aprobar» queda deshabilitado. */
+  puedeAprobar?: boolean;
   onAprobar: (cuenta: AlumnoLista) => void;
   onRechazar: (cuenta: AlumnoLista) => void;
 };
 
-export function TarjetaCuenta({ cuenta, ocupada = null, error, onAprobar, onRechazar }: TarjetaCuentaProps) {
+export function TarjetaCuenta({ cuenta, ocupada = null, error, puedeAprobar = true, onAprobar, onRechazar }: TarjetaCuentaProps) {
   const nombre = nombreVisible(cuenta.nombre);
   const idTitulo = `cuenta-${cuenta.id}`;
   return (
@@ -51,7 +53,7 @@ export function TarjetaCuenta({ cuenta, ocupada = null, error, onAprobar, onRech
           aria-label={`Aprobar cuenta de ${nombre}`}
           cargando={ocupada === 'aprobando'}
           textoCargando="Aprobando…"
-          deshabilitado={ocupada === 'rechazando'}
+          deshabilitado={!puedeAprobar || ocupada === 'rechazando'}
           onClick={() => onAprobar(cuenta)}
         >
           Aprobar

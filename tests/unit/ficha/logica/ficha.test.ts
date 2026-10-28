@@ -84,10 +84,16 @@ describe('esquema de la ficha (ALU-02, SEC-09)', () => {
     }
   });
 
-  it('SEC_09_como_llego_obligatorio_y_hasta_200', () => {
+  it('SEC_09_como_llego_obligatorio_y_hasta_200_con_profesor_de_origen', () => {
     expect(esquema.safeParse({ ...FICHA, como_llego: 'x'.repeat(200) }).success).toBe(true);
     expect(esquema.safeParse({ ...FICHA, como_llego: 'x'.repeat(201) }).success).toBe(false);
     expect(esquema.safeParse({ ...FICHA, como_llego: '' }).error?.issues[0]?.message).toBe(MENSAJES_FICHA.comoLlegoVacio);
+  });
+
+  it('ALU_14_sin_profesor_de_origen_como_llego_puede_quedar_vacio', () => {
+    const sinOrigen = crearEsquemaFicha(HOY, false);
+    expect(sinOrigen.safeParse({ ...FICHA, como_llego: '' }).success).toBe(true);
+    expect(sinOrigen.safeParse({ ...FICHA, como_llego: 'x'.repeat(201) }).success).toBe(false);
   });
 
   it('SEC_29_persona_a_cargo_solo_nombre_y_fecha', () => {
@@ -100,18 +106,71 @@ describe('esquema de la ficha (ALU-02, SEC-09)', () => {
   });
 });
 
-describe('completarFicha (ALU-02, ALU-13)', () => {
-  it('ALU_02_completa_con_los_campos_recortados_y_refresca_la_sesion', async () => {
-    const { c, obtenerCliente } = cliente({ rpc: { data: { estado: 'pendiente' }, error: null } });
+const COMPLETA_SIN_VINCULO = { estado: 'completa', inscripcion: null };
+const COMPLETA_CON_VINCULO = { estado: 'completa', inscripcion: { profesor_id: 'p-ana', estado: 'pendiente' } };
+
+describe('completarFicha (ALU-02, ALU-13, ALU-14)', () => {
+  it('ALU_14_sin_profesor_de_origen_no_manda_slug_ni_como_llego_y_no_crea_vinculo', async () => {
+    const { c, obtenerCliente } = cliente({ rpc: { data: COMPLETA_SIN_VINCULO, error: null } });
     const alCompletar = vi.fn(async () => undefined);
-    await expect(completarFicha(FICHA, { obtenerCliente, alCompletar })).resolves.toEqual({ ok: true });
+    const olvidarOrigen = vi.fn();
+    await expect(completarFicha(FICHA, null, { obtenerCliente, alCompletar, olvidarOrigen })).resolves.toEqual({
+      ok: true,
+      inscripcion: null,
+    });
     expect(c.rpc).toHaveBeenCalledWith('completar_ficha', {
       p_nombre: 'Ana Pérez',
       p_telefono: '+598 99 123-456',
       p_fecha_nacimiento: '1990-02-03',
-      p_como_llego: 'Por una amiga',
+      p_slug: null,
+      p_como_llego: null,
     });
     expect(alCompletar).toHaveBeenCalledOnce();
+    expect(olvidarOrigen).not.toHaveBeenCalled();
+  });
+
+  it('ALU_14_con_profesor_de_origen_manda_slug_y_como_llego_y_la_inscripcion_nace_pendiente', async () => {
+    const { c, obtenerCliente } = cliente({ rpc: { data: COMPLETA_CON_VINCULO, error: null } });
+    const alCompletar = vi.fn(async () => undefined);
+    const olvidarOrigen = vi.fn();
+    const r = await completarFicha(FICHA, ' Ana-Perez ', { obtenerCliente, alCompletar, olvidarOrigen });
+    expect(r).toEqual({ ok: true, inscripcion: { profesorId: 'p-ana', estado: 'pendiente' } });
+    expect(c.rpc).toHaveBeenCalledWith('completar_ficha', {
+      p_nombre: 'Ana Pérez',
+      p_telefono: '+598 99 123-456',
+      p_fecha_nacimiento: '1990-02-03',
+      p_slug: 'ana-perez',
+      p_como_llego: 'Por una amiga',
+    });
+    expect(olvidarOrigen).toHaveBeenCalledOnce();
+    expect(alCompletar).toHaveBeenCalledOnce();
+  });
+
+  it.each([
+    ['PT404', 'NO_ENCONTRADO'],
+    ['PT409', 'PROFESOR_INACTIVO'],
+  ])('ALU_14_origen_que_ya_no_sirve_%s_se_olvida_y_lo_dice_sin_completar', async (code, message) => {
+    const { obtenerCliente } = cliente({ rpc: { data: null, error: err(code, message) } });
+    const alCompletar = vi.fn(async () => undefined);
+    const olvidarOrigen = vi.fn();
+    const r = await completarFicha(FICHA, 'ana-perez', { obtenerCliente, alCompletar, olvidarOrigen });
+    expect(r).toEqual({
+      ok: false,
+      codigo: message,
+      mensaje: MENSAJES_FICHA.origenNoDisponible,
+      campo: null,
+      origenDescartado: true,
+    });
+    expect(olvidarOrigen).toHaveBeenCalledOnce();
+    expect(alCompletar).not.toHaveBeenCalled();
+  });
+
+  it('ALU_14_un_404_sin_origen_no_toca_el_origen', async () => {
+    const { obtenerCliente } = cliente({ rpc: { data: null, error: err('PT404', 'NO_ENCONTRADO') } });
+    const olvidarOrigen = vi.fn();
+    const r = await completarFicha(FICHA, null, { obtenerCliente, alCompletar: vi.fn(), olvidarOrigen });
+    expect(r).toMatchObject({ ok: false, codigo: 'NO_ENCONTRADO', mensaje: MENSAJES.NO_ENCONTRADO });
+    expect(olvidarOrigen).not.toHaveBeenCalled();
   });
 
   it('ALU_13_tope_de_fichas_da_el_mensaje_de_intentar_mas_tarde_y_no_refresca', async () => {
@@ -119,18 +178,24 @@ describe('completarFicha (ALU-02, ALU-13)', () => {
       rpc: { data: null, error: err('PT429', 'LIMITE_EXCEDIDO', '{"tope": "fichas", "limite": 10}') },
     });
     const alCompletar = vi.fn(async () => undefined);
-    const r = await completarFicha(FICHA, { obtenerCliente, alCompletar });
+    const olvidarOrigen = vi.fn();
+    const r = await completarFicha(FICHA, 'ana-perez', { obtenerCliente, alCompletar, olvidarOrigen });
     expect(r).toEqual({ ok: false, codigo: 'LIMITE_EXCEDIDO', mensaje: MENSAJE_FICHAS_ALU13, campo: null });
     expect(alCompletar).not.toHaveBeenCalled();
+    expect(olvidarOrigen).not.toHaveBeenCalled();
   });
 
   it('SEC_09_datos_invalidos_marca_el_campo_sin_mostrar_details', async () => {
     const { obtenerCliente } = cliente({ rpc: { data: null, error: err('PT422', 'DATOS_INVALIDOS', '{"campo": "p_telefono"}') } });
-    const r = await completarFicha(FICHA, { obtenerCliente, alCompletar: vi.fn() });
+    const r = await completarFicha(FICHA, null, { obtenerCliente, alCompletar: vi.fn() });
     expect(r).toEqual({ ok: false, codigo: 'DATOS_INVALIDOS', mensaje: MENSAJES.DATOS_INVALIDOS, campo: 'telefono' });
+    const comoLlego = cliente({ rpc: { data: null, error: err('PT422', 'DATOS_INVALIDOS', '{"campo":"p_como_llego"}') } });
+    await expect(
+      completarFicha(FICHA, 'ana-perez', { obtenerCliente: comoLlego.obtenerCliente, alCompletar: vi.fn() }),
+    ).resolves.toMatchObject({ ok: false, campo: 'como_llego' });
     for (const details of ['{"campo":"p_otro"}', 'no json', null, '{"campo":3}']) {
       const otro = cliente({ rpc: { data: null, error: err('PT422', 'DATOS_INVALIDOS', details) } });
-      const r2 = await completarFicha(FICHA, { obtenerCliente: otro.obtenerCliente, alCompletar: vi.fn() });
+      const r2 = await completarFicha(FICHA, null, { obtenerCliente: otro.obtenerCliente, alCompletar: vi.fn() });
       expect(r2).toMatchObject({ ok: false, campo: null });
     }
   });
@@ -138,20 +203,23 @@ describe('completarFicha (ALU-02, ALU-13)', () => {
   it('ALU_02_ficha_ya_completa_se_toma_como_hecha', async () => {
     const { obtenerCliente } = cliente({ rpc: { data: null, error: err('PT409', 'FICHA_YA_COMPLETA') } });
     const alCompletar = vi.fn(async () => undefined);
-    await expect(completarFicha(FICHA, { obtenerCliente, alCompletar })).resolves.toEqual({ ok: true });
+    await expect(completarFicha(FICHA, null, { obtenerCliente, alCompletar })).resolves.toEqual({
+      ok: true,
+      inscripcion: null,
+    });
     expect(alCompletar).toHaveBeenCalledOnce();
   });
 
   it('SEC_06_sin_sesion_o_sin_red_da_mensajes_del_catalogo', async () => {
     const { obtenerCliente } = cliente({ rpc: { data: null, error: err('PT401', 'NO_AUTENTICADO') } });
-    await expect(completarFicha(FICHA, { obtenerCliente, alCompletar: vi.fn() })).resolves.toMatchObject({
+    await expect(completarFicha(FICHA, null, { obtenerCliente, alCompletar: vi.fn() })).resolves.toMatchObject({
       ok: false,
       codigo: 'NO_AUTENTICADO',
     });
     const sinRed = async (): Promise<SupabaseClient> => {
       throw new TypeError('Failed to fetch');
     };
-    await expect(completarFicha(FICHA, { obtenerCliente: sinRed, alCompletar: vi.fn() })).resolves.toEqual({
+    await expect(completarFicha(FICHA, null, { obtenerCliente: sinRed, alCompletar: vi.fn() })).resolves.toEqual({
       ok: false,
       codigo: 'SIN_CONEXION',
       mensaje: MENSAJE_SIN_CONEXION,
@@ -205,9 +273,10 @@ describe('personas a cargo (ALU-06, SEC-29)', () => {
   });
 
   it('ALU_02_mi_ficha_prellena_nombre_y_mail_de_google', async () => {
-    const fila = { nombre: 'Ana Google', mail: 'ana@x.y', telefono: null, fecha_nacimiento: null, como_llego: null };
-    const { obtenerCliente } = cliente({ filas: { data: fila, error: null } });
+    const fila = { nombre: 'Ana Google', mail: 'ana@x.y', telefono: null, fecha_nacimiento: null };
+    const { consulta, obtenerCliente } = cliente({ filas: { data: fila, error: null } });
     const ficha = await leerMiFicha('a1', { obtenerCliente });
+    expect(consulta.select).toHaveBeenCalledWith('nombre, mail, telefono, fecha_nacimiento');
     expect(valoresInicialesFicha(ficha)).toEqual({ nombre: 'Ana Google', telefono: '', fecha_nacimiento: '', como_llego: '' });
     expect(valoresInicialesFicha(null).nombre).toBe('');
     const vacio = cliente({ filas: { data: null, error: null } });
@@ -239,5 +308,6 @@ describe('personas a cargo (ALU-06, SEC-29)', () => {
     const d = dependenciasFicha();
     expect(typeof d.obtenerCliente).toBe('function');
     expect(typeof d.alCompletar).toBe('function');
+    expect(typeof d.olvidarOrigen).toBe('function');
   });
 });

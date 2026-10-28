@@ -34,3 +34,13 @@ export async function esperarMail(to: string, n = 1): Promise<Mail & { codigo: s
 export async function vaciarBuzon(): Promise<void> {
   await fetch(`${entorno().mailpitUrl}/api/v1/messages`, { method: 'DELETE' });
 }
+
+/** Remitente (`From`) del mail más reciente dirigido a `to`, para comprobar el nombre visible (CA-65, SEC-11). */
+export async function remitenteDe(to: string): Promise<{ nombre: string; direccion: string; asunto: string }> {
+  const encontrado = await esperarMail(to);
+  const m = (await (await fetch(`${entorno().mailpitUrl}/api/v1/message/${encontrado.ID}`)).json()) as {
+    From: { Name: string; Address: string };
+    Subject: string;
+  };
+  return { nombre: m.From.Name, direccion: m.From.Address, asunto: m.Subject };
+}

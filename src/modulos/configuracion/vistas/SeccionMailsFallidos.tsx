@@ -29,7 +29,7 @@ export function SeccionMailsFallidos({ zona, lector }: SeccionMailsFallidosProps
       <h2 id="titulo-mails-fallidos">Mails fallidos</h2>
       <p className={estilos.ayuda}>
         Mails que el sistema no pudo enviar, por ejemplo por un error del servidor de correo o por superar el tope
-        de envío.
+        de envío. Son los mails que originó tu agenda.
       </p>
       <TablaMailsFallidos vista={vista} zona={zona} />
     </section>

@@ -1,48 +1,73 @@
-// Estado de aprobación de la cuenta en la ficha (WEB-03, ALU-03, SEC-16, CA-45). El motivo de rechazo es texto:
-// React lo escapa y nunca se interpreta como HTML. Sin motivo, solo el estado.
+// Estado del vínculo con UN profesor en la ficha (WEB-03, ALU-03, SEC-16, CA-45): estado con texto e ícono, el
+// motivo del profesor que rechazó (solo si lo escribió) y, si el profesor está inactivo, que no toma reservas
+// (AGE-11). El nombre y el motivo son texto: React los escapa y nunca se interpretan como HTML.
+import { rutaDeProfesor } from '../../../estado';
 import { Insignia } from '../../../ui';
 import estilos from './EstadoAprobacion.module.css';
 
 export type EstadoAprobacionProps = {
   estado: 'pendiente' | 'aprobado' | 'rechazado';
-  /** `sesion_actual().motivo_rechazo`: solo se muestra con `estado = "rechazado"`. */
+  /** Motivo escrito por el profesor: solo se muestra con `estado = "rechazado"`. */
   motivo: string | null;
+  /** Nombre público del profesor (texto). */
+  profesorNombre: string;
+  /** false: el profesor no toma reservas por ahora. Por defecto, activo. */
+  profesorActivo?: boolean;
+  /** Si se pasa, agrega el enlace a la agenda de ese profesor. */
+  slug?: string;
+  /** Nivel del encabezado con el nombre del profesor. Por defecto 3 (dentro de «Tus profesores»). */
+  nivel?: 2 | 3;
 };
 
-const TEXTOS = {
-  pendiente: {
-    insignia: 'pendiente',
-    rotulo: 'Pendiente de aprobación',
-    detalle: 'Tu ficha está completa. El profesor tiene que aprobar tu cuenta para que puedas pedir clases.',
-  },
-  aprobado: {
-    insignia: 'aprobada',
-    rotulo: 'Aprobada',
-    detalle: 'Tu cuenta está aprobada. Ya podés pedir clases desde la agenda.',
-  },
-  rechazado: {
-    insignia: 'rechazada',
-    rotulo: 'Rechazada',
-    detalle: 'El profesor no aprobó tu cuenta, así que por ahora no podés pedir clases.',
-  },
+const ROTULO = {
+  pendiente: { insignia: 'pendiente', texto: 'Pendiente de aprobación' },
+  aprobado: { insignia: 'aprobada', texto: 'Aprobada' },
+  rechazado: { insignia: 'rechazada', texto: 'Rechazada' },
 } as const;
 
-/** Estado de la cuenta con texto e ícono (no solo color) y, si fue rechazada con motivo, el motivo. */
-export function EstadoAprobacion({ estado, motivo }: EstadoAprobacionProps) {
-  const textos = TEXTOS[estado];
-  const motivoVisible = estado === 'rechazado' && motivo !== null && motivo.trim() !== '' ? motivo : null;
+function detalle(estado: EstadoAprobacionProps['estado'], nombre: string): string {
+  switch (estado) {
+    case 'pendiente':
+      return `${nombre} todavía tiene que aprobar tu acceso para que puedas pedirle clases.`;
+    case 'aprobado':
+      return 'Tu acceso está aprobado. Ya podés pedirle clases desde su agenda.';
+    case 'rechazado':
+      return `${nombre} no aprobó tu acceso, así que por ahora no podés pedirle clases.`;
+  }
+}
+
+/** Vínculo con un profesor: nombre, estado (texto + ícono, no solo color), motivo y enlace a su agenda. */
+export function EstadoAprobacion({
+  estado,
+  motivo,
+  profesorNombre,
+  profesorActivo = true,
+  slug,
+  nivel = 3,
+}: EstadoAprobacionProps) {
+  const rotulo = ROTULO[estado];
+  const Encabezado = nivel === 2 ? 'h2' : 'h3';
+  const motivoVisible = estado === 'rechazado' && motivo !== null && motivo.trim() !== '' ? motivo.trim() : null;
   return (
-    <section className={estilos.estado} aria-labelledby="ficha-estado-titulo">
-      <h2 id="ficha-estado-titulo">Estado de tu cuenta</h2>
+    <article className={estilos.estado}>
+      <Encabezado className={estilos.profesor}>{profesorNombre}</Encabezado>
       <p className={estilos.insignia}>
-        <Insignia tipo={textos.insignia} texto={textos.rotulo} />
+        <Insignia tipo={rotulo.insignia} texto={rotulo.texto} />
       </p>
-      <p className={estilos.detalle}>{textos.detalle}</p>
+      <p className={estilos.detalle}>{detalle(estado, profesorNombre)}</p>
       {motivoVisible !== null ? (
         <p className={estilos.motivo}>
           <strong>Motivo:</strong> <span className={estilos.textoMotivo}>{motivoVisible}</span>
         </p>
       ) : null}
-    </section>
+      {profesorActivo ? null : <p className={estilos.detalle}>No toma reservas por ahora.</p>}
+      {slug !== undefined ? (
+        <p className={estilos.detalle}>
+          <a href={`#${rutaDeProfesor(slug)}`} className={estilos.enlace}>
+            Ver la agenda de {profesorNombre}
+          </a>
+        </p>
+      ) : null}
+    </article>
   );
 }

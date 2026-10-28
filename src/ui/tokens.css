@@ -1,5 +1,5 @@
 /*
- * Tokens del sistema de diseño de ReservaTuClase (NFR-05, NFR-06, NFR-09).
+ * Tokens del sistema de diseño de Agenda Clases App (NFR-05, NFR-06, NFR-09).
  * Único lugar con valores literales de color, tamaño, sombra y movimiento (ADR-010).
  * Contrastes calculados en .aidlc/reservatuclase/ux/web/sistema-diseno.md §1 y
  * verificados por tests/unit/ui/tokens.test.ts (A11Y-06).
@@ -74,6 +74,7 @@
 
   /* Áreas táctiles y foco (NFR-06, CA-38) */
   --tactil-min: 2.75rem;
+  --icono-marca: 2.5rem; /* ícono de la marca en el encabezado (WEB-12) */
   --foco-ancho: 3px;
   --foco-offset: 2px;
   --medida-minima: 1px;

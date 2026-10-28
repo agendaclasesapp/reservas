@@ -2,7 +2,7 @@
 // `guardar_persona_a_cargo` son [U] (cualquier sesión), anon no tiene permiso de ejecución (401 o 403). Para no
 // cambiar el estado de las sesiones compartidas, las escrituras se llaman con un dato inválido: la RPC valida el
 // rol y el estado antes de los campos, así que el resultado distingue a cada rol sin escribir nada.
-//   completar_ficha: ficha_incompleta → 422 (nombre vacío); pendiente, rechazado, aprobado → 409; profesor → 403.
+//   completar_ficha: ficha_incompleta → 422 (nombre vacío); pendiente, rechazado, aprobado, alumnoB, dosVinculos → 409 FICHA_YA_COMPLETA; profesor, profesorB, Administrador → 403.
 //   guardar_persona_a_cargo: ficha_incompleta → 403 (FICHA_INCOMPLETA); el resto de alumnos → 422; profesor → 403.
 // Cobertura: CA-02, CA-05 rama ALU-06, SEC-06, SEC-14, SEC-15.
 import { expect } from 'vitest';
@@ -17,8 +17,8 @@ export const filas: FilaRpc[] = [
     esperado: paraTodos(
       ok((c) => {
         const o = c as Record<string, unknown>;
-        expect(Object.keys(o).sort()).toEqual(['alumno_id', 'estado', 'mail', 'motivo_rechazo', 'nombre', 'rol']);
-        if (o.estado !== 'rechazado') expect(o.motivo_rechazo).toBeNull();
+        expect(Object.keys(o).sort()).toEqual(['alumno_id', 'es_administrador', 'estado', 'inscripciones', 'mail', 'nombre', 'profesor', 'rol']);
+        expect(Array.isArray(o.inscripciones)).toBe(true);
       }),
       { anon: sinPermiso },
     ),
@@ -31,6 +31,8 @@ export const filas: FilaRpc[] = [
       anon: sinPermiso,
       ficha_incompleta: error(422),
       profesor: error(403),
+      profesorB: error(403),
+      administrador: error(403),
     }),
   },
   {
@@ -41,6 +43,8 @@ export const filas: FilaRpc[] = [
       anon: sinPermiso,
       ficha_incompleta: error(403),
       profesor: error(403),
+      profesorB: error(403),
+      administrador: error(403),
     }),
   },
 ];

@@ -1,20 +1,26 @@
-// API de la lógica de la ficha para las vistas (T04.2) y las pruebas (T04.4).
-// ALU-02 (ficha obligatoria), ALU-06 (personas a cargo), ALU-13 (tope de fichas), WEB-03, SEC-09.
+// API de la lógica de la ficha para las vistas (T04.2, T14.4) y las pruebas.
+// ALU-02 (ficha obligatoria), ALU-03 (estado por profesor), ALU-06 (personas a cargo), ALU-13 (tope de
+// fichas), ALU-14 (vínculo al completar o al pedir acceso), WEB-03, SEC-09.
 //
 // Uso típico en la vista:
-//   const esquema = crearEsquemaFicha(hoyEn(config.zona_horaria));       // react-hook-form + zod
-//   const r = await completarFicha(valores);   // ok → la guarda suelta /ficha; LIMITE_EXCEDIDO → r.mensaje
+//   const origen = useProfesorDeOrigen();                      // 'listo' → preguntar «cómo llegaste a {nombre}»
+//   const esquema = crearEsquemaFicha(hoy, origen.estado === 'listo');
+//   const r = await completarFicha(valores, origen.estado === 'listo' ? origen.slug : null);
+//   const r = await pedirInscripcion(slug, { como_llego });  // «Pedir acceso» en #/p/<slug>
+//   const vinculos = vinculosDeFicha(sesion);                // estado y motivo con cada profesor
 //   const r = await guardarPersonaACargo({ id: null, nombre, fecha_nacimiento });
 //   const { estado, recargar } = usePersonasACargo(sesion.alumno_id);
-import { cargarSupabase } from '../../../lib/supabase';
+import { olvidarProfesorOrigen } from '../../../estado/profesor';
 import { refrescarSesion } from '../../../estado/sesion-actual';
+import { cargarSupabase } from '../../../lib/supabase';
 import * as ficha from './ficha';
 import { usePersonasACargo as usePersonasConDeps, type EstadoPersonas } from './usePersonasACargo';
-import type { FichaEntrada, MiFicha, PersonaACargo, PersonaEntrada } from './tipos';
+import type { FichaEntrada, MiFicha, PedirAccesoEntrada, PersonaACargo, PersonaEntrada } from './tipos';
 
 export {
   CAMPOS_FICHA,
   crearEsquemaFicha,
+  crearEsquemaPedirAcceso,
   crearEsquemaPersona,
   DIGITOS_MAX_TELEFONO,
   DIGITOS_MIN_TELEFONO,
@@ -25,24 +31,54 @@ export {
   MENSAJES_FICHA,
   telefonoValido,
 } from './tipos';
-export type { CampoFicha, FichaEntrada, MiFicha, PersonaACargo, PersonaEntrada } from './tipos';
-export { FICHA_YA_COMPLETA, valoresInicialesFicha } from './ficha';
-export type { DependenciasFicha, FalloFicha, ResultadoFicha, ResultadoPersona } from './ficha';
+export type {
+  CampoFicha,
+  FichaEntrada,
+  MiFicha,
+  PedirAccesoEntrada,
+  PersonaACargo,
+  PersonaEntrada,
+  VinculoFicha,
+} from './tipos';
+export { FICHA_YA_COMPLETA, valoresInicialesFicha, vinculosDeFicha } from './ficha';
+export type {
+  DependenciasFicha,
+  FalloFicha,
+  InscripcionNueva,
+  ResultadoFicha,
+  ResultadoPedido,
+  ResultadoPersona,
+} from './ficha';
 export type { EstadoPersonas } from './usePersonasACargo';
+export { resolverProfesorDeOrigen, useProfesorDeOrigen } from './origen';
+export type { ProfesorDeOrigen } from './origen';
 
 const obtenerCliente = () => cargarSupabase();
 
-/** Dependencias reales: supabase-js cargado con import() (ADR-017) y el refresco de la sesión. */
+/** Dependencias reales: supabase-js cargado con import() (ADR-017), el refresco de la sesión y el origen. */
 export function dependenciasFicha(): ficha.DependenciasFicha {
-  return { obtenerCliente, alCompletar: () => refrescarSesion() };
+  return { obtenerCliente, alCompletar: () => refrescarSesion(), olvidarOrigen: olvidarProfesorOrigen };
 }
 
-/** `completar_ficha` (ALU-02, ALU-13). */
+/**
+ * `completar_ficha` (ALU-02, ALU-13, ALU-14). `origen`: slug del profesor de origen activo
+ * (`useProfesorDeOrigen`), o `null` para completar sin vínculo.
+ */
 export function completarFicha(
   datos: FichaEntrada,
+  origen: string | null = null,
   deps: ficha.DependenciasFicha = dependenciasFicha(),
 ): Promise<ficha.ResultadoFicha> {
-  return ficha.completarFicha(datos, deps);
+  return ficha.completarFicha(datos, origen, deps);
+}
+
+/** `pedir_inscripcion` (ALU-14, DEC-33): «Pedir acceso» al profesor del slug con la ficha completa. */
+export function pedirInscripcion(
+  slug: string,
+  entrada: PedirAccesoEntrada,
+  deps: Pick<ficha.DependenciasFicha, 'obtenerCliente' | 'alCompletar'> = dependenciasFicha(),
+): Promise<ficha.ResultadoPedido> {
+  return ficha.pedirInscripcion(slug, entrada, deps);
 }
 
 /** `guardar_persona_a_cargo` (ALU-06): `id: null` da de alta; con id, edita. */

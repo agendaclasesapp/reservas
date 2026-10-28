@@ -1,10 +1,11 @@
 // Estado de la sesión de la app (ADR-007, contratos.md §3 `sesion_actual`). Un solo almacén para
 // vistas y guardas de ruta. Sin sesión guardada en el navegador arranca como visitante sin cargar
-// supabase-js (ADR-017); con sesión, pide `sesion_actual()` (rol, estado y motivo de rechazo).
+// supabase-js (ADR-017); con sesión, pide `sesion_actual()` (rol, ficha y vínculos con cada profesor).
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { entorno } from '../lib/env';
 import { traducirError } from '../lib/errores';
 import { cargarSupabase } from '../lib/supabase';
+import { olvidarProfesorElegido, olvidarProfesorOrigen } from './profesor';
 import { leerSesionActual, type EstadoSesion } from './tipos';
 
 export interface DependenciasSesionActual {
@@ -105,8 +106,13 @@ export function refrescarSesion(): Promise<EstadoSesion> {
   return enCurso;
 }
 
-/** Cierra la sesión (en el servidor y, si no hay red, al menos en este navegador). */
+/**
+ * Cierra la sesión (en el servidor y, si no hay red, al menos en este navegador) y olvida el profesor
+ * elegido y el de origen de esta pestaña (ADR-020): la próxima persona arranca sin ellos.
+ */
 export async function cerrarSesion(): Promise<void> {
+  olvidarProfesorElegido();
+  olvidarProfesorOrigen();
   try {
     const cliente = await deps.obtenerCliente();
     const { error } = await cliente.auth.signOut();

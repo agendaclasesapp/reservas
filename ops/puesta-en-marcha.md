@@ -43,13 +43,20 @@ PRUEBA de Turnstile y lo mandaría a producción, anulando el CAPTCHA. Solo `sup
 CAPTCHA, verifica que un pedido de código con el token dummy sea rechazado (`ops/auth.md`, paso 6b).
 Hasta este paso `keepalive` falla con PGRST202 (H-025); CA-40 depende de él.
 
-## 7. Alta del profesor (ADR-015), antes de su primer ingreso
-En el SQL Editor del panel de Supabase, o por `psql` con la cadena del pooler de sesión:
+## 7. Alta del Administrador y de los profesores (ADM-01, ADR-018), antes de su primer ingreso
+En el SQL Editor del panel de Supabase, o por `psql` con la cadena del pooler de sesión. Primero el Administrador:
 
-    select privado.configurar_profesor('<mail del profesor>', '<nombre>');
+    select privado.configurar_administrador('<mail del Administrador>');
 
-El mail y el nombre no se escriben en el repositorio, en variables de GitHub ni en logs de Actions.
+Hay una sola fila (otro mail reemplaza al anterior); falla con 409 `MAIL_YA_REGISTRADO` si el mail es el de una persona
+con ficha completa. Los profesores los da de alta el Administrador en `#/admin` (B15). **Hasta B15** los da de alta el
+operador, con tres argumentos (devuelve el id):
+
+    select privado.configurar_profesor('<mail del profesor>', '<nombre>', '<slug>');
+
+Los mails y el nombre no se escriben en el repositorio, en variables de GitHub ni en logs de Actions.
 Es idempotente. Si falla por «otro user_id», la fila ya está vinculada a otra cuenta: no la fuerces.
+Instalación que viene de B01 a B05 con un profesor ya configurado: `ops/migracion-multiprofesor.md`.
 
 ## 8. Keepalive
 Actions > keepalive > Run workflow (manual). Debe quedar en verde y el workflow se re-habilita solo

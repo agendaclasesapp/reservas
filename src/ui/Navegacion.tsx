@@ -18,7 +18,10 @@ export type EstadoCuentaNavegacion =
 
 /** Quién navega. */
 export type UsuarioNavegacion =
-  | { rol: 'profesor' }
+  /** `esAdministrador`: el profesor que además es Administrador ve también «Administración» (ADR-020). */
+  | { rol: 'profesor'; esAdministrador?: boolean }
+  /** Administrador que no es profesor: solo «Administración» (WEB-10, B15). */
+  | { rol: 'administrador' }
   | { rol: 'alumno'; estado: EstadoCuentaNavegacion };
 
 export type NavegacionProps = {
@@ -28,24 +31,34 @@ export type NavegacionProps = {
   ruta: string;
   /** Si se pasa y hay usuario, agrega el botón "Salir". */
   onSalir?: () => void;
+  /**
+   * Ruta de «Agenda» de la persona (sin el `#`): la de su profesor elegido o la de su único profesor, que
+   * calcula `rutaAgendaDePersona` (WEB-11). Por defecto `/`, que decide el inicio.
+   */
+  rutaAgenda?: string;
   /** Nombre del landmark. Por defecto "Principal". */
   etiqueta?: string;
 };
 
 type Enlace = { texto: string; ruta: string };
 
-const AGENDA: Enlace = { texto: 'Agenda', ruta: '/' };
+const INICIO: Enlace = { texto: 'Inicio', ruta: '/' };
 const INGRESAR: Enlace = { texto: 'Ingresar', ruta: '/ingreso' };
 const MIS_CLASES: Enlace = { texto: 'Mis clases', ruta: '/mis-clases' };
 const FICHA: Enlace = { texto: 'Mi ficha', ruta: '/ficha' };
 const PANEL: Enlace = { texto: 'Panel', ruta: '/panel' };
 const LISTA: Enlace = { texto: 'Lista', ruta: '/lista' };
 const CONFIGURACION: Enlace = { texto: 'Configuración', ruta: '/configuracion' };
+const ADMINISTRACION: Enlace = { texto: 'Administración', ruta: '/admin' };
 
-/** Enlaces visibles según rol y estado (flujos.md §1: reglas de acceso). */
-function enlacesPara(usuario: UsuarioNavegacion | undefined): ReadonlyArray<Enlace> {
-  if (!usuario) return [AGENDA, INGRESAR];
-  if (usuario.rol === 'profesor') return [PANEL, LISTA, CONFIGURACION];
+/** Enlaces visibles según rol y estado (flujos.md §1: reglas de acceso, WEB-09, WEB-10, WEB-11). */
+function enlacesPara(usuario: UsuarioNavegacion | undefined, rutaAgenda: string): ReadonlyArray<Enlace> {
+  const AGENDA: Enlace = { texto: 'Agenda', ruta: rutaAgenda };
+  if (!usuario) return [INICIO, INGRESAR];
+  if (usuario.rol === 'profesor') {
+    return usuario.esAdministrador === true ? [PANEL, LISTA, CONFIGURACION, ADMINISTRACION] : [PANEL, LISTA, CONFIGURACION];
+  }
+  if (usuario.rol === 'administrador') return [ADMINISTRACION];
   switch (usuario.estado) {
     case 'ficha_incompleta':
       return [FICHA];
@@ -65,7 +78,7 @@ function enlacesPara(usuario: UsuarioNavegacion | undefined): ReadonlyArray<Enla
  * Barra de navegación principal: `<nav aria-label>` con enlaces por rol. Por debajo de 600 px colapsa tras el
  * botón "Menú" (`aria-expanded`); Esc cierra y devuelve el foco al botón. Se pasa a `Layout` por `navegacion`.
  */
-export function Navegacion({ usuario, ruta, onSalir, etiqueta = 'Principal' }: NavegacionProps) {
+export function Navegacion({ usuario, ruta, onSalir, rutaAgenda = '/', etiqueta = 'Principal' }: NavegacionProps) {
   const idBase = useId();
   const idLista = `${idBase}-lista`;
   const idBoton = `${idBase}-menu`;
@@ -95,7 +108,7 @@ export function Navegacion({ usuario, ruta, onSalir, etiqueta = 'Principal' }: N
         </Boton>
       </div>
       <ul id={idLista} className={estilos.lista}>
-        {enlacesPara(usuario).map((enlace) => (
+        {enlacesPara(usuario, rutaAgenda).map((enlace) => (
           <li key={enlace.ruta}>
             <a
               href={`#${enlace.ruta}`}

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-// Vista de la lista del profesor (T05.2): WEB-07, ALU-03, ALU-04, ALU-05, ALU-07, ALU-08, ALU-09, SEC-16, CA-04, CA-06, CA-07.
+// Vista de la lista del profesor (T05.2): WEB-07, ALU-03, ALU-04, ALU-05, ALU-07, ALU-08, ALU-09, SEC-16, CA-04, CA-06, CA-07;
+// B14: PRF-08 (profesor inactivo), DEC-32 (ficha no editable), DEC-29 (alta asociada).
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -401,7 +402,7 @@ describe('VistaLista · alta y edición (ALU-07, ALU-08, ALU-09, CA-06)', () => 
 
   it('ALU_08_el_alta_sin_mail_queda_sin_cuenta_y_el_aviso_de_exito_lo_dice', async () => {
     const acc = acciones();
-    acc.alta.mockResolvedValueOnce({ ok: true, alumnoId: 'n2', estado: 'sin_cuenta' });
+    acc.alta.mockResolvedValueOnce({ ok: true, alumnoId: 'n2', estado: 'sin_cuenta', asociado: false });
     const { dialogo } = await abrirAlta(acc);
     await completar(dialogo, '');
     await userEvent.click(within(dialogo).getByRole('button', { name: 'Agregar alumno' }));
@@ -533,5 +534,88 @@ describe('VistaLista · texto plano (SEC-16)', () => {
     expect(union.querySelector('img')).toBeNull();
     expect(union.querySelector('script')).toBeNull();
     expect(within(union).getAllByText(HTML_MOTIVO).length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe('VistaLista · profesor inactivo (PRF-08)', () => {
+  function montarInactivo(datos: EstadoAlumnos) {
+    const acc = acciones();
+    const onRecargar = vi.fn();
+    const resultado = render(
+      <VistaLista datos={datos} hoy={HOY} onRecargar={onRecargar} profesorActivo={false} acciones={acc} />,
+    );
+    return { ...resultado, acc, onRecargar };
+  }
+  const RECHAZADA = alumno({ id: 'r1', estado: 'rechazado', nombre: 'Rita', motivo_estado: 'Sin cupo' });
+
+  it('PRF_08_avisa_que_la_agenda_esta_inactiva_y_deshabilita_Aprobar_y_Agregar_alumno', async () => {
+    const { container } = montarInactivo(LISTO([PENDIENTE, RECHAZADA, APROBADA]));
+    expect(screen.getByRole('status').textContent).toContain(MENSAJES_LISTA.profesorInactivo);
+    expect((screen.getByRole('button', { name: 'Aprobar cuenta de Bruno Díaz' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Aprobar cuenta de Rita' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Agregar alumno' }) as HTMLButtonElement).disabled).toBe(true);
+    await sinViolacionesAxe(container);
+  });
+
+  it('PRF_08_rechazar_editar_y_revisar_union_siguen_disponibles', () => {
+    montarInactivo(LISTO([PENDIENTE, APROBADA]));
+    expect((screen.getByRole('button', { name: 'Rechazar cuenta de Bruno Díaz' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Editar a Ana Pérez' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Revisar unión de Ana Pérez' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('PRF_08_un_clic_en_Aprobar_o_Agregar_con_el_profesor_inactivo_no_llama_a_la_accion', async () => {
+    const { acc } = montarInactivo(LISTO([PENDIENTE]));
+    await userEvent.click(screen.getByRole('button', { name: 'Aprobar cuenta de Bruno Díaz' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar alumno' }));
+    expect(acc.aprobar).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('PRF_08_con_el_profesor_activo_no_hay_aviso_y_todo_esta_habilitado', () => {
+    montar(LISTO([PENDIENTE, RECHAZADA]));
+    expect(screen.queryByText(MENSAJES_LISTA.profesorInactivo)).toBeNull();
+    expect((screen.getByRole('button', { name: 'Aprobar cuenta de Rita' }) as HTMLButtonElement).disabled).toBe(false);
+    expect((screen.getByRole('button', { name: 'Agregar alumno' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+});
+
+describe('VistaLista · ficha no editable (DEC-32, WEB-07)', () => {
+  const AJENA = alumno({ id: 'j1', nombre: 'Julia Ruiz', editable: false });
+
+  it('DEC_32_una_ficha_no_editable_dice_Ficha_no_editable_en_vez_de_Editar_y_explica_por_que', async () => {
+    const { container } = montar(LISTO([APROBADA, AJENA]));
+    const fila = screen.getByRole('row', { name: /Julia Ruiz/ });
+    expect(within(fila).getByText('Ficha no editable')).toBeTruthy();
+    expect(within(fila).queryByRole('button', { name: /Editar/ })).toBeNull();
+    expect(screen.getByText(MENSAJES_LISTA.noEditable)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Editar a Ana Pérez' })).toBeTruthy();
+    await sinViolacionesAxe(container);
+  });
+
+  it('DEC_32_si_todas_las_fichas_son_editables_no_hay_nota', () => {
+    montar(LISTO([APROBADA]));
+    expect(screen.queryByText(MENSAJES_LISTA.noEditable)).toBeNull();
+    expect(screen.queryByText('Ficha no editable')).toBeNull();
+  });
+});
+
+describe('VistaLista · alta de una persona que ya tenía cuenta (DEC-29, ALU-07)', () => {
+  it('DEC_29_un_alta_con_el_mail_de_una_persona_existente_la_asocia_y_lo_dice_sin_decir_que_la_agrego', async () => {
+    const acc = acciones();
+    acc.alta.mockResolvedValueOnce({ ok: true, alumnoId: 'n3', estado: 'aprobado', asociado: true });
+    const { onRecargar } = montar(LISTO([APROBADA]), acc);
+    await userEvent.click(screen.getByRole('button', { name: 'Agregar alumno' }));
+    const dialogo = await screen.findByRole('dialog', { name: 'Agregar alumno' });
+    await userEvent.type(within(dialogo).getByLabelText(/^Nombre y apellido/), 'Carla Gómez');
+    await userEvent.type(within(dialogo).getByLabelText(/^Teléfono o WhatsApp/), '099 765 432');
+    fireEvent.change(within(dialogo).getByLabelText(/^Fecha de nacimiento/), { target: { value: '1995-07-20' } });
+    await userEvent.type(within(dialogo).getByLabelText(/^Mail/), 'carla@correo.test');
+    await userEvent.click(within(dialogo).getByRole('button', { name: 'Agregar alumno' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const estado = await screen.findByRole('status');
+    expect(estado.textContent).toContain(MENSAJES_LISTA.altaAsociada);
+    expect(estado.textContent).not.toContain('Agregaste a');
+    expect(onRecargar).toHaveBeenCalledOnce();
   });
 });

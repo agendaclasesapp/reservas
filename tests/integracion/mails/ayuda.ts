@@ -9,6 +9,7 @@ import { resolve } from 'node:path';
 import type pg from 'pg';
 import { conectar, sql } from '../../soporte/bd';
 import { entorno, RAIZ } from '../../soporte/entorno';
+import { SLUG_A } from '../../soporte/usuarios';
 
 export const PREFIJO = 't03.';
 
@@ -33,6 +34,7 @@ export interface MailVisto {
   ID: string;
   From: { Address: string; Name: string };
   To: { Address: string }[];
+  ReplyTo: { Address: string; Name: string }[] | null;
   Cc: unknown[];
   Bcc: unknown[];
   Subject: string;
@@ -75,9 +77,20 @@ export async function esperarEstado(id: string, estados: string[], intentos = 80
   throw new Error(`La fila ${id} no llegó a ${estados.join('/')}; quedó ${f?.estado}`);
 }
 
-/** Encola dentro de la transacción abierta (`c`) y devuelve el id (o null). */
-export async function encolar(c: pg.Client, tipo: string, destinatario: string | null, asunto: string, cuerpo: string, alumnoId: string | null = null): Promise<string | null> {
-  const r = await c.query<{ id: string | null }>('select privado.encolar_mail($1, $2, $3, $4, $5) as id', [tipo, alumnoId, destinatario, asunto, cuerpo]);
+/** Subconsulta del id de un profesor por su slug (B14: ya no hay un único profesor). */
+export const DE = (slug: string) => `(select id from public.profesor where slug = '${slug}')`;
+
+/** Encola dentro de la transacción abierta (`c`) a nombre del profesor del slug y devuelve el id (o null). */
+export async function encolar(
+  c: pg.Client,
+  tipo: string,
+  destinatario: string | null,
+  asunto: string,
+  cuerpo: string,
+  alumnoId: string | null = null,
+  slug: string = SLUG_A,
+): Promise<string | null> {
+  const r = await c.query<{ id: string | null }>(`select privado.encolar_mail($1, ${DE(slug)}, $2, $3, $4, $5) as id`, [tipo, alumnoId, destinatario, asunto, cuerpo]);
   return r.rows[0].id;
 }
 
@@ -117,6 +130,8 @@ export interface FilaFijada {
   creadoEn?: string;
   intentadoEn?: string | null;
   destinatario?: string;
+  /** Profesor al que pertenece la fila (por defecto A). */
+  slug?: string;
 }
 
 /** Inserta una fila sintética por conexión directa. `sinDisparo`: la inserta sin el trigger de pg_net (réplica). */
@@ -127,7 +142,7 @@ export async function insertarFila(f: FilaFijada, sinDisparo = false): Promise<s
     if (sinDisparo) await c.query("set local session_replication_role = replica");
     const r = await c.query<{ id: string }>(
       `insert into public.mail_salida (profesor_id, tipo, destinatario, asunto, cuerpo_texto, estado, motivo_fallo, creado_en, intentado_en)
-       values ((select id from public.profesor), 'recordatorio', $1, 'fila sintetica', 'cuerpo sintetico', $2, $3, coalesce($4::timestamptz, public.app_ahora()), $5::timestamptz)
+       values (${DE(f.slug ?? SLUG_A)}, 'recordatorio', $1, 'fila sintetica', 'cuerpo sintetico', $2, $3, coalesce($4::timestamptz, public.app_ahora()), $5::timestamptz)
        returning id`,
       [f.destinatario ?? direccion('fila'), f.estado, f.motivo ?? null, f.creadoEn ?? null, f.intentadoEn ?? null],
     );
@@ -139,15 +154,26 @@ export async function insertarFila(f: FilaFijada, sinDisparo = false): Promise<s
   }
 }
 
-/** Mails del profesor no TOPE creados en la última hora y en las últimas 24 h (lo que cuenta AVI-08), con la hora real. */
-export async function cuentaDelTope(): Promise<{ hora: number; dia: number }> {
+/** Mails del profesor (por defecto A) que cuentan para el tope por profesor (AVI-08), con la hora real. */
+export async function cuentaDelTope(slug: string = SLUG_A): Promise<{ hora: number; dia: number }> {
   const [f] = await sql<{ hora: string; dia: string }>(
     `select count(*) filter (where creado_en > public.app_ahora() - interval '60 minutes') as hora, count(*) as dia
        from public.mail_salida
-      where creado_en > public.app_ahora() - interval '24 hours' and creado_en <= public.app_ahora()
-        and not (estado = 'fallido' and motivo_fallo is not distinct from 'TOPE')`,
+      where profesor_id = ${DE(slug)}
+        and creado_en > public.app_ahora() - interval '24 hours' and creado_en <= public.app_ahora()
+        and not (estado = 'fallido' and coalesce(motivo_fallo, '') in ('TOPE', 'TOPE_GLOBAL', 'DESTINATARIO_INVALIDO'))`,
   );
   return { hora: Number(f.hora), dia: Number(f.dia) };
+}
+
+/** Mails de toda la aplicación que cuentan para el tope global del día (CA-60), con la hora real. */
+export async function cuentaGlobal(): Promise<number> {
+  const [f] = await sql<{ n: string }>(
+    `select count(*) as n from public.mail_salida
+      where creado_en > public.app_ahora() - interval '24 hours' and creado_en <= public.app_ahora()
+        and not (estado = 'fallido' and coalesce(motivo_fallo, '') in ('TOPE', 'TOPE_GLOBAL', 'DESTINATARIO_INVALIDO'))`,
+  );
+  return Number(f.n);
 }
 
 /** Llama a `enviar-mail` del stack (o de `url`) con las cabeceras dadas. */

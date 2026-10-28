@@ -1,4 +1,4 @@
-// Matriz rol x RPC de B05 (SEC-04, SEC-06; contratos.md §3): las siete RPC son [P] (solo el profesor), anon no tiene
+// Matriz rol x RPC de B05 (SEC-04, SEC-06; contratos.md §3): las siete RPC son [P] (solo los profesores: A y B; el Administrador recibe 403), anon no tiene
 // permiso de ejecución (401 o 403) y cualquier alumno, sea cual sea su estado, recibe 403. Para no cambiar nada en las
 // sesiones compartidas el profesor las llama con un id inexistente (404) o con un dato inválido (422): el rol se valida antes
 // que los campos y que la búsqueda, así que el resultado distingue a cada rol sin escribir.
@@ -8,7 +8,7 @@ import { error, paraTodos, type FilaRpc } from '../../../soporte/matriz';
 const sinPermiso = error(401, 403);
 const INEXISTENTE = '00000000-0000-0000-0000-00000000dead';
 
-const soloProfesor = (alProfesor: number[]) => paraTodos(error(403), { anon: sinPermiso, profesor: error(...alProfesor) });
+const soloProfesor = (alProfesor: number[]) => paraTodos(error(403), { anon: sinPermiso, profesor: error(...alProfesor), profesorB: error(...alProfesor) });
 
 export const filas: FilaRpc[] = [
   { rpc: 'aprobar_cuenta', args: { p_alumno_id: INEXISTENTE }, origen: 'contratos §3, ALU-03, SEC-06', esperado: soloProfesor([404]) },

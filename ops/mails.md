@@ -61,6 +61,25 @@ Nada de esto lo ejecuta el pipeline ni un agente. Proyecto `rmokypmznhobapyghfpi
 8. **Prueba de humo.** Encolá un mail de prueba desde la app y comprobá que llega con la casilla como remitente;
    con una contraseña inválida la fila queda `fallido` con motivo y se ve en «Mails fallidos» (CA-33, CA-34).
 
+## Cuota compartida y topes (AVI-07, AVI-08, ADR-019, CR-002)
+La casilla de Gmail es **una sola** y la comparten todos los profesores y los códigos de ingreso de Auth. Quién figura
+como remitente: los mails de un profesor a su alumno llevan su nombre y responden a su mail (Reply-To); los avisos al
+profesor, los de borrado y los códigos muestran el nombre del servicio, `Agenda Clases App` (WEB-12, CR-003).
+- Tope por profesor: 20 por hora y 200 por día (`tope_mails_hora`, `tope_mails_dia` en `privado.ajustes`).
+- Tope global: 400 por día (`tope_mails_dia_global`), con margen bajo los ~500 de Gmail porque los códigos de Auth no
+  pasan por `mail_salida`. Se cambia en el SQL Editor: `update privado.ajustes set tope_mails_dia_global = <n>;`.
+- Un mail que supera un tope no se envía: la fila nace `fallido` con motivo `TOPE` (profesor) o `TOPE_GLOBAL`, y se ve en
+  «Mails fallidos»; esas filas no cuentan para el tope. Si aparece `TOPE_GLOBAL`, esperar 24 h y revisar si un
+  profesor genera volumen anormal.
+- **Nombre del remitente de Auth** (panel, a mano, **antes de desplegar B14**): en el proyecto de producción,
+  Authentication > SMTP Settings > *Sender name* = `Agenda Clases App` y *Save*. Hasta hacerlo, los códigos de
+  ingreso siguen saliendo con el nombre anterior mientras los mails de `enviar-mail` ya dicen `Agenda Clases App`.
+  Comprobación: pedir un código de ingreso y mirar el remitente visible (CA-65). Además,
+  `scripts/seguridad/verificar-auth.mjs` (paso final de `supabase-deploy.yml`) falla si `smtp_sender_name` no es
+  `Agenda Clases App` (H-290).
+  No va por `config.toml` en producción: declarar `[auth.email.smtp]` haría que `config push` pisara el SMTP del panel y
+  la guardia lo bloquearía. En `config.toml` solo está `[local_smtp] sender_name` (Mailpit local).
+
 ## Local y CI
 Mailpit/Inbucket recibe todo; `MAIL_SECRETO` de prueba en `supabase/.env.development`. Nada sale a Gmail.
 

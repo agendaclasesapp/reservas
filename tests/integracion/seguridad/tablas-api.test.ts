@@ -4,7 +4,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { cerrar, sql } from '../../soporte/bd';
 import { entorno } from '../../soporte/entorno';
-import { rest, rpc, sesionDe, type Rol } from '../../soporte/usuarios';
+import { profesorId, rest, rpc, sesionDe, SLUG_A, type Rol } from '../../soporte/usuarios';
 
 let tablas: string[] = [];
 // Primera columna real de cada tabla o vista: el filtro y el cuerpo del PATCH usan una columna que existe, para que la
@@ -17,8 +17,7 @@ beforeAll(async () => {
     "select distinct on (table_name) table_name, column_name from information_schema.columns where table_schema = 'public' order by table_name, ordinal_position",
   );
   for (const c of cols) primeraColumna.set(c.table_name, c.column_name);
-  for (const r of ['alumno', 'profesor'] as Rol[]) await sesionDe(r);
-  await sesionDe('alumnoB');
+  for (const r of ['alumno', 'alumnoB', 'profesor', 'profesorB', 'administrador'] as Rol[]) await sesionDe(r);
 }, 300_000);
 afterAll(cerrar);
 
@@ -39,7 +38,7 @@ describe('SEC-01 anon sin acceso a tablas ni vistas', () => {
 describe('SEC-03 la escritura directa falla para todos los roles', () => {
   it('SEC-03_POST_PATCH_y_DELETE_directos_son_401_o_403', async () => {
     const malas: string[] = [];
-    for (const rol of ['anon', 'alumno', 'profesor'] as Rol[]) {
+    for (const rol of ['anon', 'alumno', 'profesor', 'profesorB', 'administrador'] as Rol[]) {
       for (const t of tablas) {
         const col = primeraColumna.get(t) ?? 'id';
         for (const [metodo, ruta, cuerpo] of [
@@ -114,20 +113,38 @@ describe('SEC-02 aislamiento por fila (alumno, persona_a_cargo, profesor)', () =
     expect(r.status).toBe(200);
     expect(r.cuerpo).toEqual([]);
   });
-  it('SEC-02_el_profesor_lee_la_fila_del_profesor_y_todos_los_alumnos', async () => {
+  it('SEC-02_el_profesor_lee_su_fila_y_solo_los_alumnos_con_inscripcion_vigente_con_el', async () => {
     const p = await rest('profesor', 'GET', 'profesor?select=id,mail');
     expect((p.cuerpo as { mail: string }[]).map((f) => f.mail)).toEqual(['profesor@example.test']);
-    const [{ n }] = await sql<{ n: string }>('select count(*)::text n from public.alumno');
+    const idA = await profesorId(SLUG_A);
+    const esperados = (await sql<{ alumno_id: string }>("select alumno_id from public.inscripcion where profesor_id = $1 and estado <> 'baja'", [idA])).map((f) => f.alumno_id).sort();
     const a = await rest('profesor', 'GET', 'alumno?select=id');
-    expect((a.cuerpo as unknown[]).length).toBe(Number(n));
+    expect((a.cuerpo as { id: string }[]).map((f) => f.id).sort()).toEqual(esperados);
+  });
+  it('SEC-02_la_profesora_B_no_ve_la_fila_de_A_ni_a_la_alumna_de_A', async () => {
+    const a = await sesionDe('alumno');
+    const idA = await profesorId(SLUG_A);
+    expect(((await rest('profesorB', 'GET', 'profesor?select=mail')).cuerpo as { mail: string }[]).map((f) => f.mail)).toEqual(['profesora.b@example.test']);
+    expect((await rest('profesorB', 'GET', `alumno?select=id&id=eq.${a.alumnoId}`)).cuerpo).toEqual([]);
+    expect((await rest('profesorB', 'GET', `inscripcion?select=alumno_id&profesor_id=eq.${idA}`)).cuerpo).toEqual([]);
+  });
+  it('SEC-02_el_Administrador_no_lee_filas_de_profesor_alumno_ni_inscripcion', async () => {
+    for (const t of ['profesor', 'alumno', 'inscripcion', 'persona_a_cargo']) {
+      const r = await rest('administrador', 'GET', `${t}?select=id`);
+      expect(r.status, t).toBe(200);
+      expect(r.cuerpo, t).toEqual([]);
+    }
   });
   it('SEC-02_persona_a_cargo_ajena_no_se_ve', async () => {
     const a = await sesionDe('alumno');
-    const [f] = await sql<{ id: string }>("insert into public.persona_a_cargo (profesor_id, alumno_id, nombre) values ((select id from public.profesor), $1, 'Hijo de prueba') returning id", [a.alumnoId]);
+    const idA = await profesorId(SLUG_A);
+    const [f] = await sql<{ id: string }>("insert into public.persona_a_cargo (profesor_id, alumno_id, nombre) values ($1, $2, 'Hijo de prueba') returning id", [idA, a.alumnoId]);
     try {
-      expect(((await rest('alumno', 'GET', `persona_a_cargo?id=eq.${f.id}`)).cuerpo as unknown[]).length).toBe(1);
-      expect((await rest('alumnoB', 'GET', `persona_a_cargo?id=eq.${f.id}`)).cuerpo).toEqual([]);
-      expect(((await rest('profesor', 'GET', `persona_a_cargo?id=eq.${f.id}`)).cuerpo as unknown[]).length).toBe(1);
+      expect(((await rest('alumno', 'GET', `persona_a_cargo?select=id&id=eq.${f.id}`)).cuerpo as unknown[]).length).toBe(1);
+      expect((await rest('alumnoB', 'GET', `persona_a_cargo?select=id&id=eq.${f.id}`)).cuerpo).toEqual([]);
+      expect((await rest('profesorB', 'GET', `persona_a_cargo?select=id&id=eq.${f.id}`)).cuerpo).toEqual([]);
+      expect((await rest('administrador', 'GET', `persona_a_cargo?select=id&id=eq.${f.id}`)).cuerpo).toEqual([]);
+      expect(((await rest('profesor', 'GET', `persona_a_cargo?select=id&id=eq.${f.id}`)).cuerpo as unknown[]).length).toBe(1);
     } finally {
       await sql('delete from public.persona_a_cargo where id = $1', [f.id]);
     }

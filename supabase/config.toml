@@ -112,7 +112,9 @@ port = 54324
 smtp_port = 54325
 pop3_port = 54326
 # admin_email = "admin@email.com"
-# sender_name = "Admin"
+# Nombre del servicio como remitente de los códigos de Auth (AVI-07, ADR-019). Solo local: en producción el
+# SMTP de Auth vive en el panel (ops/mails.md); no se declara [auth.email.smtp] aquí porque `config push` lo empujaría.
+sender_name = "Agenda Clases App"
 
 [storage]
 enabled = true

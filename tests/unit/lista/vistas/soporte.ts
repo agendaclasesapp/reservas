@@ -18,6 +18,7 @@ export function alumno(extra: Partial<AlumnoLista> = {}): AlumnoLista {
     ficha_completada_en: '2026-10-01T12:05:00Z',
     aprobado_en: null,
     edad: 36,
+    editable: true,
     ...extra,
   };
 }
@@ -36,7 +37,7 @@ export function acciones(): AccionesSimuladas {
     sugerencias: vi.fn<AccionesLista['sugerencias']>(() => Promise.resolve({ ok: true, sugerencias: [] })),
     unir: vi.fn<AccionesLista['unir']>(() => Promise.resolve({ ok: true, cuentaId: 'p1' })),
     descartar: vi.fn<AccionesLista['descartar']>(() => Promise.resolve({ ok: true, cuentaId: 'p1' })),
-    alta: vi.fn<AccionesLista['alta']>(() => Promise.resolve({ ok: true, alumnoId: 'n1', estado: 'aprobado' })),
+    alta: vi.fn<AccionesLista['alta']>(() => Promise.resolve({ ok: true, alumnoId: 'n1', estado: 'aprobado', asociado: false })),
     editar: vi.fn<AccionesLista['editar']>(() => Promise.resolve({ ok: true, alumnoId: 'a1' })),
   };
 }

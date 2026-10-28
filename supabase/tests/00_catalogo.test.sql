@@ -3,7 +3,7 @@
 -- este archivo. Lo único por bolt es supabase/tests/lista_rpc/BB.txt (developer), que se incrusta abajo con
 -- `node tests/soporte/sincronizar-lista-rpc.mjs` (pg_prove corre dentro del contenedor y no lee el repositorio).
 begin;
-select plan(17);
+select plan(22);
 
 create temp table lista_rpc (rol text, funcion text) on commit drop;
 -- LISTA_RPC:INICIO (generado por tests/soporte/sincronizar-lista-rpc.mjs; no editar a mano)
@@ -19,6 +19,7 @@ insert into lista_rpc (rol, funcion) values
   ('authenticated', 'guardar_configuracion'),
   ('authenticated', 'guardar_grilla'),
   ('authenticated', 'guardar_persona_a_cargo'),
+  ('authenticated', 'pedir_inscripcion'),
   ('anon', 'ping'),
   ('authenticated', 'rechazar_cuenta'),
   ('authenticated', 'sesion_actual'),
@@ -97,26 +98,31 @@ select is(
   '{}'::text[],
   'SEC-04: authenticated ejecuta toda la lista (faltan)');
 
--- SEC-04 (punto 1): de `privado`, authenticated ejecuta exactamente es_profesor y mi_alumno_id (las políticas de RLS
--- se evalúan con los permisos del invocador; privado no está en [api] schemas, no son RPC); anon, ninguna.
+-- SEC-04 (punto 1, B14): de `privado`, authenticated ejecuta exactamente es_profesor, mi_alumno_id y mi_profesor_id (las
+-- políticas de RLS se evalúan con los permisos del invocador; privado no está en [api] schemas, no son RPC); anon,
+-- ninguna. es_administrador NO está en la lista: la usan las RPC [Adm] security definer, no las políticas.
 select is(
   (select coalesce(array_agg(proname::text order by proname), '{}') from funciones
     where nspname = 'privado' and has_function_privilege('authenticated', oid, 'execute')),
-  array['es_profesor', 'mi_alumno_id'],
-  'SEC-04: de privado authenticated ejecuta exactamente es_profesor y mi_alumno_id');
+  array['es_profesor', 'mi_alumno_id', 'mi_profesor_id'],
+  'SEC-04: de privado authenticated ejecuta exactamente es_profesor, mi_alumno_id y mi_profesor_id');
+select is(
+  (has_function_privilege('authenticated', 'privado.es_administrador()', 'execute'),
+   has_function_privilege('anon', 'privado.es_administrador()', 'execute')),
+  (false, false), 'SEC-04 (B14): privado.es_administrador no es ejecutable por authenticated ni por anon');
 select is(
   (select coalesce(array_agg(proname::text order by proname), '{}') from funciones
     where nspname = 'privado' and has_function_privilege('anon', oid, 'execute')),
   '{}'::text[],
   'SEC-04: ninguna función de privado es ejecutable por anon');
--- SEC-04 (punto 2): las dos excepciones son security definer, search_path vacío, sin parámetros y sin ACL para public/anon.
+-- SEC-04 (punto 2): las tres excepciones son security definer, search_path vacío, sin parámetros y sin ACL para public/anon.
 select is(
   (select count(*)::int from funciones f join pg_proc p on p.oid = f.oid
-    where f.nspname = 'privado' and f.proname in ('es_profesor', 'mi_alumno_id')
+    where f.nspname = 'privado' and f.proname in ('es_profesor', 'mi_alumno_id', 'mi_profesor_id')
       and f.prosecdef and f.proconfig @> array['search_path=""'] and p.pronargs = 0
       and not has_function_privilege('anon', f.oid, 'execute')
       and not exists (select 1 from aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) x where x.grantee = 0)),
-  2, 'SEC-04: es_profesor y mi_alumno_id son security definer, search_path vacío, sin parámetros y sin ACL para public ni anon');
+  3, 'SEC-04: es_profesor, mi_alumno_id y mi_profesor_id son security definer, search_path vacío, sin parámetros y sin ACL para public ni anon');
 -- SEC-04 (puntos 3 y 4): USAGE de privado solo para authenticated; ninguna tabla ni secuencia con privilegios de API.
 select is(
   (has_schema_privilege('anon', 'privado', 'usage'), has_schema_privilege('authenticated', 'privado', 'usage')),
@@ -166,6 +172,37 @@ select is(
   (select coalesce(array_agg(relname::text order by relname), '{}') from tablas_publicas where relkind in ('m', 'f')),
   '{}'::text[],
   'SEC-01: public no tiene vistas materializadas ni tablas foráneas (no tienen RLS)');
+
+-- ADR-013 «Regla de unión» (H-241), reglas 1 a 3, sobre toda FK hacia public.alumno(id) de public y privado.
+-- Regla 1: FK de una columna (las compuestas las saltaría el bucle de privado.unir_alumnos).
+select is(
+  (select coalesce(array_agg((conrelid::regclass || '.' || conname)::text order by conname), '{}')
+     from pg_constraint where contype = 'f' and confrelid = 'public.alumno'::regclass and cardinality(conkey) <> 1),
+  '{}'::text[], 'ADR-013 regla 1: toda FK hacia alumno es de una sola columna');
+-- Regla 2: sin cascade ni set null, salvo privado.union_descartada (la unión la excluye a propósito).
+select is(
+  (select coalesce(array_agg((conrelid::regclass || '.' || conname)::text order by conname), '{}')
+     from pg_constraint where contype = 'f' and confrelid = 'public.alumno'::regclass and confdeltype in ('c', 'n', 'd')
+      and conrelid <> 'privado.union_descartada'::regclass),
+  '{}'::text[], 'ADR-013 regla 2: ninguna FK hacia alumno con cascade ni set null (salvo union_descartada)');
+-- Regla 3: sin índice único ni exclusión que incluya la columna FK, salvo la lista blanca:
+--   privado.union_descartada (se va con el sin cuenta) e public.inscripcion (única por alumno y profesor; la fusión
+--   de inscripciones va antes del bucle en privado.unir_alumnos y la prueba está en 14_t2_cuentas_union).
+select is(
+  (select coalesce(array_agg(distinct (c.conrelid::regclass || '.' || i.indexrelid::regclass)::text), '{}')
+     from pg_constraint c
+     join pg_index i on i.indrelid = c.conrelid and (i.indisunique or i.indisexclusion)
+    where c.contype = 'f' and c.confrelid = 'public.alumno'::regclass
+      and c.conkey[1] = any (i.indkey::int2[])
+      and c.conrelid::regclass::text not in ('privado.union_descartada', 'inscripcion')),
+  '{}'::text[], 'ADR-013 regla 3: ninguna tabla fuera de la lista blanca tiene unicidad que incluya la FK a alumno');
+select is(
+  (select array_agg(t order by t) from (select c.conrelid::regclass::text t from pg_constraint c
+     join pg_index i on i.indrelid = c.conrelid and i.indisunique
+    where c.contype = 'f' and c.confrelid = 'public.alumno'::regclass and c.conkey[1] = any (i.indkey::int2[])
+      and c.conrelid::regclass::text in ('privado.union_descartada', 'inscripcion') group by 1) x),
+  array['inscripcion', 'privado.union_descartada'],
+  'ADR-013 regla 3: la lista blanca es exactamente union_descartada e inscripcion (esta última con fusión previa)');
 
 select * from finish();
 rollback;

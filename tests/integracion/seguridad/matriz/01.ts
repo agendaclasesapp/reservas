@@ -2,6 +2,7 @@
 // y anon no la ejecuta (ADR-014: execute solo para authenticated).
 import { expect } from 'vitest';
 import { error, ok, paraTodos, type FilaRpc } from '../../../soporte/matriz';
+import { SLUG_A } from '../../../soporte/usuarios';
 
 export const filas: FilaRpc[] = [
   {
@@ -11,11 +12,12 @@ export const filas: FilaRpc[] = [
   },
   {
     rpc: 'config_publica',
-    origen: 'contratos §3, SEC-04',
+    args: { p_slug: SLUG_A },
+    origen: 'contratos §3, ADR-020, SEC-04',
     esperado: paraTodos(
       ok((c) => {
         const o = c as Record<string, unknown>;
-        expect(Object.keys(o).sort()).toEqual(['anticipacion_horas', 'duracion_min', 'horizonte_semanas', 'zona_horaria']);
+        expect(Object.keys(o).sort()).toEqual(['activo', 'anticipacion_horas', 'duracion_min', 'horizonte_semanas', 'nombre', 'profesor_id', 'zona_horaria']);
         expect(o.zona_horaria).toBe('America/Montevideo');
       }),
     ),

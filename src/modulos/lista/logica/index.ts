@@ -10,6 +10,9 @@
 //   await unirAlumnos(cuentaId, sinCuentaId) | descartarUnion(cuentaId, sinCuentaId);
 //   const esquema = crearEsquemaAlumno(hoyEn(config.zona_horaria));  // react-hook-form + zod
 //   const r = await altaAlumno(valores) | editarAlumno(id, valores);  // r.campo marca el campo del 422
+//   r.ok && r.asociado → MENSAJES_LISTA.altaAsociada (DEC-29 b)
+//   const p = permisosLista(sesion.profesor.activo);              // PRF-08: aprobar y alta solo activo
+//   puedeEditar(alumno)                                           // DEC-32: v_alumnos.editable
 import { cargarSupabase } from '../../../lib/supabase';
 import * as lista from './lista';
 import { useAlumnos as useAlumnosConLector, type EstadoAlumnos } from './useAlumnos';
@@ -30,7 +33,14 @@ export {
   UNION_NO_VALIDA,
 } from './tipos';
 export type { AlumnoEntrada, AlumnoLista, CampoLista, EstadoAlumno, RespuestaCuenta, Sugerencia } from './tipos';
-export { falloLista, normalizarMotivo, separarPendientes, valoresInicialesAlumno } from './lista';
+export {
+  falloLista,
+  normalizarMotivo,
+  permisosLista,
+  puedeEditar,
+  separarPendientes,
+  valoresInicialesAlumno,
+} from './lista';
 export type {
   CodigoLista,
   DependenciasLista,

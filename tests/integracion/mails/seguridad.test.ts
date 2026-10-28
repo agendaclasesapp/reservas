@@ -23,6 +23,8 @@ beforeAll(async () => {
   await limpiarFilas();
   await sesionDe('profesor');
   await sesionDe('alumno');
+  await sesionDe('profesorB');
+  await sesionDe('administrador');
 }, 300_000);
 afterEach(limpiarFilas);
 afterAll(async () => {
@@ -91,7 +93,7 @@ describe('SEC-11 la función exige el secreto y valida `ids`', () => {
       const encolados: (string | null)[] = [];
       for (const m of malos) encolados.push(await encolar(c, 'cuenta_nueva', m, 'x', 'c'));
       // «La operación»: lo que el negocio escribió en la misma transacción y debe sobrevivir (NFR-07).
-      await c.query("insert into public.mail_salida (profesor_id, tipo, destinatario, asunto, cuerpo_texto, estado) values ((select id from public.profesor), 'recordatorio', $1, 'operacion', 'c', 'enviado')", [operacion]);
+      await c.query("insert into public.mail_salida (profesor_id, tipo, destinatario, asunto, cuerpo_texto, estado) values ((select id from public.profesor where slug = 'profesor-prueba'), 'recordatorio', $1, 'operacion', 'c', 'enviado')", [operacion]);
       return encolados;
     });
     try {
@@ -186,11 +188,19 @@ describe('SEC-01 / SEC-03 / SEC-04 / T-NFR-13 mails por la API', () => {
     expect([401, 403]).toContain(profAsunto.status);
     expect(profColumnas.status).toBe(200);
     expect(profColumnas.cuerpo as unknown[]).toHaveLength(1);
+    // CA-52 / SEC-02: ni el otro profesor ni el Administrador ven el registro de A.
+    for (const rol of ['profesorB', 'administrador'] as const) {
+      const v = await rest(rol, 'GET', `v_mails_fallidos?destinatario=eq.${encodeURIComponent(para)}&select=id`);
+      const t = await rest(rol, 'GET', `mail_salida?destinatario=eq.${encodeURIComponent(para)}&select=id`);
+      expect(v.cuerpo, `${rol} ve el fallo de A`).toEqual([]);
+      expect([200, 401, 403]).toContain(t.status);
+      if (t.status === 200) expect(t.cuerpo, `${rol} ve mail_salida de A`).toEqual([]);
+    }
   });
 
   it('SEC-03_SEC-04_ningun_rol_escribe_mail_salida_ni_llama_a_las_funciones_de_privado', async () => {
     const fallos: string[] = [];
-    for (const rol of ['anon', 'alumno', 'profesor'] as const) {
+    for (const rol of ['anon', 'alumno', 'profesor', 'profesorB', 'administrador'] as const) {
       const post = await rest(rol, 'POST', 'mail_salida', { tipo: 'cuenta_nueva' });
       const patch = await rest(rol, 'PATCH', 'mail_salida?id=not.is.null', { estado: 'enviado' });
       const del = await rest(rol, 'DELETE', 'mail_salida?id=not.is.null');

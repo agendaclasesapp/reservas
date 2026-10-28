@@ -8,6 +8,9 @@ import {
   MENSAJE_SIN_CONEXION,
   MENSAJES,
   mensajeDeError,
+  MOTIVO_MAIL_TOPE,
+  MOTIVO_MAIL_TOPE_GLOBAL,
+  MOTIVOS_TOPE_MAIL,
   traducirError,
 } from '../../../src/lib/errores';
 
@@ -21,7 +24,7 @@ const errorRpc = (message: string, details: unknown = null, code = 'PT400') => (
 
 describe('errores.ts: catálogo de contratos.md §1', () => {
   it('SEC_17_cada_codigo_del_catalogo_tiene_texto_propio', () => {
-    expect(CODIGOS_ERROR).toHaveLength(17);
+    expect(CODIGOS_ERROR).toHaveLength(21);
     for (const codigo of CODIGOS_ERROR) {
       const t = traducirError(errorRpc(codigo));
       expect(t.codigo).toBe(codigo);
@@ -134,5 +137,29 @@ describe('errores.ts: LIMITE_EXCEDIDO según details.tope (ADR-016)', () => {
   it('SOL_10_details_ya_parseado_tambien_se_lee', () => {
     const e = { code: 'PT429', message: 'LIMITE_EXCEDIDO', details: { tope: 'pendientes', limite: 5 } };
     expect(mensajeDeError(e)).toContain('5 solicitudes pendientes');
+  });
+});
+
+describe('errores.ts: códigos de B14 (CR-002, ADR-018, ADR-020)', () => {
+  it.each([
+    ['SLUG_YA_USADO', 'Ese enlace ya lo usa otro profesor. Elegí otro.'],
+    ['PROFESOR_INACTIVO', 'El profesor no toma reservas por ahora, así que no se puede hacer esto.'],
+    ['CUENTA_NO_PENDIENTE', 'Esa cuenta ya no está pendiente de aprobación. Actualizá la lista.'],
+    ['UNION_NO_VALIDA', 'Esa unión ya no es posible. Actualizá la lista.'],
+  ] as const)('AGE_11_PRF_08_el_409_%s_tiene_su_texto', (codigo, mensaje) => {
+    expect(traducirError(errorRpc(codigo, null, 'PT409'))).toEqual({ codigo, mensaje });
+  });
+
+  it('SEC_17_mail_ya_registrado_no_dice_de_quien_es_el_mail', () => {
+    // DEC-29 b, DEC-31: también es el mail de un profesor o del Administrador; `details` trae a lo sumo un id.
+    const t = traducirError(errorRpc('MAIL_YA_REGISTRADO', { alumno_id: '7f1c0000-0000-4000-8000-000000000001' }, 'PT409'));
+    expect(t).toEqual({ codigo: 'MAIL_YA_REGISTRADO', mensaje: 'Ese mail ya está registrado y no se puede usar acá.' });
+    expect(t.mensaje).not.toMatch(/profesor|administrador|alumno|7f1c/i);
+  });
+
+  it('AVI_08_tope_global_es_motivo_de_mail_y_no_codigo_de_error', () => {
+    expect(MOTIVOS_TOPE_MAIL).toEqual([MOTIVO_MAIL_TOPE, MOTIVO_MAIL_TOPE_GLOBAL]);
+    expect(CODIGOS_ERROR).not.toContain(MOTIVO_MAIL_TOPE_GLOBAL);
+    expect(traducirError(errorRpc('TOPE_GLOBAL'))).toEqual({ codigo: 'DESCONOCIDO', mensaje: MENSAJE_GENERICO });
   });
 });

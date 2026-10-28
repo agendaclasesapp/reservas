@@ -8,11 +8,14 @@ import { fijarReloj } from '../../soporte/reloj';
 import { ingresarPorCodigo, rest, rpc, sesionDe, type RespuestaApi } from '../../soporte/usuarios';
 import { entorno } from '../../soporte/entorno';
 import { alumnoDe, borrarPorMail, restaurarReloj } from './ayuda';
+import { profesorId, SLUG_A, SLUG_B } from '../../soporte/usuarios';
 
 const AHORA = '2026-11-02T15:00:00Z';
-const FICHA = { p_nombre: 'Ana Pérez', p_telefono: '+598 99123456', p_fecha_nacimiento: '2000-01-01', p_como_llego: 'Amigos' };
+// B14: la ficha se completa desde el enlace de un profesor (`p_slug`) y deja la inscripción pendiente con él (DEC-25).
+const FICHA = { p_nombre: 'Ana Pérez', p_telefono: '+598 99123456', p_fecha_nacimiento: '2000-01-01', p_slug: SLUG_A, p_como_llego: 'Amigos' };
 const creados: string[] = [];
 const fillers: string[] = [];
+let PA = '';
 
 /** RPC con el token de una sesión de `ingresarPorCodigo`. */
 async function rpcCon(token: string, nombre: string, args: Record<string, unknown>): Promise<RespuestaApi> {
@@ -38,6 +41,7 @@ beforeAll(async () => {
   await sesionDe('ficha_incompleta');
   await sesionDe('rechazado');
   await sesionDe('profesor');
+  PA = await profesorId(SLUG_A);
 }, 300_000);
 
 afterEach(async () => {
@@ -51,13 +55,21 @@ describe('CA-02 ficha obligatoria', () => {
   it('CA-02_completar_ficha_con_los_4_campos_pasa_a_pendiente_y_fija_ficha_completada_en', async () => {
     const u = await usuarioNuevo('ficha');
     const antes = await rpcCon(u.accessToken, 'sesion_actual', {});
-    expect(antes.cuerpo).toMatchObject({ rol: 'alumno', estado: 'ficha_incompleta', motivo_rechazo: null });
+    expect(antes.cuerpo).toMatchObject({ rol: 'alumno', estado: 'ficha_incompleta', inscripciones: [] });
     const r = await rpcCon(u.accessToken, 'completar_ficha', FICHA);
-    expect(r).toEqual({ status: 200, cuerpo: { estado: 'pendiente' } });
-    const [f] = await sql<{ estado: string; ficha_completada_en: Date | null }>('select estado, ficha_completada_en from public.alumno where user_id = $1', [u.userId]);
-    expect(f.estado).toBe('pendiente');
+    expect(r).toEqual({ status: 200, cuerpo: { estado: 'completa', inscripcion: { profesor_id: PA, estado: 'pendiente' } } });
+    const [f] = await sql<{ estado: string; ficha_completada_en: Date | null; origen: string }>(
+      'select estado, ficha_completada_en, ficha_origen_profesor_id as origen from public.alumno where user_id = $1', [u.userId]);
+    expect(f.estado).toBe('completa');
     expect(f.ficha_completada_en).not.toBeNull();
-    expect((await rpcCon(u.accessToken, 'completar_ficha', FICHA)).status, 'repetir la ficha').toBe(409);
+    expect(f.origen, 'el enlace fija el profesor de origen').toBe(PA);
+    const ins = await sql<{ estado: string; como_llego: string }>('select i.estado, i.como_llego from public.inscripcion i join public.alumno a on a.id = i.alumno_id where a.user_id = $1', [u.userId]);
+    expect(ins).toEqual([{ estado: 'pendiente', como_llego: 'Amigos' }]);
+    const rep = await rpcCon(u.accessToken, 'completar_ficha', FICHA);
+    expect(rep.status, 'repetir la ficha').toBe(409);
+    expect(rep.cuerpo).toMatchObject({ message: 'FICHA_YA_COMPLETA' });
+    const s = await rpcCon(u.accessToken, 'sesion_actual', {});
+    expect(s.cuerpo).toMatchObject({ estado: 'completa', inscripciones: [{ profesor_id: PA, slug: SLUG_A, estado: 'pendiente', motivo_rechazo: null }] });
   });
 
   it.each([
@@ -84,19 +96,20 @@ describe('CA-02 ficha obligatoria', () => {
   });
 
   it('WEB-03_sesion_actual_trae_motivo_rechazo_solo_si_esta_rechazado', async () => {
+    type Ses = { inscripciones: { slug: string; estado: string; motivo_rechazo: string | null }[] };
     const rech = await rpc('rechazado', 'sesion_actual');
-    expect(rech.cuerpo).toMatchObject({ estado: 'rechazado', motivo_rechazo: 'Motivo de prueba' });
+    expect((rech.cuerpo as Ses).inscripciones).toMatchObject([{ slug: SLUG_A, estado: 'rechazado', motivo_rechazo: 'Motivo de prueba' }]);
     for (const rol of ['ficha_incompleta', 'pendiente', 'alumno'] as const) {
       const r = await rpc(rol, 'sesion_actual');
-      expect((r.cuerpo as { motivo_rechazo: unknown }).motivo_rechazo, rol).toBeNull();
+      for (const i of (r.cuerpo as Ses).inscripciones) expect(i.motivo_rechazo, rol).toBeNull();
     }
-    // Un resto de motivo en una cuenta que no está rechazada no se expone.
+    // Un resto de motivo en una inscripción que no está rechazada no se expone.
     const a = await sesionDe('alumno');
-    await sql("update public.alumno set motivo_estado = 'Resto' where id = $1", [a.alumnoId]);
+    await sql("update public.inscripcion set motivo_estado = 'Resto' where alumno_id = $1", [a.alumnoId]);
     try {
-      expect(((await rpc('alumno', 'sesion_actual')).cuerpo as { motivo_rechazo: unknown }).motivo_rechazo).toBeNull();
+      expect(((await rpc('alumno', 'sesion_actual')).cuerpo as Ses).inscripciones[0].motivo_rechazo).toBeNull();
     } finally {
-      await sql('update public.alumno set motivo_estado = null where id = $1', [a.alumnoId]);
+      await sql('update public.inscripcion set motivo_estado = null where alumno_id = $1', [a.alumnoId]);
     }
   });
 });
@@ -109,13 +122,13 @@ describe('CA-05 rama ALU-06 personas a cargo (T-ALU-15, SEC-29)', () => {
     const id = (alta.cuerpo as { id: string }).id;
     try {
       expect((await rpc('alumno', 'guardar_persona_a_cargo', { p_id: id, p_nombre: 'Hija editada', p_fecha_nacimiento: '2015-05-06' })).status).toBe(200);
-      const l = await rest('alumno', 'GET', `persona_a_cargo?id=eq.${id}&select=*`);
-      expect(l.cuerpo).toEqual([{ id, profesor_id: expect.any(String), alumno_id: a.alumnoId, nombre: 'Hija editada', fecha_nacimiento: '2015-05-06' }]);
+      const l = await rest('alumno', 'GET', `persona_a_cargo?id=eq.${id}&select=id,alumno_id,nombre,fecha_nacimiento`);
+      expect(l.cuerpo).toEqual([{ id, alumno_id: a.alumnoId, nombre: 'Hija editada', fecha_nacimiento: '2015-05-06' }]);
       // Otro alumno: cero filas, no edita (403) y no inserta directo.
-      expect((await rest('alumnoB', 'GET', `persona_a_cargo?id=eq.${id}`)).cuerpo).toEqual([]);
+      expect((await rest('alumnoB', 'GET', `persona_a_cargo?select=id&id=eq.${id}`)).cuerpo).toEqual([]);
       expect((await rpc('alumnoB', 'guardar_persona_a_cargo', { p_id: id, p_nombre: 'Intruso', p_fecha_nacimiento: '2015-05-06' })).status).toBe(403);
       const b = await sesionDe('alumnoB');
-      const directo = await rest('alumnoB', 'POST', 'persona_a_cargo', { profesor_id: (await sql<{ id: string }>('select id from public.profesor'))[0].id, alumno_id: b.alumnoId, nombre: 'Directo' });
+      const directo = await rest('alumnoB', 'POST', 'persona_a_cargo', { profesor_id: PA, alumno_id: b.alumnoId, nombre: 'Directo' });
       expect([401, 403]).toContain(directo.status);
       expect((await rest('alumnoB', 'PATCH', `persona_a_cargo?id=eq.${id}`, { nombre: 'X' })).status).toBeGreaterThanOrEqual(400);
       expect((await sql<{ nombre: string }>('select nombre from public.persona_a_cargo where id = $1', [id]))[0].nombre).toBe('Hija editada');
@@ -146,17 +159,19 @@ describe('CA-05 rama ALU-06 personas a cargo (T-ALU-15, SEC-29)', () => {
 describe('CA-43 tope de fichas por hora (ALU-13, SEC-10) con reloj fijo', () => {
   it('CA-43_con_10_fichas_en_60_min_la_11_da_429_LIMITE_EXCEDIDO_sin_cambiar_estado_ni_mail_y_a_los_61_min_pasa', async () => {
     await fijarReloj(AHORA);
-    await sql('update public.alumno set ficha_completada_en = null where ficha_completada_en is not null');
-    const [{ id: profesor }] = await sql<{ id: string }>('select id from public.profesor');
+    // Diez fichas completadas hace 5 minutos desde el enlace de A: el tope de ALU-13 es por profesor de origen (CA-60).
     const rellenos = await sql<{ id: string }>(
-      `insert into public.alumno (profesor_id, estado, nombre, telefono, fecha_nacimiento, como_llego, ficha_completada_en)
-       select $1, 'pendiente', 'Relleno B04 ' || g, '+598 99123456', '2000-01-01', 'Amigos', '2026-11-02T14:55:00Z'::timestamptz
+      `insert into public.alumno (estado, nombre, telefono, fecha_nacimiento, ficha_completada_en, ficha_origen_profesor_id)
+       select 'completa', 'Relleno B04 ' || g, '+598 99123456', '2000-01-01', '2026-11-02T14:55:00Z'::timestamptz, $1
          from generate_series(1, 10) g returning id`,
-      [profesor],
+      [PA],
     );
     fillers.push(...rellenos.map((r) => r.id));
-    const [{ n: mailsAntes }] = await sql<{ n: string }>('select count(*)::text n from public.mail_salida');
     const u = await usuarioNuevo('tope');
+    // El tope de A no frena a quien llega por el enlace de B (CA-60).
+    const otro = await usuarioNuevo('tope-b');
+    expect((await rpcCon(otro.accessToken, 'completar_ficha', { ...FICHA, p_slug: SLUG_B })).status, 'CA-60: el tope es por profesor').toBe(200);
+    const [{ n: mailsAntes }] = await sql<{ n: string }>('select count(*)::text n from public.mail_salida');
 
     const r = await rpcCon(u.accessToken, 'completar_ficha', FICHA);
     expect(r.status).toBe(429);
@@ -168,7 +183,7 @@ describe('CA-43 tope de fichas por hora (ALU-13, SEC-10) con reloj fijo', () => 
     // 61 minutos después de las fichas anteriores ya no cuentan.
     await fijarReloj('2026-11-02T15:56:00Z');
     const ok = await rpcCon(u.accessToken, 'completar_ficha', FICHA);
-    expect(ok).toEqual({ status: 200, cuerpo: { estado: 'pendiente' } });
+    expect(ok).toEqual({ status: 200, cuerpo: { estado: 'completa', inscripcion: { profesor_id: PA, estado: 'pendiente' } } });
   });
 });
 
@@ -183,6 +198,6 @@ describe('ADR-013 revinculación por la API', () => {
     const u2 = await ingresarPorCodigo(mail);
     expect(u2.userId).not.toBe(u1.userId);
     const s = await rpcCon(u2.accessToken, 'sesion_actual', {});
-    expect(s.cuerpo).toMatchObject({ alumno_id: antes.id, estado: 'pendiente', nombre: 'Ana Pérez' });
+    expect(s.cuerpo).toMatchObject({ alumno_id: antes.id, estado: 'completa', nombre: 'Ana Pérez', inscripciones: [{ slug: SLUG_A, estado: 'pendiente' }] });
   });
 });

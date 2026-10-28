@@ -5,11 +5,13 @@
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { cerrar, sql } from '../../soporte/bd';
 import { fijarReloj } from '../../soporte/reloj';
-import { ingresarPorCodigo, rest, rpc, sesionDe } from '../../soporte/usuarios';
-import { crearAlumno, crearClase, limpiarT05, mailT05, PREFIJO_NOMBRE, registrar, restaurarReloj, rpcCon } from './ayuda';
+import { ingresarPorCodigo, rest, rpc, sesionDe, SLUG_A, SLUG_B } from '../../soporte/usuarios';
+import { crearAlumno, crearClase, inscripcionDe, limpiarT05, mailT05, PREFIJO_NOMBRE, registrar, restaurarReloj, rpcCon } from './ayuda';
 
 beforeAll(async () => {
   await sesionDe('profesor');
+  await sesionDe('profesorB');
+  await sesionDe('administrador');
   await sesionDe('alumno');
   await limpiarT05();
 }, 300_000);
@@ -40,8 +42,27 @@ describe('CA-04 unión por teléfono normalizado (ALU-04, ALU-05)', () => {
     registrar('CA-04_T-ALU-09', { cuenta: '099 123-456', sinCuenta: '+598 99123456', otro: '091 000-000' }, { status: apr.status, cuerpo: apr.cuerpo });
     expect(apr.status).toBe(200);
     expect(cuerpoDe(apr).estado).toBe('aprobado');
+    expect((await inscripcionDe(e.cuenta))!.estado).toBe('aprobado');
     const sug = cuerpoDe(apr).sugerencias as { sin_cuenta_id: string }[];
     expect(sug.map((s) => s.sin_cuenta_id)).toEqual([e.sinCuenta]);
+  });
+
+  it('CA-58_la_sugerencia_compara_solo_con_los_sin_cuenta_del_mismo_profesor_y_B_no_puede_unir_lo_de_A', async () => {
+    const e = await escenario();
+    // Un sin cuenta de B con el mismo teléfono que la cuenta de A: no es sugerencia para A ni para B.
+    const deB = await crearAlumno({ nombre: 'Sin cuenta de B', estado: 'sin_cuenta', telefono: '099 123456' }, SLUG_B);
+    const sug = await rpc('profesor', 'sugerencias_union', { p_alumno_id: e.cuenta });
+    expect((sug.cuerpo as { sin_cuenta_id: string }[]).map((s) => s.sin_cuenta_id)).toEqual([e.sinCuenta]);
+    const deOtro = await rpc('profesorB', 'sugerencias_union', { p_alumno_id: e.cuenta });
+    const nada = await rpc('profesorB', 'sugerencias_union', { p_alumno_id: '00000000-0000-0000-0000-00000000dead' });
+    registrar('CA-58_CA-52', { cuenta: e.cuenta, deB }, { propia: sug.cuerpo, deOtro: [deOtro.status, deOtro.cuerpo] });
+    expect(deOtro, 'B no ve la cuenta de A: 404 como un id inexistente').toEqual(nada);
+    expect(deOtro.status).toBe(404);
+    for (const f of ['unir_alumnos', 'descartar_union']) {
+      expect((await rpc('profesorB', f, { p_cuenta_id: e.cuenta, p_sin_cuenta_id: deB })).status, f).toBe(404);
+      expect((await rpc('profesor', f, { p_cuenta_id: e.cuenta, p_sin_cuenta_id: deB })).status, `${f} con un sin cuenta de B`).toBe(404);
+    }
+    expect((await sql('select 1 from public.alumno where id = $1', [deB])).length).toBe(1);
   });
 
   it('CA-04_T-ALU-10_al_confirmar_las_clases_pasan_a_la_cuenta_y_el_alumno_sin_cuenta_ya_no_existe', async () => {
@@ -65,7 +86,7 @@ describe('CA-04 unión por teléfono normalizado (ALU-04, ALU-05)', () => {
     expect(d.status).toBe(200);
     registrar('CA-04_T-ALU-11', { p_cuenta_id: e.cuenta, p_sin_cuenta_id: e.sinCuenta }, { status: d.status, cuerpo: d.cuerpo });
     expect(((await rpc('profesor', 'sugerencias_union', { p_alumno_id: e.cuenta })).cuerpo as unknown[]).length).toBe(0);
-    expect((await sql<{ estado: string }>('select estado from public.alumno where id = $1', [e.sinCuenta]))[0].estado).toBe('sin_cuenta');
+    expect((await inscripcionDe(e.sinCuenta))!.estado).toBe('sin_cuenta');
     expect((await sql<{ alumno_id: string }>('select alumno_id from public.clase where id = $1', [e.clase]))[0].alumno_id).toBe(e.sinCuenta);
   });
 
@@ -102,11 +123,11 @@ describe('CA-06 alta con y sin mail (ALU-07, ALU-08, AVI-04)', () => {
     const alta = await rpc('profesor', 'alta_alumno', { p_nombre: `${PREFIJO_NOMBRE}Alta`, p_telefono: '+598 96 000 111', p_fecha_nacimiento: '1995-06-15', p_mail: mail });
     registrar('CA-06_T-ALU-16_alta', { p_mail: mail }, { status: alta.status, cuerpo: alta.cuerpo });
     expect(alta.status).toBe(200);
-    expect(alta.cuerpo).toMatchObject({ estado: 'aprobado' });
+    expect(alta.cuerpo).toMatchObject({ estado: 'aprobado', asociado: false });
     const s = await ingresarPorCodigo(mail);
     const ses = await rpcCon(s.accessToken, 'sesion_actual', {});
     registrar('CA-06_T-ALU-16_sesion', { mail }, { status: ses.status, cuerpo: ses.cuerpo });
-    expect(ses.cuerpo).toMatchObject({ rol: 'alumno', estado: 'aprobado', nombre: `${PREFIJO_NOMBRE}Alta` });
+    expect(ses.cuerpo).toMatchObject({ rol: 'alumno', estado: 'completa', nombre: `${PREFIJO_NOMBRE}Alta`, inscripciones: [{ slug: SLUG_A, estado: 'aprobado' }] });
     const [fila] = await sql<{ id: string; user_id: string }>('select id, user_id from public.alumno where mail = $1', [mail]);
     expect(fila.user_id).toBe(s.userId);
     expect(fila.id).toBe((alta.cuerpo as { alumno_id: string }).alumno_id);
@@ -116,7 +137,7 @@ describe('CA-06 alta con y sin mail (ALU-07, ALU-08, AVI-04)', () => {
     const alta = await rpc('profesor', 'alta_alumno', { p_nombre: `${PREFIJO_NOMBRE}Sin mail`, p_telefono: '+598 96 000 222', p_fecha_nacimiento: '1996-07-16' });
     registrar('CA-06_T-ALU-17', { p_mail: null }, { status: alta.status, cuerpo: alta.cuerpo });
     expect(alta.status).toBe(200);
-    expect(alta.cuerpo).toMatchObject({ estado: 'sin_cuenta' });
+    expect(alta.cuerpo).toMatchObject({ estado: 'sin_cuenta', asociado: false });
     const id = (alta.cuerpo as { alumno_id: string }).alumno_id;
     const [f] = await sql<{ mail: string | null; user_id: string | null }>('select mail, user_id from public.alumno where id = $1', [id]);
     expect(f).toEqual({ mail: null, user_id: null });
@@ -131,16 +152,46 @@ describe('CA-06 alta con y sin mail (ALU-07, ALU-08, AVI-04)', () => {
     const repetido = await rpc('profesor', 'alta_alumno', { ...base, p_mail: mail.toUpperCase() });
     expect(repetido.status).toBe(409);
     expect(cuerpoDe(repetido).message).toBe('MAIL_YA_REGISTRADO');
-    const profe = await rpc('profesor', 'alta_alumno', { ...base, p_mail: (await sesionDe('profesor')).mail });
+    // CA-61: el mail del otro profesor o del Administrador da 409 sin datos de esa persona (DEC-31).
+    const profe = await rpc('profesor', 'alta_alumno', { ...base, p_mail: (await sesionDe('profesorB')).mail });
     expect(profe.status).toBe(409);
+    expect(cuerpoDe(profe).message).toBe('MAIL_YA_REGISTRADO');
+    const admin = await rpc('profesor', 'alta_alumno', { ...base, p_mail: (await sesionDe('administrador')).mail });
+    expect(admin.status).toBe(409);
+    expect(cuerpoDe(admin).message).toBe('MAIL_YA_REGISTRADO');
+    expect(JSON.stringify([profe.cuerpo, admin.cuerpo])).not.toMatch(/uuid|alumno_id|[0-9a-f]{8}-[0-9a-f]{4}/);
     const malo = await rpc('profesor', 'alta_alumno', { ...base, p_mail: 'no-es-un-mail' });
     expect(malo.status).toBe(422);
     expect(JSON.stringify(malo.cuerpo)).toContain('p_mail');
     const tel = await rpc('profesor', 'alta_alumno', { ...base, p_telefono: 'abc' });
     expect(tel.status).toBe(422);
     expect(JSON.stringify(tel.cuerpo)).toContain('p_telefono');
-    registrar('ALU-07_negativos', { mail_repetido: mail.toUpperCase() }, { repetido: repetido.status, profe: profe.status, malo: malo.status, tel: tel.status });
+    registrar('ALU-07_negativos', { mail_repetido: mail.toUpperCase() }, { repetido: repetido.status, profe: profe.status, admin: admin.status, malo: malo.status, tel: tel.status });
   });
+
+  it('CA-61_DEC-29b_el_profesor_B_da_de_alta_con_el_mail_de_una_cuenta_de_A_y_la_deja_aprobada_con_B_sin_tocar_su_ficha_ni_su_vinculo_con_A', async () => {
+    const mail = mailT05('asociada');
+    const s = await ingresarPorCodigo(mail);
+    const ficha = await rpcCon(s.accessToken, 'completar_ficha', { p_nombre: `${PREFIJO_NOMBRE}Asociada`, p_telefono: '+598 96 111 222', p_fecha_nacimiento: '1994-04-04', p_slug: SLUG_A, p_como_llego: 'Amigos' });
+    expect(ficha.status).toBe(200);
+    const [antes] = await sql<{ id: string; nombre: string; telefono: string; n: string }>('select id, nombre, telefono, (select count(*)::text from public.alumno where mail = $1) n from public.alumno where mail = $1', [mail]);
+    const alta = await rpc('profesorB', 'alta_alumno', { p_nombre: `${PREFIJO_NOMBRE}Otro nombre`, p_telefono: '+598 96 999 999', p_fecha_nacimiento: '1980-01-01', p_mail: mail });
+    registrar('CA-61_asociada', { p_mail: mail }, { status: alta.status, cuerpo: alta.cuerpo });
+    expect(alta.status).toBe(200);
+    expect(alta.cuerpo).toMatchObject({ alumno_id: antes.id, estado: 'aprobado', asociado: true });
+    const [despues] = await sql<{ nombre: string; telefono: string; n: string }>('select nombre, telefono, (select count(*)::text from public.alumno where mail = $1) n from public.alumno where id = $2', [mail, antes.id]);
+    expect(despues, 'no se crea otra cuenta ni cambia la ficha').toEqual({ nombre: antes.nombre, telefono: antes.telefono, n: '1' });
+    expect((await inscripcionDe(antes.id, SLUG_B))!.estado).toBe('aprobado');
+    expect((await inscripcionDe(antes.id, SLUG_A))!.estado, 'su vínculo con A no cambia').toBe('pendiente');
+    const ses = await rpcCon(s.accessToken, 'sesion_actual', {});
+    expect((ses.cuerpo as { inscripciones: { slug: string; estado: string }[] }).inscripciones.map((i) => [i.slug, i.estado])).toEqual([[SLUG_A, 'pendiente'], [SLUG_B, 'aprobado']]);
+    // B ve la ficha que ya tenía; A sigue sin verla aprobada.
+    const lista = await rest('profesorB', 'GET', `v_alumnos?select=id,nombre,estado,editable&id=eq.${antes.id}`);
+    expect(lista.cuerpo).toMatchObject([{ id: antes.id, nombre: antes.nombre, estado: 'aprobado', editable: false }]);
+    // La persona recibe el mail de AVI-04 (alumno_sumado).
+    const [fila] = await sql<{ n: number }>("select count(*)::int n from public.mail_salida where tipo = 'alumno_sumado' and alumno_id = $1", [antes.id]);
+    expect(fila.n, 'AVI-04: un mail alumno_sumado').toBe(1);
+  }, 120_000);
 
   it('SEC-06_un_alumno_no_da_de_alta_ni_edita_alumnos_403', async () => {
     const id = await crearAlumno({ nombre: 'Ajeno', estado: 'sin_cuenta', telefono: '+598 96 000 555' });
@@ -148,6 +199,15 @@ describe('CA-06 alta con y sin mail (ALU-07, ALU-08, AVI-04)', () => {
     expect(a.status).toBe(403);
     const e = await rpc('alumno', 'editar_alumno', { p_alumno_id: id, p_nombre: 'Y', p_telefono: '+598 96 000 555', p_fecha_nacimiento: '1990-01-01', p_mail: null });
     expect(e.status).toBe(403);
+    // CA-50: el Administrador tampoco opera sobre alumnos; CA-52: B recibe el 404 de un id inexistente.
+    for (const f of ['alta_alumno', 'editar_alumno'] as const) {
+      const args = f === 'alta_alumno' ? { p_nombre: 'X', p_telefono: '+598 96 000 666', p_fecha_nacimiento: '1996-07-16' } : { p_alumno_id: id, p_nombre: 'Y', p_telefono: '+598 96 000 555', p_fecha_nacimiento: '1990-01-01', p_mail: null };
+      expect((await rpc('administrador', f, args)).status, `administrador ${f}`).toBe(403);
+    }
+    const deB = await rpc('profesorB', 'editar_alumno', { p_alumno_id: id, p_nombre: 'Y', p_telefono: '+598 96 000 555', p_fecha_nacimiento: '1990-01-01', p_mail: null });
+    const nada = await rpc('profesorB', 'editar_alumno', { p_alumno_id: '00000000-0000-0000-0000-00000000dead', p_nombre: 'Y', p_telefono: '+598 96 000 555', p_fecha_nacimiento: '1990-01-01', p_mail: null });
+    expect(deB.status).toBe(404);
+    expect(deB).toEqual(nada);
   });
 });
 
@@ -196,6 +256,13 @@ describe('CA-07 lista de alumnos con estado y edad (ALU-09, SEC-02)', () => {
     const a = await rest('alumno', 'GET', `v_alumnos?select=id&id=eq.${id}`);
     expect(a.status).toBe(200);
     expect(a.cuerpo).toEqual([]);
+    // CA-52 / CA-50: ni el otro profesor ni el Administrador la ven.
+    for (const rol of ['profesorB', 'administrador'] as const) {
+      const r = await rest(rol, 'GET', `v_alumnos?select=id&id=eq.${id}`);
+      expect(r.status, rol).toBe(200);
+      expect(r.cuerpo, rol).toEqual([]);
+    }
+    expect(((await rest('profesor', 'GET', `v_alumnos?select=id&id=eq.${id}`)).cuerpo as unknown[]).length).toBe(1);
     const anon = await rest('anon', 'GET', 'v_alumnos?select=id');
     expect([401, 403]).toContain(anon.status);
   });

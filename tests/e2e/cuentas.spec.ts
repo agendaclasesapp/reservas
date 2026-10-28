@@ -1,5 +1,6 @@
 // E2E de cuentas y alumnos del profesor (WEB-07, WEB-03; CA-04, CA-07, CA-45 rama de ficha, SEC-16; casos T-ALU-12,
-// T-ALU-19, T-WEB-01 rama de rechazo). El profesor entra una sola vez con el código de Mailpit (el límite de Auth es de 60 s
+// T-ALU-19, T-WEB-01 rama de rechazo). B14: el estado es el de la inscripción con el profesor (DEC-25); la ficha muestra
+// «Tus profesores» con un h3 por profesor y quien entra desde el enlace de un profesor responde «Cómo llegaste a {nombre}». El profesor entra una sola vez con el código de Mailpit (el límite de Auth es de 60 s
 // por mail) y las pruebas reutilizan esa sesión guardada. Se escribe contra roles y textos accesibles. Los datos se preparan
 // por la base y llevan el prefijo `T05 `; la cuenta de la rama de ficha entra por la UI. Reloj de la aplicación fijo en la
 // base (la edad sale de `app_ahora()`), restaurado siempre. Corre contra dist/ servido por vite preview.
@@ -13,13 +14,15 @@ import { SITEKEY_PRUEBA } from '../soporte/captcha';
 import { esperarMail, mailUnico } from '../soporte/correo';
 import { entorno, RAIZ } from '../soporte/entorno';
 import { fijarReloj, limpiarReloj } from '../soporte/reloj';
-import { MAIL_PROFESOR } from '../soporte/usuarios';
-import { crearAlumno, crearClase, limpiarT05, mailT05 } from '../integracion/cuentas/ayuda';
+import { MAIL_PROFESOR, SLUG_A } from '../soporte/usuarios';
+import { crearAlumno, crearClase, inscripcionDe, limpiarT05, mailT05 } from '../integracion/cuentas/ayuda';
 
 const BASE = process.env.RTC_BASE ?? '/reservas/';
 const ORIGEN = process.env.BASE_URL ?? `http://127.0.0.1:${process.env.RTC_PREVIEW_PORT || '4173'}`;
 const SESION_PROFESOR = resolve(RAIZ, 'test-results', '.sesion-profesor-e2e-cuentas.json');
 const HTML = '<img src=x onerror=alert(1)> sin cupo';
+const NOMBRE_A = 'Profesor de Prueba';
+const estadoDe = async (alumnoId: string) => (await inscripcionDe(alumnoId))?.estado;
 
 test.use({ locale: 'es-UY', viewport: { width: 1280, height: 900 } });
 
@@ -29,9 +32,16 @@ async function mailsA(m: string): Promise<number> {
 }
 
 /** Entrar con código: reintenta hasta que el widget de prueba entrega el token y lee el código del mail nuevo. */
-async function entrar(page: Page, mail: string) {
+async function entrar(page: Page, mail: string, desdeEnlace = false) {
   const antes = await mailsA(mail);
-  await page.goto(`${ORIGEN}${BASE}#/ingreso`);
+  if (desdeEnlace) {
+    // Como quien recibió el enlace de su profesor: abre `#/p/<slug>` (queda como profesor de origen) y toca «Ingresar».
+    await page.goto(`${ORIGEN}${BASE}#/p/${SLUG_A}`);
+    await expect(page.getByRole('heading', { level: 1, name: `Agenda de ${NOMBRE_A}` })).toBeVisible();
+    await page.getByRole('link', { name: 'Ingresar' }).click();
+  } else {
+    await page.goto(`${ORIGEN}${BASE}#/ingreso`);
+  }
   await page.getByRole('button', { name: 'Entrar con un código por mail' }).click();
   await page.getByLabel(/^Mail/).fill(mail);
   await expect(async () => {
@@ -85,7 +95,7 @@ test.describe('profesor', () => {
       cu: 'WEB-07',
       titulo: 'Lista del profesor: aprobar una cuenta, unir con el alumno sin cuenta y ver estado y edad',
       criterios: ['CA-04', 'CA-07', 'ALU-03', 'ALU-04', 'ALU-05', 'ALU-09', 'SEC-16', 'WEB-07'],
-      bolt: 'B05',
+      bolt: 'B14',
     });
 
     await cu.paso(
@@ -107,7 +117,7 @@ test.describe('profesor', () => {
         await page.getByRole('button', { name: `Aprobar cuenta de ${nombre}` }).click();
         await expect(page.getByRole('dialog', { name: 'Posible alumno repetido' })).toBeVisible({ timeout: 15_000 });
         await expect(page.getByText('T05 Viejo sin cuenta').first()).toBeVisible();
-        await expect.poll(async () => (await sql<{ estado: string }>('select estado from public.alumno where id = $1', [cuenta]))[0].estado).toBe('aprobado');
+        await expect.poll(() => estadoDe(cuenta)).toBe('aprobado');
       },
       { esperado: 'La cuenta queda aprobada y un diálogo compara «Cuenta aprobada» con «Alumno sin cuenta» (mismo teléfono normalizado)' },
     );
@@ -144,7 +154,7 @@ test.describe('profesor', () => {
       cu: 'WEB-07-descartar',
       titulo: 'Lista del profesor: descartar la sugerencia de unión',
       criterios: ['CA-04', 'ALU-04', 'WEB-07'],
-      bolt: 'B05',
+      bolt: 'B14',
     });
     await cu.paso(
       'Aprobar la cuenta y ver la sugerencia',
@@ -161,9 +171,9 @@ test.describe('profesor', () => {
         await page.getByRole('button', { name: 'No unir: T05 Gemelo sin cuenta' }).click();
         await expect(page.getByRole('dialog', { name: 'Posible alumno repetido' })).toBeHidden({ timeout: 15_000 });
         await expect(page.getByText('No se unió a T05 Gemelo sin cuenta', { exact: false })).toBeVisible();
-        expect((await sql<{ estado: string }>('select estado from public.alumno where id = $1', [sinCuenta]))[0].estado).toBe('sin_cuenta');
+        expect(await estadoDe(sinCuenta)).toBe('sin_cuenta');
         expect((await sql<{ alumno_id: string }>('select alumno_id from public.clase where id = $1', [clase]))[0].alumno_id).toBe(sinCuenta);
-        expect((await sql<{ estado: string }>('select estado from public.alumno where id = $1', [cuenta]))[0].estado).toBe('aprobado');
+        expect(await estadoDe(cuenta)).toBe('aprobado');
       },
       { esperado: 'Aparece «No se unió a…» y el alumno sin cuenta conserva su clase; la cuenta sigue aprobada' },
     );
@@ -175,7 +185,7 @@ test.describe('profesor', () => {
       cu: 'WEB-07-rechazar',
       titulo: 'Lista del profesor: rechazar una cuenta con motivo',
       criterios: ['ALU-03', 'AVI-03', 'CA-45', 'SEC-09', 'SEC-16', 'WEB-07'],
-      bolt: 'B05',
+      bolt: 'B14',
     });
     await cu.paso(
       'Abrir el diálogo de rechazo',
@@ -193,7 +203,7 @@ test.describe('profesor', () => {
         await page.getByLabel('Motivo (opcional)').fill('x'.repeat(501));
         await page.getByRole('button', { name: 'Rechazar cuenta', exact: true }).click();
         await expect(page.getByRole('dialog')).toBeVisible();
-        expect((await sql<{ estado: string }>('select estado from public.alumno where id = $1', [cuenta]))[0].estado).toBe('pendiente');
+        expect(await estadoDe(cuenta)).toBe('pendiente');
       },
       { esperado: 'El diálogo sigue abierto con el error del campo y la cuenta sigue pendiente' },
     );
@@ -208,7 +218,7 @@ test.describe('profesor', () => {
         await expect(fila.getByText('Rechazado')).toBeVisible();
         await expect(fila.getByText(`Motivo del rechazo: ${HTML}`)).toBeVisible();
         await expect(page.locator('img[src="x"]'), 'el motivo no crea elementos').toHaveCount(0);
-        expect((await sql<{ motivo_estado: string }>('select motivo_estado from public.alumno where id = $1', [cuenta]))[0].motivo_estado).toBe(HTML);
+        expect((await inscripcionDe(cuenta))?.motivo_estado).toBe(HTML);
       },
       { esperado: 'La fila queda «Rechazado» y el motivo aparece como texto literal, sin imagen' },
     );
@@ -224,27 +234,32 @@ test.describe('cuenta rechazada', () => {
       cu: 'WEB-03-rechazo',
       titulo: 'Ficha de la cuenta: estado y motivo de rechazo como texto',
       criterios: ['CA-45', 'ALU-03', 'SEC-16', 'WEB-03'],
-      bolt: 'B05',
+      bolt: 'B14',
     });
     await cu.paso(
       'Entrar con una cuenta nueva y completar la ficha',
       async () => {
-        await entrar(page, mail);
+        await entrar(page, mail, true);
         await expect(page.getByText('Completá tus datos para pedir clases.')).toBeVisible({ timeout: 30_000 });
         await page.getByLabel('Nombre y apellido').fill('T05 Ficha E2E');
         await page.getByLabel('Teléfono o WhatsApp').fill('+598 99123456');
         await page.getByLabel('Fecha de nacimiento').fill('2000-01-01');
-        await page.getByLabel('Cómo llegaste al profesor').fill('Una amiga');
+        await page.getByLabel(`Cómo llegaste a ${NOMBRE_A}`).fill('Una amiga');
         await page.getByRole('button', { name: 'Guardar ficha' }).click();
-        await expect(page.getByRole('heading', { name: 'Estado de tu cuenta' })).toBeVisible({ timeout: 30_000 });
+        await expect(page.getByRole('heading', { level: 2, name: 'Tus profesores' })).toBeVisible({ timeout: 30_000 });
+        await expect(page.getByRole('heading', { level: 3, name: NOMBRE_A })).toBeVisible();
         await expect(page.getByText('Pendiente de aprobación', { exact: true })).toBeVisible();
       },
-      { esperado: 'La ficha queda guardada y el estado de la cuenta dice «Pendiente de aprobación»' },
+      { esperado: 'La ficha queda guardada y «Tus profesores» muestra a «Profesor de Prueba» con «Pendiente de aprobación»' },
     );
     await cu.paso(
       'Rechazada con un motivo con HTML: se ve como texto',
       async () => {
-        await sql(`update public.alumno set estado = 'rechazado', motivo_estado = $2 where mail = $1`, [mail, HTML]);
+        await sql(
+          `update public.inscripcion set estado = 'rechazado', motivo_estado = $2
+            where alumno_id = (select id from public.alumno where mail = $1)`,
+          [mail, HTML],
+        );
         await page.reload();
         await expect(page.getByText('Rechazada', { exact: true })).toBeVisible({ timeout: 30_000 });
         await expect(page.getByText(HTML)).toBeVisible();
@@ -255,7 +270,7 @@ test.describe('cuenta rechazada', () => {
     await cu.paso(
       'Rechazada sin motivo: solo el estado',
       async () => {
-        await sql(`update public.alumno set motivo_estado = null where mail = $1`, [mail]);
+        await sql(`update public.inscripcion set motivo_estado = null where alumno_id = (select id from public.alumno where mail = $1)`, [mail]);
         await page.reload();
         await expect(page.getByText('Rechazada', { exact: true })).toBeVisible({ timeout: 30_000 });
         await expect(page.getByText('Motivo:')).toHaveCount(0);
@@ -265,7 +280,11 @@ test.describe('cuenta rechazada', () => {
     await cu.paso(
       'Aprobada tras el rechazo: sin motivo',
       async () => {
-        await sql(`update public.alumno set estado = 'aprobado', motivo_estado = null where mail = $1`, [mail]);
+        await sql(
+          `update public.inscripcion set estado = 'aprobado', motivo_estado = null, aprobado_en = now()
+            where alumno_id = (select id from public.alumno where mail = $1)`,
+          [mail],
+        );
         await page.reload();
         await expect(page.getByText('Aprobada', { exact: true })).toBeVisible({ timeout: 30_000 });
         await expect(page.getByText('Motivo:')).toHaveCount(0);

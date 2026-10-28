@@ -1,5 +1,7 @@
 # B02 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
 # Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated.
+# B14 · T14.2: `agenda_publica(p_dia)` queda como transición (14-transicion.txt) y suma la sobrecarga
+# `agenda_publica(p_slug, p_dia)` (14.txt), que comparte esta línea.
 anon agenda_publica
 authenticated guardar_configuracion
 authenticated guardar_grilla

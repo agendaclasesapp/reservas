@@ -94,6 +94,22 @@ describe('ListaAlumnos (C-67)', () => {
     expect(props.onAgregar).toHaveBeenCalledOnce();
   });
 
+  it('DEC_32_una_fila_sin_editable_no_ofrece_Editar_y_dice_Ficha_no_editable', () => {
+    render(<ListaAlumnos alumnos={[alumno({ id: 'j1', nombre: 'Julia', editable: false })]} {...props} />);
+    expect(screen.queryByRole('button', { name: 'Editar a Julia' })).toBeNull();
+    expect(screen.getByText('Ficha no editable')).toBeTruthy();
+  });
+
+  it('PRF_08_sin_puedeAprobar_ni_puedeAgregar_los_botones_quedan_deshabilitados', async () => {
+    const rechazada = alumno({ id: 'r1', estado: 'rechazado', nombre: 'Rita' });
+    render(<ListaAlumnos alumnos={[rechazada]} puedeAprobar={false} puedeAgregar={false} {...props} />);
+    const aprobar = screen.getByRole('button', { name: 'Aprobar cuenta de Rita' }) as HTMLButtonElement;
+    const agregar = screen.getByRole('button', { name: 'Agregar alumno' }) as HTMLButtonElement;
+    expect(aprobar.disabled).toBe(true);
+    expect(agregar.disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Editar a Rita' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it('WEB_07_la_operacion_en_curso_marca_el_boton_con_aria_busy', () => {
     render(<ListaAlumnos alumnos={[alumno({ id: 'r1', estado: 'rechazado', nombre: 'Rita' })]} ocupadoId="r1" {...props} />);
     const boton = screen.getByRole('button', { name: 'Aprobar cuenta de Rita' });
@@ -111,6 +127,12 @@ describe('TarjetaCuenta (C-63)', () => {
     expect((screen.getByRole('button', { name: 'Rechazar cuenta de Ana Pérez' }) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByRole('alert').textContent).toContain('Esa cuenta ya no está pendiente.');
     await sinViolacionesAxe(container);
+  });
+
+  it('PRF_08_sin_puedeAprobar_Aprobar_queda_deshabilitado_y_Rechazar_sigue_disponible', () => {
+    render(<TarjetaCuenta cuenta={alumno({ estado: 'pendiente' })} puedeAprobar={false} onAprobar={vi.fn()} onRechazar={vi.fn()} />);
+    expect((screen.getByRole('button', { name: 'Aprobar cuenta de Ana Pérez' }) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Rechazar cuenta de Ana Pérez' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('ALU_03_el_nombre_visible_de_cada_boton_esta_contenido_en_su_nombre_accesible', () => {

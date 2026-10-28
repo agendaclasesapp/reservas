@@ -5,7 +5,7 @@
 import { afterAll, afterEach, describe, expect, it } from 'vitest';
 import { cerrar, sql } from '../../soporte/bd';
 import { mailUnico } from '../../soporte/correo';
-import { alumnoDe, borrarPorMail, confirmarUsuarioAuth, crearUsuarioAuth } from './ayuda';
+import { alumnoDe, borrarPorMail, confirmarUsuarioAuth, crearUsuarioAuth, personaCargada } from './ayuda';
 
 const creados: string[] = [];
 const mail = (p: string) => {
@@ -51,11 +51,7 @@ describe('Google simulado como GoTrue (CA-01 rama de datos, CA-02 precarga)', ()
 describe('Usuario sin confirmar no vincula (SEC-14)', () => {
   it('SEC-14_un_usuario_sin_confirmar_no_se_vincula_a_un_alumno_con_su_mail_ni_crea_otro', async () => {
     const m = mail('sinvinculo');
-    const [{ id: profesor }] = await sql<{ id: string }>('select id from public.profesor');
-    const [alta] = await sql<{ id: string }>(
-      "insert into public.alumno (profesor_id, estado, nombre, mail) values ($1, 'aprobado', 'Alta del profesor', $2) returning id",
-      [profesor, m],
-    );
+    const alta = { id: await personaCargada({ mail: m, nombre: 'Alta del profesor' }) };
     const id = await crearUsuarioAuth({ mail: m, confirmado: false });
     expect(await sql('select 1 from public.alumno where user_id = $1', [id])).toEqual([]);
     expect(await sql('select user_id from public.alumno where id = $1', [alta.id])).toEqual([{ user_id: null }]);
@@ -76,11 +72,16 @@ describe('Revinculación tras borrar el usuario de Auth (ADR-013)', () => {
     const m = mail('revincula');
     const id1 = await crearUsuarioAuth({ mail: m, confirmado: true });
     const a = (await alumnoDe(id1))!;
-    await sql("update public.alumno set estado = 'aprobado', nombre = 'Aprobado Previo' where id = $1", [a.id]);
+    await sql("update public.alumno set estado = 'completa', nombre = 'Aprobado Previo', telefono = '+598 99 111 000', fecha_nacimiento = '1990-01-01', ficha_completada_en = now() where id = $1", [a.id]);
+    await sql("insert into public.inscripcion (alumno_id, profesor_id, estado) select $1, id, case slug when 'profesor-prueba' then 'aprobado' else 'pendiente' end from public.profesor", [a.id]);
     await sql('delete from auth.users where id = $1', [id1]);
     expect(await sql('select user_id from public.alumno where id = $1', [a.id])).toEqual([{ user_id: null }]);
     const id2 = await crearUsuarioAuth({ mail: m.toUpperCase(), confirmado: true });
-    expect(await alumnoDe(id2)).toMatchObject({ id: a.id, estado: 'aprobado', nombre: 'Aprobado Previo' });
+    expect(await alumnoDe(id2)).toMatchObject({ id: a.id, estado: 'completa', nombre: 'Aprobado Previo' });
+    // DEC-25: la persona conserva sus dos inscripciones (aprobada con A, pendiente con B) al volver a ingresar.
+    const ins = await sql<{ slug: string; estado: string }>(
+      'select p.slug::text, i.estado from public.inscripcion i join public.profesor p on p.id = i.profesor_id where i.alumno_id = $1 order by 1', [a.id]);
+    expect(ins).toEqual([{ slug: 'profesor-prueba', estado: 'aprobado' }, { slug: 'profesora-b', estado: 'pendiente' }]);
     expect(await sql('select 1 from public.alumno where lower(mail::text) = $1', [m.toLowerCase()])).toHaveLength(1);
   });
 });

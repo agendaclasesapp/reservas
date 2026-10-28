@@ -3,6 +3,12 @@
 ## Google (proveedor activo; el Client ID está en el panel de Google Cloud)
 - URI de retorno autorizada en el cliente OAuth: `https://rmokypmznhobapyghfpi.supabase.co/auth/v1/callback`.
 - Pantalla de consentimiento (Google Auth Platform > Branding):
+  - *App name*: `Agenda Clases App` (WEB-12, CR-003). *App logo*: `docs/marca/agenda-clases-app-120.png`
+    (120×120, derivado del ícono `docs/marca/agenda-clases-app-icono.jpg`). Paso manual del humano antes de
+    desplegar B14: cambiar ambos en el panel y *Save*.
+  - Aviso: con la app ya publicada («In production»), cambiar el nombre o el logo puede pedir otra verificación
+    de marca de Google; mientras dura, la pantalla de consentimiento puede seguir mostrando el nombre anterior o
+    ninguno. Conviene hacerlo con tiempo antes de anunciar el nombre nuevo.
   - Página de inicio: `https://agendaclasesapp.github.io/reservas/`
   - Política de privacidad: `https://agendaclasesapp.github.io/reservas/privacidad.html` (fuente `public/privacidad.html`)
   - Condiciones del servicio: `https://agendaclasesapp.github.io/reservas/condiciones.html` (fuente `public/condiciones.html`)
@@ -18,6 +24,11 @@
 - Site URL y Redirect URL: `https://agendaclasesapp.github.io/reservas/`. Los empuja `config push` y los
   comprueba `scripts/seguridad/verificar-auth.mjs`.
 - Verificar en el panel (no viajan en `config.toml`): SMTP propio activo y `rate_limit.email_sent` (H-022).
+- H-280: el primer `supabase-deploy` falló en «Re-diff y verificación de Auth desplegado» (el log requiere sesión; la causa
+  se dedujo del código). `verificar-auth.mjs` exigía el campo `rate_limit_sign_in_sign_ups`, que la API de gestión no
+  devuelve (`sign_in_sign_ups` viaja como `rate_limit_otp`). Corregido. Si vuelve a fallar, el paso imprime cada diferencia;
+  lo que depende del panel y debe estar hecho antes del deploy: Google habilitado (Providers > Google, con su secreto),
+  SMTP propio activo y sin `localhost`/`127.0.0.1` en ningún campo de Auth (URL de redirección, SMTP, plantillas).
 - OTP de 6 dígitos con expiración de 600 s, `max_frequency` de 60 s, confirmaciones activas.
 
 ## Turnstile (Cloudflare) (ADR-016, WEB-02, CA-44, SEC-13)

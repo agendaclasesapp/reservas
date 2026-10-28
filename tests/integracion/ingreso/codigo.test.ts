@@ -10,7 +10,7 @@ import { esperarMail, mailUnico } from '../../soporte/correo';
 import { entorno } from '../../soporte/entorno';
 import { clienteAnon } from '../../soporte/usuarios';
 import { pedirCodigo, verificarCodigo, type AuthCodigo, type DependenciasCodigo } from '../../../src/modulos/ingreso/logica/codigo';
-import { alumnoDe, almacenamientoEnMemoria, borrarPorMail } from './ayuda';
+import { alumnoDe, almacenamientoEnMemoria, borrarPorMail, personaCargada } from './ayuda';
 
 const creados: string[] = [];
 const mail = (p: string) => {
@@ -92,7 +92,7 @@ describe('CA-01 rama código y SEC-13', () => {
     expect(data.session?.user.email).toBe(m);
     expect(await alumnoDe(data.session!.user.id)).toMatchObject({ estado: 'ficha_incompleta', mail: m });
     const r = await c.rpc('sesion_actual');
-    expect(r.data).toMatchObject({ rol: 'alumno', estado: 'ficha_incompleta', motivo_rechazo: null });
+    expect(r.data).toMatchObject({ rol: 'alumno', es_administrador: false, profesor: null, estado: 'ficha_incompleta', inscripciones: [] });
   });
 
   it('SEC-13_misma_respuesta_para_un_mail_con_usuario_de_Auth_y_uno_desconocido', async () => {
@@ -117,8 +117,7 @@ describe('CA-01 rama código y SEC-13', () => {
   it('SEC-13_un_mail_ya_registrado_y_otro_nuevo_reciben_la_misma_forma_de_respuesta_cruda', async () => {
     const conocido = mail('crudo1');
     const nuevo = mail('crudo2');
-    const [{ id: profesor }] = await sql<{ id: string }>('select id from public.profesor');
-    await sql("insert into public.alumno (profesor_id, estado, nombre, mail) values ($1, 'aprobado', 'Conocido', $2)", [profesor, conocido]);
+    await personaCargada({ mail: conocido, nombre: 'Conocido' });
     const a = await clienteAnon().auth.signInWithOtp({ email: conocido, options: { shouldCreateUser: true, captchaToken: TOKEN_CAPTCHA } });
     const b = await clienteAnon().auth.signInWithOtp({ email: nuevo, options: { shouldCreateUser: true, captchaToken: TOKEN_CAPTCHA } });
     expect({ error: a.error?.message ?? null, claves: Object.keys(a.data).sort() }).toEqual({ error: b.error?.message ?? null, claves: Object.keys(b.data).sort() });

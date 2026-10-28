@@ -1,6 +1,6 @@
 # Política de seguridad
 
-ReservaTuClase es un proyecto público. Los secretos viven solo en Supabase (Edge Functions, Auth) y en
+Agenda Clases App es un proyecto público. Los secretos viven solo en Supabase (Edge Functions, Auth) y en
 los secretos de GitHub del environment `produccion`; nunca en el repositorio, en `dist/` ni en logs
 (NFR-02, SEC-18 a SEC-23).
 

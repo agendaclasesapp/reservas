@@ -35,8 +35,10 @@ const NOMBRE_TIPO: Record<TipoMail, string> = {
   clase_creada: 'Clase creada',
   clase_movida: 'Clase movida',
   clase_cancelada: 'Clase cancelada',
+  alumno_sumado: 'Alumno sumado',
   recordatorio: 'Recordatorio',
   aviso_inactividad: 'Aviso de inactividad',
+  profesor_alta: 'Alta de profesor',
 };
 
 const PISTAS_CREDENCIALES = /\b535\b|invalid login|username and password|credencial/i;

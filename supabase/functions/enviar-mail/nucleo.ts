@@ -19,6 +19,10 @@ export interface MailReclamado {
   destinatario: string | null;
   asunto: string | null;
   cuerpo: string | null;
+  /** Nombre visible del From (ADR-019, WEB-12): el del profesor o «Agenda Clases App» (`NOMBRE_SERVICIO`). */
+  remitente?: string | null;
+  /** Reply-To (AVI-07): el mail del profesor en sus mails a alumnos; null en los demás. */
+  responderA?: string | null;
 }
 
 /** Acceso a `mail_salida`; cada método lanza si la base no responde. */

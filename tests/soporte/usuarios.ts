@@ -10,18 +10,55 @@ import { TOKEN_CAPTCHA } from './captcha';
 import { esperarMail, mailUnico } from './correo';
 import { entorno, RAIZ } from './entorno';
 
-export type RolAlumno = 'ficha_incompleta' | 'pendiente' | 'rechazado' | 'alumno' | 'alumnoB';
-export type Rol = 'anon' | RolAlumno | 'profesor';
-export const ROLES: Rol[] = ['anon', 'ficha_incompleta', 'pendiente', 'rechazado', 'alumno', 'profesor'];
+// Dos profesores y el Administrador del seed (ADR-018): A = profesor@example.test, B = profesora.b@example.test.
+export type RolAlumno = 'ficha_incompleta' | 'pendiente' | 'rechazado' | 'alumno' | 'alumnoB' | 'dosVinculos';
+export type Rol = 'anon' | RolAlumno | 'profesor' | 'profesorB' | 'administrador';
+export const ROLES: Rol[] = [
+  'anon',
+  'ficha_incompleta',
+  'pendiente',
+  'rechazado',
+  'alumno',
+  'alumnoB',
+  'dosVinculos',
+  'profesor',
+  'profesorB',
+  'administrador',
+];
 
-export const MAIL_PROFESOR = 'profesor@example.test'; // el mismo que supabase/seed.sql
+export const MAIL_PROFESOR = 'profesor@example.test'; // profesor A, el mismo que supabase/seed.sql
+export const SLUG_A = 'profesor-prueba';
+export const MAIL_PROFESOR_B = 'profesora.b@example.test'; // profesora B
+export const SLUG_B = 'profesora-b';
+export const MAIL_ADMIN = 'admin@example.test';
 
-const ESTADO: Record<RolAlumno, string> = {
-  ficha_incompleta: 'ficha_incompleta',
-  pendiente: 'pendiente',
-  rechazado: 'rechazado',
-  alumno: 'aprobado',
-  alumnoB: 'aprobado',
+/** Id del profesor por slug (conexión directa). */
+export async function profesorId(slug: string): Promise<string> {
+  const f = await sql<{ id: string }>('select id from public.profesor where slug = $1', [slug]);
+  if (f.length === 0) throw new Error(`No hay profesor con slug ${slug}: falta el seed`);
+  return f[0].id;
+}
+
+type Slug = typeof SLUG_A | typeof SLUG_B;
+interface Vinculo {
+  con: Slug;
+  estado: 'pendiente' | 'aprobado' | 'rechazado';
+}
+// Perfil de cada persona de prueba: ficha y vínculos (DEC-25: la persona es única y se inscribe con cada profesor).
+const PERFIL: Record<RolAlumno, { ficha: boolean; origen: Slug | null; vinculos: Vinculo[] }> = {
+  ficha_incompleta: { ficha: false, origen: null, vinculos: [] },
+  pendiente: { ficha: true, origen: SLUG_A, vinculos: [{ con: SLUG_A, estado: 'pendiente' }] },
+  rechazado: { ficha: true, origen: SLUG_A, vinculos: [{ con: SLUG_A, estado: 'rechazado' }] },
+  alumno: { ficha: true, origen: SLUG_A, vinculos: [{ con: SLUG_A, estado: 'aprobado' }] },
+  alumnoB: { ficha: true, origen: SLUG_B, vinculos: [{ con: SLUG_B, estado: 'aprobado' }] },
+  dosVinculos: {
+    ficha: true,
+    origen: SLUG_A,
+    vinculos: [
+      { con: SLUG_A, estado: 'aprobado' },
+      { con: SLUG_B, estado: 'pendiente' },
+    ],
+  },
 };
 
 export interface Sesion {
@@ -89,52 +126,74 @@ async function vigente(s: Sesion & { exp: number; apiUrl: string }): Promise<boo
   if (s.apiUrl !== entorno().apiUrl || s.exp * 1000 < Date.now() + 5 * 60_000 || !s.userId) return false;
   const u = await sql('select 1 from auth.users where id = $1', [s.userId]);
   if (u.length === 0) return false;
-  if (s.rol === 'profesor') {
+  if (s.rol === 'profesor' || s.rol === 'profesorB') {
     const p = await sql('select 1 from public.profesor where user_id = $1', [s.userId]);
     return p.length > 0;
   }
-  const a = await sql<{ estado: string }>('select estado from public.alumno where user_id = $1', [s.userId]);
+  if (s.rol === 'administrador') return (await sql('select 1 from privado.administrador where user_id = $1', [s.userId])).length > 0;
+  const a = await sql('select 1 from public.alumno where user_id = $1', [s.userId]);
   return a.length > 0;
 }
 
+/** Fija la ficha y los vínculos de la persona del rol (idempotente: cada archivo de prueba parte del mismo estado). */
+async function aplicarPerfil(rol: RolAlumno, alumnoId: string): Promise<void> {
+  const perfil = PERFIL[rol];
+  const origen = perfil.origen ? await profesorId(perfil.origen) : null;
+  await sql(
+    `update public.alumno
+        set estado = $2, nombre = $3, telefono = $4, fecha_nacimiento = $5,
+            ficha_completada_en = $6::timestamptz, ficha_origen_profesor_id = $7
+      where id = $1`,
+    [
+      alumnoId,
+      perfil.ficha ? 'completa' : 'ficha_incompleta',
+      perfil.ficha ? `Alumno ${rol}` : null,
+      perfil.ficha ? '+598 99123456' : null,
+      perfil.ficha ? '2000-01-01' : null,
+      perfil.ficha ? '2026-11-01T12:00:00Z' : null,
+      origen,
+    ],
+  );
+  const ids: string[] = [];
+  for (const v of perfil.vinculos) ids.push(await profesorId(v.con));
+  await sql('delete from public.inscripcion where alumno_id = $1 and not (profesor_id = any($2::uuid[]))', [alumnoId, ids]);
+  for (const [i, v] of perfil.vinculos.entries()) {
+    await sql(
+      `insert into public.inscripcion (alumno_id, profesor_id, estado, motivo_estado, como_llego, aprobado_en)
+       values ($1, $2, $3, $4, 'Amigos', $5::timestamptz)
+       on conflict (alumno_id, profesor_id)
+       do update set estado = excluded.estado, motivo_estado = excluded.motivo_estado, aprobado_en = excluded.aprobado_en`,
+      [alumnoId, ids[i], v.estado, v.estado === 'rechazado' ? 'Motivo de prueba' : null, v.estado === 'aprobado' ? '2026-11-01T12:00:00Z' : null],
+    );
+  }
+}
+
 async function crear(rol: Exclude<Rol, 'anon'>): Promise<Sesion> {
-  if (rol === 'profesor') {
-    const { accessToken, userId } = await ingresarPorCodigo(MAIL_PROFESOR);
-    // ADR-015: la misma función del seed vincula al usuario confirmado con la fila del profesor.
-    await sql('select privado.configurar_profesor($1, $2)', [MAIL_PROFESOR, 'Profesor de Prueba']);
-    return { rol, mail: MAIL_PROFESOR, userId, accessToken };
+  if (rol === 'profesor' || rol === 'profesorB' || rol === 'administrador') {
+    const mail = rol === 'profesor' ? MAIL_PROFESOR : rol === 'profesorB' ? MAIL_PROFESOR_B : MAIL_ADMIN;
+    const { accessToken, userId } = await ingresarPorCodigo(mail);
+    // El disparador de Auth vincula al usuario confirmado con la fila del seed (ADR-013); si no lo hizo, se repite
+    // con las mismas funciones que usa el operador (ADR-015, ADM-01).
+    if (rol === 'administrador') {
+      await sql('select privado.configurar_administrador($1)', [mail]);
+    } else {
+      const [nombre, slug] = rol === 'profesor' ? ['Profesor de Prueba', SLUG_A] : ['Profesora B de Prueba', SLUG_B];
+      await sql('select privado.configurar_profesor($1, $2, $3)', [mail, nombre, slug]);
+    }
+    return { rol, mail, userId, accessToken };
   }
   const mail = mailUnico(rol.toLowerCase());
   const { accessToken, userId } = await ingresarPorCodigo(mail);
-  // Si el disparador de ingreso (B04) ya creó la fila se actualiza; si no (B01), se inserta.
+  // El disparador de ingreso (B04) crea la ficha vacía; si no, se inserta.
   const existente = await sql<{ id: string }>('select id from public.alumno where user_id = $1', [userId]);
   let alumnoId: string;
   if (existente.length) {
     alumnoId = existente[0].id;
   } else {
-    const [f] = await sql<{ id: string }>(
-      'insert into public.alumno (profesor_id, user_id, mail) values ((select id from public.profesor), $1, $2) returning id',
-      [userId, mail],
-    );
+    const [f] = await sql<{ id: string }>('insert into public.alumno (user_id, mail) values ($1, $2) returning id', [userId, mail]);
     alumnoId = f.id;
   }
-  const estado = ESTADO[rol];
-  const ficha = estado === 'ficha_incompleta';
-  await sql(
-    `update public.alumno
-        set estado = $2, nombre = $3, telefono = $4, fecha_nacimiento = $5,
-            ficha_completada_en = $6::timestamptz, motivo_estado = $7
-      where id = $1`,
-    [
-      alumnoId,
-      estado,
-      ficha ? null : `Alumno ${rol}`,
-      ficha ? null : '+598 99123456',
-      ficha ? null : '2000-01-01',
-      ficha ? null : '2026-11-01T12:00:00Z',
-      estado === 'rechazado' ? 'Motivo de prueba' : null,
-    ],
-  );
+  await aplicarPerfil(rol, alumnoId);
   return { rol, mail, userId, accessToken, alumnoId };
 }
 
@@ -148,6 +207,7 @@ export async function sesionDe(rol: Rol): Promise<Sesion> {
   const cache = leerCache();
   const previa = cache[rol];
   if (previa && (await vigente(previa))) {
+    if (previa.alumnoId && rol in PERFIL) await aplicarPerfil(rol as RolAlumno, previa.alumnoId);
     memo.set(rol, previa);
     return previa;
   }

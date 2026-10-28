@@ -1,0 +1,8 @@
+# B14 · funciones de `public` ejecutables por API (SEC-04, contratos.md §3).
+# Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated. Las sobrecargas comparten línea.
+# T14.2: `config_publica(p_slug)` y `agenda_publica(p_slug, p_dia)` son sobrecargas de las de B01 y B02
+# (las versiones sin slug quedan en transición: 14-transicion.txt); `pedir_inscripcion` es nueva.
+# `completar_ficha` cambia de firma (suma p_slug y p_como_llego; sigue en 04.txt).
+anon config_publica
+anon agenda_publica
+authenticated pedir_inscripcion

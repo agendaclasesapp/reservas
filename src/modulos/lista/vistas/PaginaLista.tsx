@@ -1,8 +1,9 @@
 // Página `#/lista` (WEB-07): conecta `useAlumnos` y las operaciones de `logica/` con `VistaLista`.
 // El acceso solo del profesor lo decide la guarda de ruta; la base devuelve cero filas a quien no lo es.
 import { useMemo } from 'react';
+import { useSesion } from '../../../estado';
 import { hoyEn } from '../../../lib/fechas';
-import { useConfigPublica } from '../../agenda/logica';
+import { useHusoDelProfesor } from '../../configuracion/logica';
 import {
   altaAlumno,
   aprobarCuenta,
@@ -27,8 +28,12 @@ const ACCIONES: AccionesLista = {
 
 export function PaginaLista() {
   const { datos, recargar } = useAlumnos();
-  const configuracion = useConfigPublica();
-  const zona = configuracion.config?.zona_horaria ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  // PRF-08: con el profesor inactivo la lista sigue disponible, pero no aprueba accesos ni da de alta.
+  const sesion = useSesion();
+  const profesorActivo = sesion.tipo === 'sesion' ? (sesion.sesion.profesor?.activo ?? true) : true;
+  // B14 (T14.3): el huso sale del profesor de la sesión (también inactivo, PRF-08).
+  const huso = useHusoDelProfesor();
+  const zona = huso.estado === 'listo' ? huso.zona : Intl.DateTimeFormat().resolvedOptions().timeZone;
   const hoy = useMemo(() => hoyEn(zona), [zona]);
-  return <VistaLista datos={datos} hoy={hoy} onRecargar={recargar} acciones={ACCIONES} />;
+  return <VistaLista datos={datos} hoy={hoy} onRecargar={recargar} profesorActivo={profesorActivo} acciones={ACCIONES} />;
 }

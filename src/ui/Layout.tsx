@@ -7,12 +7,14 @@ export type LayoutProps = {
   navegacion?: ReactNode;
   /** Clave de la ruta actual (p. ej. `location.pathname`): al cambiar, el foco va al `h1` (A11Y-13). */
   rutaActual?: string;
-  /** Título del documento por ruta (A11Y-12), p. ej. "Agenda". Se publica como "Agenda · ReservaTuClase". */
+  /** Título del documento por ruta (A11Y-12), p. ej. "Agenda". Se publica como "Agenda · Agenda Clases App". */
   titulo?: string;
 };
 
-export const NOMBRE_APP = 'ReservaTuClase';
+export const NOMBRE_APP = 'Agenda Clases App';
 export const ID_CONTENIDO = 'contenido';
+/** Atributos `width`/`height` del ícono (evitan el salto de maquetación); el tamaño visible lo fija `--icono-marca`. */
+const ICONO_PX = 40;
 
 /** Con rutas hash, un `href="#contenido"` cambiaría la ruta de la SPA: se enfoca el `<main>` a mano. */
 function irAlContenido(evento: MouseEvent<HTMLAnchorElement>) {
@@ -46,7 +48,17 @@ export function Layout({ children, navegacion, rutaActual, titulo }: LayoutProps
       </a>
       <header className={estilos.cabecera}>
         <div className={estilos.cabeceraInterior}>
-          <p className={estilos.marca}>{NOMBRE_APP}</p>
+          <p className={estilos.marca}>
+            {/* Decorativo: el nombre ya está como texto al lado (WEB-12, A11Y: sin nombre repetido). */}
+            <img
+              src={`${import.meta.env.BASE_URL}icono-192.png`}
+              alt=""
+              width={ICONO_PX}
+              height={ICONO_PX}
+              className={estilos.icono}
+            />
+            <span>{NOMBRE_APP}</span>
+          </p>
           {navegacion}
         </div>
       </header>

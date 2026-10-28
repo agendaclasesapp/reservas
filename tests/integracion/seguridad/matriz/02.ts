@@ -4,6 +4,7 @@
 // profesor repiten los valores iniciales (AGE-01, 60 min, 24 h, Montevideo) para no alterar la configuración.
 import { expect } from 'vitest';
 import { error, ok, paraTodos, type FilaRpc } from '../../../soporte/matriz';
+import { SLUG_A } from '../../../soporte/usuarios';
 
 const hoy = new Date().toISOString().slice(0, 10);
 
@@ -13,12 +14,17 @@ const TRAMOS_INICIALES = [1, 2, 3, 4, 5].flatMap((d) => [
 ]);
 
 const prohibido = error(403);
+const configOk = ok((c) => {
+  const o = c as Record<string, unknown>;
+  expect(o.zona_horaria).toBe('America/Montevideo');
+  expect(o.duracion_min).toBe(60);
+});
 const sinPermiso = error(401, 403);
 
 export const filas: FilaRpc[] = [
   {
     rpc: 'agenda_publica',
-    args: { p_dia: hoy },
+    args: { p_slug: SLUG_A, p_dia: hoy },
     origen: 'contratos §3, CA-15, SEC-07',
     esperado: paraTodos(
       ok((c) => {
@@ -33,11 +39,8 @@ export const filas: FilaRpc[] = [
     origen: 'contratos §3, AGE-02, AGE-04, AGE-08, SEC-06',
     esperado: paraTodos(prohibido, {
       anon: sinPermiso,
-      profesor: ok((c) => {
-        const o = c as Record<string, unknown>;
-        expect(o.zona_horaria).toBe('America/Montevideo');
-        expect(o.duracion_min).toBe(60);
-      }),
+      profesor: configOk,
+      profesorB: configOk,
     }),
   },
   {
@@ -47,6 +50,7 @@ export const filas: FilaRpc[] = [
     esperado: paraTodos(prohibido, {
       anon: sinPermiso,
       profesor: ok((c) => expect(c as unknown[]).toHaveLength(10)),
+      profesorB: ok((c) => expect(c as unknown[]).toHaveLength(10)),
     }),
   },
 ];

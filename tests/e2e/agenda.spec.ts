@@ -1,5 +1,5 @@
-// E2E de la agenda pública (WEB-01; CA-15, CA-16, AGE-07, AGE-08; casos T-AGE-15, T-AGE-17): el navegador corre en
-// Asia/Tokyo y el profesor está en America/Montevideo. Reloj fijo en el navegador (page.clock) y en la base
+// E2E de la agenda pública de un profesor (WEB-01, AGE-09; CA-15, CA-16, AGE-07, AGE-08; casos T-AGE-15, T-AGE-17), en
+// su enlace `#/p/<slug>` (B14): el navegador corre en Asia/Tokyo y el profesor está en America/Montevideo. Reloj fijo en el navegador (page.clock) y en la base
 // (ADR-014): lunes 2026-11-02 23:30 de Montevideo, que en Tokio ya es martes 3 a las 11:30 (prueba del
 // cambio de día sin desfase). Corre contra dist/ (se reconstruye con la URL local) servido por vite preview.
 import type { Page } from '@playwright/test';
@@ -8,10 +8,12 @@ import { execSync } from 'node:child_process';
 import { expect, test } from '../soporte/evidencia';
 import { cerrar, sql } from '../soporte/bd';
 import { entorno, RAIZ } from '../soporte/entorno';
+import { profesorId, SLUG_A, SLUG_B } from '../soporte/usuarios';
 import { fijarReloj, limpiarReloj } from '../soporte/reloj';
 
 
 const BASE = process.env.RTC_BASE ?? '/reservas/';
+const AGENDA = `${BASE}#/p/${SLUG_A}`;
 const AHORA = '2026-11-03T02:30:00Z'; // lunes 23:30 en Montevideo; martes 11:30 en Tokio
 const PREFIJO = 'f3000000-0000-0000-0000-0000000000';
 const id = (n: number) => `${PREFIJO}${String(n).padStart(2, '0')}`;
@@ -37,6 +39,7 @@ async function fijarReloj_navegador(page: Page) {
 async function limpiar() {
   await sql('delete from public.clase where id::text like $1', [`${PREFIJO}%`]);
   await sql('delete from public.reserva where id::text like $1', [`${PREFIJO}%`]);
+  await sql('delete from public.inscripcion where alumno_id::text like $1', [`${PREFIJO}%`]);
   await sql('delete from public.alumno where id::text like $1', [`${PREFIJO}%`]);
 }
 
@@ -53,12 +56,13 @@ test.beforeAll(async () => {
     });
   }
   await limpiar();
-  const [{ id: profesor }] = await sql<{ id: string }>('select id from public.profesor');
-  await sql("update public.profesor set zona_horaria = 'America/Montevideo', duracion_min = 60");
+  const profesor = await profesorId(SLUG_A);
+  await sql("update public.profesor set zona_horaria = 'America/Montevideo', duracion_min = 60 where id = $1", [profesor]);
   await sql(
-    "insert into public.alumno (id, profesor_id, estado, nombre, mail) values ($1, $2, 'sin_cuenta', 'Alumno Agenda E2E', 'agenda.e2e@example.test')",
+    "insert into public.alumno (id, estado, nombre, mail, creado_por) values ($1, 'completa', 'Alumno Agenda E2E', 'agenda.e2e@example.test', $2)",
     [id(1), profesor],
   );
+  await sql("insert into public.inscripcion (alumno_id, profesor_id, estado) values ($1, $2, 'sin_cuenta')", [id(1), profesor]);
   await sql(
     `insert into public.reserva (id, profesor_id, alumno_id, tipo, hora_local, dia_semana, duracion_min, observacion, estado, desde, origen)
      values ($1, $2, $3, 'suelta', '10:00', 1, 60, 'Observacion E2E', 'confirmada', '2026-11-02', 'profesor')`,
@@ -83,8 +87,8 @@ test('WEB-01 la agenda del día muestra las horas del profesor en un navegador d
   const cu = evidencia({
     cu: 'WEB-01',
     titulo: 'Agenda pública por día en el huso del profesor',
-    criterios: ['CA-15', 'CA-16', 'AGE-07', 'AGE-08', 'WEB-01'],
-    bolt: 'B02',
+    criterios: ['CA-15', 'CA-16', 'AGE-07', 'AGE-08', 'AGE-09', 'WEB-01'],
+    bolt: 'B14',
   });
   await fijarReloj_navegador(page);
   const lista = () => page.getByRole('list', { name: 'Huecos del día' });
@@ -94,13 +98,14 @@ test('WEB-01 la agenda del día muestra las horas del profesor en un navegador d
   expect(await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone)).toBe('Asia/Tokyo');
 
   await cu.paso(
-    'Abrir la agenda sin sesión con navegador en Asia/Tokyo',
+    'Abrir la agenda del profesor por su enlace, sin sesión y con navegador en Asia/Tokyo',
     async () => {
-      await page.goto(`${BASE}#/`);
+      await page.goto(AGENDA);
+      await expect(page.getByRole('heading', { level: 1, name: 'Agenda de Profesor de Prueba' })).toBeVisible();
       await expect(page.getByRole('heading', { level: 2 })).toContainText(/lunes.*2.*noviembre/i);
       await expect(lista()).toBeVisible();
     },
-    { esperado: 'La agenda abre en el lunes 2 de noviembre (día del profesor, no el martes 3 de Tokio)' },
+    { esperado: 'La agenda con el nombre del profesor abre en el lunes 2 de noviembre (día del profesor, no el martes 3 de Tokio)' },
   );
 
   await cu.paso(
@@ -131,6 +136,32 @@ test('WEB-01 la agenda del día muestra las horas del profesor en un navegador d
       expect(texto).not.toMatch(/Alumno Agenda E2E|Observacion E2E|example\.test/);
     },
     { esperado: 'Ni el nombre del alumno ni la observación aparecen en la página (CA-15)' },
+  );
+
+  await cu.paso(
+    'La agenda de otro profesor no trae la clase de este ni sus datos (CA-15, AGE-09)',
+    async () => {
+      await page.goto(`${BASE}#/p/${SLUG_B}`);
+      await expect(page.getByRole('heading', { level: 1, name: 'Agenda de Profesora B de Prueba' })).toBeVisible();
+      await expect(lista()).toBeVisible();
+      await expect(lista().getByText('Ocupado')).toHaveCount(0);
+      expect(await page.locator('body').innerText()).not.toMatch(/Alumno Agenda E2E|Profesor de Prueba|example\.test/);
+      await page.goto(AGENDA);
+      await expect(fila('10:00 a 11:00')).toContainText('Ocupado');
+    },
+    { esperado: 'La agenda de la profesora B muestra su nombre, ningún hueco ocupado y nada de A; la de A sigue con su clase de las 10:00' },
+  );
+
+  await cu.paso(
+    'Un enlace que no existe no muestra agenda',
+    async () => {
+      await page.goto(`${BASE}#/p/no-existe-e2e`);
+      await expect(page.getByRole('heading', { name: 'Enlace no válido, pedile el enlace a tu profesor' })).toBeVisible();
+      await expect(page.getByRole('list', { name: 'Huecos del día' })).toHaveCount(0);
+      await page.goto(AGENDA);
+      await expect(lista()).toBeVisible();
+    },
+    { esperado: 'Se lee «Enlace no válido, pedile el enlace a tu profesor» y no hay huecos' },
   );
 
   await cu.paso(
@@ -189,9 +220,9 @@ test('WEB-01 la agenda del día muestra las horas del profesor en un navegador d
   await cu.paso(
     'Un día inválido en la dirección vuelve a hoy',
     async () => {
-      await page.goto(`${BASE}#/?d=2999-12-31`);
+      await page.goto(`${AGENDA}?d=2999-12-31`);
       await expect(page.getByRole('heading', { level: 2 })).toContainText(/lunes.*2.*noviembre/i);
-      await page.goto(`${BASE}#/?d=basura`);
+      await page.goto(`${AGENDA}?d=basura`);
       await expect(page.getByRole('heading', { level: 2 })).toContainText(/lunes.*2.*noviembre/i);
     },
     { esperado: 'Un ?d= fuera de límites o mal formado vuelve a hoy (lunes 2) sin mensaje' },
@@ -203,14 +234,14 @@ test('WEB-01 accesibilidad: axe con contraste real y reflujo a 320 px', async ({
     cu: 'WEB-01-A11Y',
     titulo: 'Agenda pública: contraste, reflujo a 320 px y zoom',
     criterios: ['WEB-01', 'NFR-05', 'NFR-06', 'CA-37'],
-    bolt: 'B02',
+    bolt: 'B14',
   });
   await fijarReloj_navegador(page);
 
   await cu.paso(
     'Axe sobre la agenda con huecos (contraste incluido)',
     async () => {
-      await page.goto(`${BASE}#/`);
+      await page.goto(AGENDA);
       await expect(page.getByRole('list', { name: 'Huecos del día' })).toBeVisible();
       const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
       expect(r.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)).toEqual([]);
@@ -233,7 +264,7 @@ test('WEB-01 accesibilidad: axe con contraste real y reflujo a 320 px', async ({
   await cu.paso(
     'Axe sobre la agenda del domingo (día sin huecos) a 320 px',
     async () => {
-      await page.goto(`${BASE}#/?d=2026-11-01`);
+      await page.goto(`${AGENDA}?d=2026-11-01`);
       await expect(page.getByRole('heading', { name: 'No hay huecos este día' })).toBeVisible();
       const r = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
       expect(r.violations.map((v) => v.id)).toEqual([]);
