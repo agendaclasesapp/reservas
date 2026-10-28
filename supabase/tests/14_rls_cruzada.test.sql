@@ -1,11 +1,12 @@
 -- B14 · T14.5 (a) · RLS cruzada con dos profesores y el Administrador, tabla por tabla y vista por vista.
--- IDs: SEC-02, SEC-32, NFR-01, ADM-04, PRF-07, AGE-10. CA-50, CA-52, CA-54, CA-15 (agenda de un profesor sin datos del otro).
+-- IDs: SEC-02, SEC-32, NFR-01, ADM-04, PRF-07, AGE-10, SOL-09. CA-50, CA-52, CA-54, CA-15 (agenda de un profesor sin datos del otro), CA-26.
+-- B06 · T06.3: suma `solicitud` y `v_mis_solicitudes` (una solicitud de reserva de X con A y otra de Z con B).
 -- Genérica: recorre todas las tablas y vistas de `public` (también las que traigan los bolts siguientes), de modo que una tabla
 -- nueva sin política por profesor la hace fallar. Lo que hay en cada una (dos profesores con datos en todas) se siembra aquí y
 -- se compara contra una instantánea escrita a mano. No repite las pruebas de 14_t1_modelo_y_rls (conteos por tabla de A y B).
 -- Datos sintéticos (@example.test); todo se deshace con el rollback.
 begin;
-select plan(23);
+select plan(24);
 
 -- Ayudas ----------------------------------------------------------------------------------------------------
 -- Cuenta las filas que ve `p_sub` en una tabla o vista de public, con rol authenticated y esos claims.
@@ -113,6 +114,9 @@ insert into public.reserva (id, profesor_id, alumno_id, tipo, hora_local, dia_se
 insert into public.clase (profesor_id, reserva_id, alumno_id, inicio, fin, estado) values
   (current_setting('rtc.pa')::uuid, 'e1410000-0000-0000-0000-0000000001a1', current_setting('rtc.x')::uuid, '2026-11-02 09:00-03', '2026-11-02 10:00-03', 'confirmada'),
   (current_setting('rtc.pb')::uuid, 'e1410000-0000-0000-0000-0000000001b1', current_setting('rtc.z')::uuid, '2026-11-02 11:00-03', '2026-11-02 12:00-03', 'confirmada');
+insert into public.solicitud (profesor_id, alumno_id, tipo, reserva_id, fecha_clase, estado, respondida_en) values
+  (current_setting('rtc.pa')::uuid, current_setting('rtc.x')::uuid, 'reserva', 'e1410000-0000-0000-0000-0000000001a1', '2026-11-02 09:00-03', 'confirmada', public.app_ahora()),
+  (current_setting('rtc.pb')::uuid, current_setting('rtc.z')::uuid, 'reserva', 'e1410000-0000-0000-0000-0000000001b1', '2026-11-02 11:00-03', 'confirmada', public.app_ahora());
 insert into public.mail_salida (profesor_id, alumno_id, tipo, destinatario, asunto, cuerpo_texto, estado, motivo_fallo) values
   (current_setting('rtc.pa')::uuid, current_setting('rtc.x')::uuid, 'clase_creada', 'pgtap14r.x@example.test', 'A', 'a', 'enviado', null),
   (current_setting('rtc.pa')::uuid, current_setting('rtc.x')::uuid, 'clase_creada', 'pgtap14r.x@example.test', 'A', 'a', 'fallido', 'TOPE'),
@@ -121,18 +125,18 @@ insert into public.mail_salida (profesor_id, alumno_id, tipo, destinatario, asun
 
 -- 1. Instantánea por rol (SEC-02, ADM-04, CA-50, CA-52) -------------------------------------------------------------
 select is(pg_temp.visto('e1410000-0000-0000-0000-00000000000a'),
-  'alumno:2,bloqueo:1,clase:1,grilla_tramo:10,inscripcion:3,mail_salida:2,persona_a_cargo:1,profesor:1,reserva:1,v_alumnos:2,v_mails_fallidos:1',
+  'alumno:2,bloqueo:1,clase:1,grilla_tramo:10,inscripcion:3,mail_salida:2,persona_a_cargo:1,profesor:1,reserva:1,solicitud:1,v_alumnos:2,v_mails_fallidos:1',
   'SEC-02/CA-52: el profesor A ve solo lo suyo en cada tabla y vista (la persona en baja y las fichas ajenas no)');
 select is(pg_temp.visto('e1410000-0000-0000-0000-00000000000b'),
-  'alumno:2,bloqueo:1,clase:1,grilla_tramo:10,inscripcion:2,mail_salida:1,persona_a_cargo:2,profesor:1,reserva:1,v_alumnos:2,v_mails_fallidos:1',
+  'alumno:2,bloqueo:1,clase:1,grilla_tramo:10,inscripcion:2,mail_salida:1,persona_a_cargo:2,profesor:1,reserva:1,solicitud:1,v_alumnos:2,v_mails_fallidos:1',
   'SEC-02/CA-52: la profesora B ve solo lo suyo; de X, que tiene pendiente con B, ve la ficha y su persona a cargo pero no las clases con A');
 select is(pg_temp.visto('e1410000-0000-0000-0000-00000000000d'), '',
   'CA-50/ADM-04: el Administrador que no es profesor no lee ninguna fila de ninguna tabla ni vista de public');
-select is(pg_temp.visto('e1410000-0000-0000-0000-0000000000a1'), 'alumno:1,clase:1,inscripcion:2,persona_a_cargo:1,reserva:1',
-  'SEC-02: la persona X ve su ficha, sus dos inscripciones y sus clases, reservas y personas a cargo; nada de profesores, grillas, bloqueos ni mails');
+select is(pg_temp.visto('e1410000-0000-0000-0000-0000000000a1'), 'alumno:1,clase:1,inscripcion:2,persona_a_cargo:1,reserva:1,solicitud:1,v_mis_solicitudes:1',
+  'SEC-02: la persona X ve su ficha, sus dos inscripciones y sus clases, reservas, solicitudes y personas a cargo; nada de profesores, grillas, bloqueos ni mails');
 select is(pg_temp.visto('e1410000-0000-0000-0000-0000000000a3'), 'alumno:1',
   'SEC-02/ALU-14: una persona con la ficha incompleta y sin vínculos ve solo su propia ficha');
-select is(pg_temp.visto('e1410000-0000-0000-0000-0000000000a2'), 'alumno:1,clase:1,inscripcion:1,persona_a_cargo:1,reserva:1',
+select is(pg_temp.visto('e1410000-0000-0000-0000-0000000000a2'), 'alumno:1,clase:1,inscripcion:1,persona_a_cargo:1,reserva:1,solicitud:1,v_mis_solicitudes:1',
   'SEC-02: la persona Z, solo de B, ve únicamente lo suyo (no la ficha de X aunque compartan profesor)');
 
 -- 2. Filas de otro profesor, relación por relación (SEC-32, SEC-02) --------------------------------------------------
@@ -146,8 +150,13 @@ select is((select string_agg(rel, ',' order by rel) from (
             select c.relname::text rel from pg_class c join pg_namespace n on n.oid = c.relnamespace
              where n.nspname = 'public' and c.relkind in ('r', 'v')
                and exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'profesor_id' and not a.attisdropped)) t),
-  'alumno,bloqueo,clase,grilla_tramo,inscripcion,mail_salida,persona_a_cargo,reserva',
-  'SEC-32: la lista de relaciones con profesor_id que recorre la prueba (una relación nueva aparece aquí y debe traer su siembra)');
+  'bloqueo,clase,grilla_tramo,inscripcion,mail_salida,reserva,solicitud,v_mis_solicitudes',
+  'SEC-32: la lista de relaciones con profesor_id que recorre la prueba, sin alumno ni persona_a_cargo tras la contracción 0539 (una relación nueva aparece aquí y debe traer su siembra)');
+select is(pg_temp.contar('e1410000-0000-0000-0000-00000000000b', 'solicitud', format('alumno_id = %L', current_setting('rtc.x')))
+        + pg_temp.contar('e1410000-0000-0000-0000-0000000000a2', 'solicitud', format('alumno_id = %L', current_setting('rtc.x')))
+        + pg_temp.contar('e1410000-0000-0000-0000-0000000000a2', 'v_mis_solicitudes', format('profesor_id = %L', current_setting('rtc.pa')))
+        + pg_temp.contar('e1410000-0000-0000-0000-00000000000a', 'v_mis_solicitudes'), 0::bigint,
+  'SEC-02/SOL-09/CA-26: B no lee la solicitud de X con A, Z no lee la de X ni la de A por v_mis_solicitudes, y un profesor no ve nada por esa vista');
 -- Sin pérdida: los mismos datos, vistos como postgres.
 select is((select count(*)::int from public.clase where profesor_id in (current_setting('rtc.pa')::uuid, current_setting('rtc.pb')::uuid)), 2,
   'preparación: cada profesor tiene su clase (la prueba compara contra filas que existen)');

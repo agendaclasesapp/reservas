@@ -1,6 +1,12 @@
 -- B14 · Migración INVERSA de la expansión a varios profesores (ADR-021 §8). NO está en supabase/migrations/:
 -- la corre el operador a mano (psql con la cadena del pooler de sesión, o el SQL Editor) y solo si la
 -- contracción de B15 todavía NO se aplicó. Después de contraer, la vuelta atrás es el dump previo.
+--
+-- ATENCIÓN (H-313): ESTE ARCHIVO DEJA DE SERVIR DESPUÉS DE LA CONTRACCIÓN 202611000539. Esa migración borra
+-- columnas, funciones e índices que esta inversa necesita (alumno.profesor_id, motivo_estado, aprobado_en,
+-- como_llego, persona_a_cargo.profesor_id, config_publica() y agenda_publica(p_dia) sin slug). No correrla
+-- con 0539 aplicada, ni con B14 y B15 salidos juntos con la contracción. Desde la contracción la ÚNICA vuelta
+-- atrás es el dump con datos previo a ella (ops/migracion-multiprofesor.md §6.3).
 -- ARCHIVO GENERADO por ops/vuelta-atras/generar-inversa.py desde el catálogo de una base en B05
 -- (migraciones 20261100010* a 20261100050*): las funciones, vistas, triggers, políticas y permisos que
 -- restaura son los de B01 a B05. No editar a mano: editar inversa-b14.cuerpo.sql y regenerar.

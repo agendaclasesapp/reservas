@@ -16,7 +16,21 @@ Dos caminos, ambos con la cuenta Gmail dedicada (`agendaclasesapp@gmail.com`).
 supabase-deploy solo hace `secrets list` y falla si falta un nombre; nunca los carga.
 
 ## Vault de producción
-`url_funcion_mail` y `mail_secreto` se cargan a mano en el SQL Editor (nunca por migración ni `seed.sql`).
+`url_funcion_mail`, `mail_secreto` y `url_sitio` se cargan a mano en el SQL Editor (nunca por migración; `seed.sql`
+solo tiene los valores locales). `url_sitio` es la dirección pública del sitio (DEC-14): no es secreta, pero va en
+Vault porque el código no lleva ajustes del despliegue. Es opcional: sin él, el mail de alta del profesor
+(`alta_profesor`, ADM-02) dice solo cómo termina el enlace (`#/p/<slug>`).
+
+### `url_sitio` (B15, T15.5)
+Cargar **antes de dar de alta profesores** desde `#/admin`, para que el mail lleve el enlace completo:
+
+    select vault.create_secret('https://agendaclasesapp.github.io/reservas/', 'url_sitio');
+
+Es el mismo valor que `RTC_SITE_URL` (con o sin barra final: la función la normaliza); si la URL de Pages es otra,
+usar esa. Si ya existe: `select vault.update_secret(id, 'https://.../') from vault.secrets where name = 'url_sitio';`.
+Comprobar: `select name from vault.secrets where name = 'url_sitio';` (una fila). Borrarlo devuelve el mail al texto sin
+enlace completo. Local: lo carga `supabase/seed.sql` (`http://127.0.0.1:5173/reservas/`) y Mailpit muestra el enlace
+completo (CA-49).
 
 ## Pasos del humano para producción (B03, T03.3; AVI-07, SEC-11, SEC-30, H-018, H-019)
 Nada de esto lo ejecuta el pipeline ni un agente. Proyecto `rmokypmznhobapyghfpi`, casilla de DEC-15.

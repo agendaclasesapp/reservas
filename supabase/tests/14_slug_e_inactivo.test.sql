@@ -98,9 +98,10 @@ select is(pg_temp.llamar(null, $$select public.config_publica('pgtap14s-%')::tex
   'SEC-33: «%» en el slug no es un comodín (la búsqueda es por igualdad)');
 select is(array[
     pg_temp.llamar(null, $$select public.config_publica(null)::text$$, 'anon'),
-    pg_temp.llamar(null, $$select public.config_publica()::text$$, 'anon')],
-  array['PT404|NO_ENCONTRADO|', 'PT404|NO_ENCONTRADO|'],
-  'CA-47/CA-48: sin slug (nulo o sin enlace, con varios profesores) no hay agenda ni se elige un profesor al azar');
+    (select count(*)::text from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'config_publica' and p.pronargs = 0)],
+  array['PT404|NO_ENCONTRADO|', '0'],
+  'CA-47/CA-48: con slug nulo no hay agenda, y config_publica() sin argumentos ya no existe (contracción 0539): no se elige un profesor al azar');
 select is((select array_agg(p.proname::text order by p.proname::text) from (select distinct proname from pg_proc p2 join pg_namespace n on n.oid = p2.pronamespace
             where n.nspname = 'public' and has_function_privilege('anon', p2.oid, 'execute')) p),
   array['agenda_publica', 'config_publica', 'ping'], 'SEC-33/SEC-04: anon ejecuta solo ping, config_publica y agenda_publica; no hay RPC anónima que liste profesores');

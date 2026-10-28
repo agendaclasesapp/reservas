@@ -3,7 +3,7 @@
 -- es visible para los dos, y lo que A cargó en B05 (`profesor_id`, `motivo_estado`, `como_llego`, `aprobado_en`) no
 -- puede leerlo B por la API (privilegio por columna: error 42501, el mismo que da PostgREST). Lo de cada profesor sale
 -- de `inscripcion` (por `v_alumnos`) y la persona sigue leyendo su ficha.
--- Reproduce la revisión de SecDevOps: se cargan a mano los valores de A en las columnas viejas, como los dejaba B05.
+-- Tras la contracción 0539 las columnas viejas no existen: B no puede leerlas (42703) y lo de A solo está en inscripcion.
 -- Datos sintéticos (@example.test); todo se deshace con el rollback.
 begin;
 select plan(18);
@@ -47,10 +47,11 @@ select is(pg_temp.legibles('persona_a_cargo'), 'alumno_id,fecha_nacimiento,id,no
 select ok(not has_table_privilege('authenticated', 'public.alumno', 'select')
           and not has_table_privilege('authenticated', 'public.persona_a_cargo', 'select'),
   'H-284, SEC-06: sin select de tabla entera sobre alumno ni persona_a_cargo');
-select is((select count(*) from public.alumno
-            where profesor_id is not null or motivo_estado is not null or como_llego is not null or aprobado_en is not null)::int
-          + (select count(*) from public.persona_a_cargo where profesor_id is not null)::int, 0,
-  'H-284, X-01: tras las migraciones las columnas viejas están vacías');
+select is((select count(*)::int from information_schema.columns
+            where table_schema = 'public'
+              and ((table_name = 'alumno' and column_name in ('profesor_id', 'motivo_estado', 'como_llego', 'aprobado_en'))
+                or (table_name = 'persona_a_cargo' and column_name = 'profesor_id'))), 0,
+  'H-284, X-01: tras la contracción (0539) las columnas heredadas de B05 ya no existen; lo de cada profesor vive en inscripcion');
 
 -- Preparación: reloj fijo, profesores A y B, la persona X inscripta con los dos y los datos heredados de A ----------
 update privado.reloj_prueba set ahora = '2026-11-02 15:00:00+00';
@@ -66,30 +67,24 @@ select set_config('rtc.x', (select id::text from public.alumno where user_id = '
 insert into public.inscripcion (alumno_id, profesor_id, estado, como_llego, motivo_estado, aprobado_en) values
   (current_setting('rtc.x')::uuid, current_setting('rtc.pa')::uuid, 'aprobado', 'Instagram (dicho a A)', 'nota privada de A', public.app_ahora()),
   (current_setting('rtc.x')::uuid, current_setting('rtc.pb')::uuid, 'pendiente', 'Por la web de B', null, null);
-insert into public.persona_a_cargo (profesor_id, alumno_id, nombre) values
-  (current_setting('rtc.pa')::uuid, current_setting('rtc.x')::uuid, 'Hija de X');
--- Lo que B05 dejaba en la fila (reproducción de SecDevOps).
-update public.alumno
-   set profesor_id = current_setting('rtc.pa')::uuid, como_llego = 'Instagram (dicho a A)',
-       motivo_estado = 'nota privada de A', aprobado_en = public.app_ahora()
- where id = current_setting('rtc.x')::uuid;
-
+insert into public.persona_a_cargo (alumno_id, nombre) values
+  (current_setting('rtc.x')::uuid, 'Hija de X');
 -- 2. Profesora B: ve la fila de X, no las columnas de A ------------------------------------------------------
 select ok(pg_temp.como('e1420000-0000-0000-0000-00000000000b',
             format('select profesor_id::text || como_llego || motivo_estado || aprobado_en::text from public.alumno where id = %L',
-                   current_setting('rtc.x'))) like '42501 %',
+                   current_setting('rtc.x'))) like '42703 %',
   'H-284, SEC-02, CA-52: la reproducción de SecDevOps (las cuatro columnas de A leídas como B) da permiso denegado');
 select ok(pg_temp.como('e1420000-0000-0000-0000-00000000000b',
-            format('select profesor_id::text from public.alumno where id = %L', current_setting('rtc.x'))) like '42501 %',
+            format('select profesor_id::text from public.alumno where id = %L', current_setting('rtc.x'))) like '42703 %',
   'H-284, X-01: B no lee alumno.profesor_id');
 select ok(pg_temp.como('e1420000-0000-0000-0000-00000000000b',
-            format('select como_llego from public.alumno where id = %L', current_setting('rtc.x'))) like '42501 %',
+            format('select como_llego from public.alumno where id = %L', current_setting('rtc.x'))) like '42703 %',
   'H-284, SEC-02: B no lee alumno.como_llego de A');
 select ok(pg_temp.como('e1420000-0000-0000-0000-00000000000b',
-            format('select motivo_estado from public.alumno where id = %L', current_setting('rtc.x'))) like '42501 %',
+            format('select motivo_estado from public.alumno where id = %L', current_setting('rtc.x'))) like '42703 %',
   'H-284, SEC-02: B no lee alumno.motivo_estado de A');
 select ok(pg_temp.como('e1420000-0000-0000-0000-00000000000b',
-            format('select aprobado_en::text from public.alumno where id = %L', current_setting('rtc.x'))) like '42501 %',
+            format('select aprobado_en::text from public.alumno where id = %L', current_setting('rtc.x'))) like '42703 %',
   'H-284, X-01: B no lee alumno.aprobado_en de A');
 select ok(pg_temp.como('e1420000-0000-0000-0000-00000000000b',
             format('select ficha_origen_profesor_id::text from public.alumno where id = %L', current_setting('rtc.x'))) like '42501 %',
@@ -98,7 +93,7 @@ select ok(pg_temp.como('e1420000-0000-0000-0000-00000000000b',
             format('select a::text from public.alumno a where a.id = %L', current_setting('rtc.x'))) like '42501 %',
   'H-284, SEC-06: la fila entera (select * de PostgREST) tampoco es legible');
 select ok(pg_temp.como('e1420000-0000-0000-0000-00000000000b',
-            format('select profesor_id::text from public.persona_a_cargo where alumno_id = %L', current_setting('rtc.x'))) like '42501 %',
+            format('select profesor_id::text from public.persona_a_cargo where alumno_id = %L', current_setting('rtc.x'))) like '42703 %',
   'H-284, X-01: B no lee persona_a_cargo.profesor_id');
 select is(pg_temp.como('e1420000-0000-0000-0000-00000000000b',
             format('select nombre || ''|'' || mail || ''|'' || (select string_agg(p.nombre, '','') from public.persona_a_cargo p where p.alumno_id = a.id) from public.alumno a where a.id = %L',
@@ -113,7 +108,7 @@ select is(pg_temp.como('e1420000-0000-0000-0000-00000000000b',
 
 -- 3. Profesora A: tampoco usa las columnas viejas; lo suyo sale de inscripcion ---------------------------------
 select ok(pg_temp.como('e1420000-0000-0000-0000-00000000000a',
-            format('select como_llego from public.alumno where id = %L', current_setting('rtc.x'))) like '42501 %',
+            format('select como_llego from public.alumno where id = %L', current_setting('rtc.x'))) like '42703 %',
   'H-284: ningún profesor lee alumno.como_llego, tampoco el que lo cargó');
 select is(pg_temp.como('e1420000-0000-0000-0000-00000000000a',
             format('select como_llego || ''|'' || motivo_estado from public.v_alumnos where id = %L', current_setting('rtc.x'))),

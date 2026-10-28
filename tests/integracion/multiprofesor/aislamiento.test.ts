@@ -92,7 +92,7 @@ describe('CA-52 / SEC-02 lecturas por PostgREST: cada profesor ve solo lo suyo',
     const pb = await profesorId(SLUG_B);
     const soloB = await crearAlumno({ nombre: 'Nora solo de B', estado: 'aprobado', telefono: '+598 99 700 041', mail: mailT05('nora') }, SLUG_B);
     const soloA = await crearAlumno({ nombre: 'Mateo solo de A', estado: 'aprobado', telefono: '+598 99 700 042', mail: mailT05('mateo') }, SLUG_A);
-    await sql("insert into public.persona_a_cargo (profesor_id, alumno_id, nombre) values ($1, $2, 'T05 Hija de Nora')", [pb, soloB]);
+    await sql("insert into public.persona_a_cargo (alumno_id, nombre) values ($1, 'T05 Hija de Nora')", [soloB]);
 
     const vistoPorA = await rest('profesor', 'GET', 'v_alumnos?select=id,nombre');
     const vistoPorB = await rest('profesorB', 'GET', 'v_alumnos?select=id,nombre');

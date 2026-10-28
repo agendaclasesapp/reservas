@@ -128,7 +128,7 @@ describe('CA-05 rama ALU-06 personas a cargo (T-ALU-15, SEC-29)', () => {
       expect((await rest('alumnoB', 'GET', `persona_a_cargo?select=id&id=eq.${id}`)).cuerpo).toEqual([]);
       expect((await rpc('alumnoB', 'guardar_persona_a_cargo', { p_id: id, p_nombre: 'Intruso', p_fecha_nacimiento: '2015-05-06' })).status).toBe(403);
       const b = await sesionDe('alumnoB');
-      const directo = await rest('alumnoB', 'POST', 'persona_a_cargo', { profesor_id: PA, alumno_id: b.alumnoId, nombre: 'Directo' });
+      const directo = await rest('alumnoB', 'POST', 'persona_a_cargo', { alumno_id: b.alumnoId, nombre: 'Directo' });
       expect([401, 403]).toContain(directo.status);
       expect((await rest('alumnoB', 'PATCH', `persona_a_cargo?id=eq.${id}`, { nombre: 'X' })).status).toBeGreaterThanOrEqual(400);
       expect((await sql<{ nombre: string }>('select nombre from public.persona_a_cargo where id = $1', [id]))[0].nombre).toBe('Hija editada');
@@ -152,7 +152,7 @@ describe('CA-05 rama ALU-06 personas a cargo (T-ALU-15, SEC-29)', () => {
 
   it('SEC-29_la_persona_a_cargo_guarda_solo_nombre_y_fecha_de_nacimiento', async () => {
     const cols = await sql<{ column_name: string }>("select column_name from information_schema.columns where table_schema = 'public' and table_name = 'persona_a_cargo' order by 1");
-    expect(cols.map((c) => c.column_name)).toEqual(['alumno_id', 'fecha_nacimiento', 'id', 'nombre', 'profesor_id']);
+    expect(cols.map((c) => c.column_name)).toEqual(['alumno_id', 'fecha_nacimiento', 'id', 'nombre']);
   });
 });
 

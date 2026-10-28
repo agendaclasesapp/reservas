@@ -25,7 +25,7 @@ import {
   useSesion,
 } from './estado';
 import { rutaAgendaDePersona } from './modulos/inicio/logica';
-import type { PaginaAgendaRutaProps } from './modulos/agenda/vistas/Pagina';
+import type { ContextoSolicitud, PaginaAgendaRutaProps } from './modulos/agenda/vistas/Pagina';
 import { Cargando } from './ui/Cargando';
 import { ErrorCarga } from './ui/ErrorCarga';
 import { Layout } from './ui/Layout';
@@ -54,22 +54,30 @@ function pedirAcceso(slug: string): ReactNode {
   );
 }
 
+// El formulario de solicitud (WEB-04) solo se descarga cuando un alumno aprobado toca un hueco libre (ADR-017).
+const SolicitudDiferida = lazy(() => import('./modulos/solicitud/vistas/SolicitudDeHueco'));
+
+function solicitud(contexto: ContextoSolicitud): ReactNode {
+  return (
+    <Suspense fallback={null}>
+      <SolicitudDiferida
+        profesorId={contexto.profesorId}
+        profesorNombre={contexto.profesorNombre}
+        zona={contexto.zona}
+        hueco={contexto.hueco}
+        onCerrar={contexto.onCerrar}
+        onCambioAgenda={contexto.onCambioAgenda}
+      />
+    </Suspense>
+  );
+}
+
 /** La agenda del profesor del slug de la ruta; `key` la reinicia al cambiar de profesor. */
 function conSlug(Agenda: ComponentType<PaginaAgendaRutaProps>): ComponentType {
   return function AgendaDelProfesor() {
     const { slug = '' } = useParams();
-    return <Agenda key={slug} slug={slug} pedirAcceso={pedirAcceso} />;
+    return <Agenda key={slug} slug={slug} pedirAcceso={pedirAcceso} solicitud={solicitud} />;
   };
-}
-
-/** `#/admin` (WEB-10): la pantalla la pone B15; por ahora solo la guarda del Administrador y un aviso. */
-function PaginaAdministracion() {
-  return (
-    <>
-      <h1>Administración</h1>
-      <p>La administración de profesores todavía no está disponible.</p>
-    </>
-  );
 }
 
 export const RUTAS_MODULOS: readonly RutaModulo[] = [
@@ -106,7 +114,7 @@ export const RUTAS_MODULOS: readonly RutaModulo[] = [
     modulo: 'admin',
     path: '/admin',
     titulo: 'Administración',
-    cargar: () => Promise.resolve({ default: PaginaAdministracion }),
+    cargar: () => import('./modulos/admin/vistas/Pagina'),
   },
 ];
 

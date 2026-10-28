@@ -10,8 +10,10 @@ create temp table lista_rpc (rol text, funcion text) on commit drop;
 insert into lista_rpc (rol, funcion) values
   ('anon', 'agenda_publica'),
   ('authenticated', 'alta_alumno'),
+  ('authenticated', 'alta_profesor'),
   ('authenticated', 'app_ahora'),
   ('authenticated', 'aprobar_cuenta'),
+  ('authenticated', 'cambiar_estado_profesor'),
   ('authenticated', 'completar_ficha'),
   ('anon', 'config_publica'),
   ('authenticated', 'descartar_union'),
@@ -19,10 +21,13 @@ insert into lista_rpc (rol, funcion) values
   ('authenticated', 'guardar_configuracion'),
   ('authenticated', 'guardar_grilla'),
   ('authenticated', 'guardar_persona_a_cargo'),
+  ('authenticated', 'listar_profesores'),
   ('authenticated', 'pedir_inscripcion'),
   ('anon', 'ping'),
+  ('authenticated', 'previsualizar_serie'),
   ('authenticated', 'rechazar_cuenta'),
   ('authenticated', 'sesion_actual'),
+  ('authenticated', 'solicitar_reserva'),
   ('authenticated', 'sugerencias_union'),
   ('authenticated', 'unir_alumnos');
 -- LISTA_RPC:FIN

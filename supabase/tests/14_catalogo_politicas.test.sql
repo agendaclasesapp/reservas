@@ -22,8 +22,10 @@ select is(pg_temp.sin_politica(), '{}'::text[],
   'SEC-32: toda tabla de public con columna profesor_id tiene una política SELECT cuya expresión contiene privado.mi_profesor_id()');
 select ok((select count(*) from pg_class c join pg_namespace n on n.oid = c.relnamespace
             where n.nspname = 'public' and c.relkind = 'r'
-              and exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'profesor_id' and not a.attisdropped)) >= 8,
-  'SEC-32: el detector ve al menos las 8 tablas con profesor_id de B14 (no pasa en vacío)');
+              and exists (select 1 from pg_attribute a where a.attrelid = c.oid and a.attname = 'profesor_id' and not a.attisdropped)) >= 7
+  and not exists (select 1 from pg_attribute a where a.attrelid in ('public.alumno'::regclass, 'public.persona_a_cargo'::regclass)
+                    and a.attname = 'profesor_id' and not a.attisdropped),
+  'SEC-32: el detector ve al menos las 7 tablas con profesor_id tras la contracción (0539) y alumno y persona_a_cargo ya no lo tienen (no pasa en vacío)');
 select is(
   (select coalesce(array_agg(c.relname::text order by c.relname), '{}')
      from pg_class c join pg_namespace n on n.oid = c.relnamespace
@@ -62,15 +64,18 @@ select is(
     where p.schemaname = 'public' and (regexp_replace(p.qual, '\( SELECT privado\.mi_(profesor|alumno)_id\(\) AS mi_(profesor|alumno)_id\)', '', 'g') ~ 'privado\.mi_(profesor|alumno)_id\(\)')),
   '{}'::text[], 'NFR-01: las funciones de rol en las políticas van envueltas en (select …) para evaluarse una vez por consulta');
 
--- 4. Ninguna RPC [Prof] toma profesor_id de un parámetro del cliente (SEC-32, SEC-06) ------------------------------------------
--- Hoy ninguna RPC pública de B14 recibe un `p_profesor_id`. B06 agrega `solicitar_reserva(p_profesor_id, …)` y
--- `previsualizar_serie(p_profesor_id, …)` (de la persona hacia el profesor elegido, que valida la inscripción aprobada);
--- cuando existan se agregan aquí con nombre y con su prueba de inscripción.
+-- 4. Ninguna RPC [Prof] toma profesor_id de un parámetro del cliente, salvo la lista permitida (SEC-32, SEC-06) -------------------
+-- Las RPC `[Prof]` sacan el profesor de mi_profesor_id(). Reciben `p_profesor_id` solo las que van de la persona hacia el profesor
+-- elegido (que valida la inscripción aprobada y el profesor activo) y la del Administrador (que valida el rol adentro). Lista
+-- explícita: una RPC nueva con `p_profesor_id` hace fallar esta prueba hasta que se agregue aquí con su prueba de inscripción o de rol.
+--   previsualizar_serie, solicitar_reserva   B06 · [U] (06_solicitud.test.sql, matriz/06.ts)
+--   cambiar_estado_profesor                  B15 · [Adm] (el rol se comprueba adentro, SEC-06)
 select is(
   (select coalesce(array_agg(distinct p.proname::text order by p.proname::text), '{}') from pg_proc p join pg_namespace n on n.oid = p.pronamespace
     where n.nspname = 'public' and p.proargnames is not null and 'p_profesor_id' = any (p.proargnames)
       and has_function_privilege('authenticated', p.oid, 'execute')),
-  '{}'::text[], 'SEC-32/SEC-06: ninguna RPC pública ejecutable recibe p_profesor_id (el profesor sale de mi_profesor_id())');
+  array['cambiar_estado_profesor', 'previsualizar_serie', 'solicitar_reserva'],
+  'SEC-32/SEC-06: las RPC ejecutables con p_profesor_id son exactamente previsualizar_serie y solicitar_reserva [U] (B06) y cambiar_estado_profesor [Adm] (B15)');
 
 -- 5. Sonda: el detector detecta (mutación) --------------------------------------------------------------------------------------
 create table public.zz_sonda_profesor (id int, profesor_id uuid);

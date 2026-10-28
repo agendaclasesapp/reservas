@@ -1,7 +1,7 @@
 ---
 titulo: Técnica · Plataforma (B01)
-version: 0.1
-fecha: 2026-10-21
+version: 0.2
+fecha: 2026-10-23
 publico: equipo técnico
 ---
 # Plataforma (B01)
@@ -81,6 +81,8 @@ El pedido de código lleva CAPTCHA de Turnstile (ADR-016, DEC-13). `[auth.captch
 
 ## 7. Puesta en marcha del profesor y RPC base
 
+> Desde B14 (CR-002, ADR-018) el alta cambió: el operador corre `select privado.configurar_administrador('<mail>');` y, hasta que B15 permita el alta desde `#/admin`, `select privado.configurar_profesor('<mail>', '<nombre>', '<slug>');` (tres argumentos, devuelve el id). `config_publica` y `agenda_publica` reciben el slug. Ver `varios-profesores-b14.md` y `ops/puesta-en-marcha.md`. Lo siguiente describe B01.
+
 Antes del primer ingreso del profesor se corre `select privado.configurar_profesor('<mail>', '<nombre>');` (`supabase/migrations/202611000104_rpc_base.sql`). Es idempotente; con un mail inválido o sin nombre devuelve 422 `DATOS_INVALIDOS`, y si la fila ya está vinculada a otro usuario, `PROFESOR_YA_VINCULADO` (código interno `PT409`; ADR-015). `config_publica()` devuelve `{zona_horaria, duracion_min, anticipacion_horas, horizonte_semanas}` y `ping()` la hora de la aplicación (`app_ahora`). `aprobar_cuenta` sobrescribe `motivo_estado` (contratos §3).
 
 Los topes anti-abuso y el error `LIMITE_EXCEDIDO` están en ADR-016 y contratos §1, §3 y §5; `alumno.user_id` y `profesor.user_id` usan `on delete set null` con revinculación por mail (ADR-013).
@@ -90,3 +92,4 @@ Los topes anti-abuso y el error `LIMITE_EXCEDIDO` están en ADR-016 y contratos 
 | Versión | Fecha | Bolt | IDs | Cambio |
 | --- | --- | --- | --- | --- |
 | 0.1 | 2026-10-21 | B01 | SEC-12, SEC-13, SEC-16, ADR-007, 012, 013, 015, 016, 017, NFR-09 | Primera versión: estructura, scripts, pipeline, sesión, UI compartida, CAPTCHA y puesta en marcha |
+| 0.2 | 2026-10-23 | B14 | ADR-018 | Nota de puesta en marcha con Administrador y slug |

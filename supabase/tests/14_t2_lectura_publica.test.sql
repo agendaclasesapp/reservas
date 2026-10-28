@@ -2,7 +2,7 @@
 -- IDs: AGE-07, AGE-09, AGE-10, AGE-11, NFR-09, SEC-06, SEC-09. `config_publica(p_slug)`, `agenda_publica(p_slug, p_dia)`
 -- y las funciones de transición sin slug (ADR-021). Datos sintéticos (@example.test); todo se deshace con el rollback.
 begin;
-select plan(22);
+select plan(20);
 
 -- Llama como `anon` (o authenticated con p_sub) y guarda estado, resultado, mensaje y detalle en rtc.<clave>_*.
 create function pg_temp.como(p_sub uuid, p_sql text, p_clave text) returns void language plpgsql as $f$
@@ -106,28 +106,13 @@ select ok(not has_function_privilege('anon', 'privado.profesor_por_slug(text)', 
       and not has_function_privilege('authenticated', 'privado.profesor_por_slug(text)', 'execute'),
   'SEC-04: privado.profesor_por_slug no es ejecutable por la API');
 
--- 5. Transición (ADR-021): con más de un profesor fallan con 404; con uno, delegan en él ---------------------
-select pg_temp.como(null, $$select public.config_publica()::text$$, 't1');
-select pg_temp.como(null, $$select count(*)::text from public.agenda_publica('2026-10-22'::date)$$, 't2');
-select is(array[pg_temp.r('t1'), pg_temp.r('t2')], array['PT404 NO_ENCONTRADO', 'PT404 NO_ENCONTRADO'],
-  'ADR-021: config_publica() y agenda_publica(p_dia) sin slug fallan con 404 si hay más de un profesor');
-
--- Un solo profesor: se quitan los demás dentro de la transacción (sus datos dependientes primero).
-delete from public.mail_salida;
-delete from public.inscripcion;
-delete from public.alumno;
-delete from public.bloqueo where profesor_id <> current_setting('rtc.pa')::uuid;
-delete from public.grilla_tramo where profesor_id <> current_setting('rtc.pa')::uuid;
-delete from public.profesor where id <> current_setting('rtc.pa')::uuid;
-select pg_temp.como(null, $$select public.config_publica()::text$$, 't3');
-select is(current_setting('rtc.t3_res')::jsonb,
-  '{"zona_horaria":"America/Montevideo","duracion_min":30,"anticipacion_horas":48,"horizonte_semanas":26}'::jsonb,
-  'ADR-021: con un único profesor config_publica() conserva la forma de B01');
-select pg_temp.como(null, $$select count(*)::text from public.agenda_publica('2026-10-22'::date)$$, 't4');
-select is(current_setting('rtc.t4_res'), '18', 'ADR-021: con un único profesor agenda_publica(p_dia) delega en él');
-update public.profesor set activo = false;
-select pg_temp.como(null, $$select count(*)::text from public.agenda_publica('2026-10-22'::date)$$, 't5');
-select is(pg_temp.r('t5'), 'PT409 PROFESOR_INACTIVO', 'AGE-11: la agenda de transición también respeta el profesor inactivo');
+-- 5. Contracción (ADR-021 paso 6, 0539): las llamadas sin slug ya no existen -------------------------------
+select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'public' and p.proname = 'config_publica' and p.pronargs = 0), 0,
+  'ADR-021/CA-47: config_publica() sin slug ya no existe (no hay profesor por defecto)');
+select is((select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'public' and p.proname = 'agenda_publica' and p.pronargs = 1), 0,
+  'ADR-021/CA-47: agenda_publica(p_dia) sin slug ya no existe (la agenda pública exige el enlace del profesor)');
 
 select * from finish();
 rollback;

@@ -1,0 +1,82 @@
+.tarjeta {
+  display: grid;
+  gap: var(--e-3);
+  padding: var(--e-4);
+  border: var(--borde-fino) solid var(--c-borde);
+  border-radius: var(--r-md);
+  background: var(--c-superficie);
+  list-style: none;
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--e-2) var(--e-3);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--t-md);
+  overflow-wrap: anywhere;
+}
+
+.ficha {
+  display: grid;
+  gap: var(--e-3);
+  margin: 0;
+}
+
+.ficha dt {
+  font-size: var(--t-xs);
+  font-weight: var(--peso-fuerte);
+  color: var(--c-texto-suave);
+}
+
+.ficha dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.enlace {
+  display: grid;
+  gap: var(--e-1);
+}
+
+.etiqueta {
+  font-size: var(--t-xs);
+  font-weight: var(--peso-fuerte);
+  color: var(--c-texto-suave);
+  overflow-wrap: anywhere;
+}
+
+.fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-2);
+}
+
+.campo {
+  flex: 1 1 14rem;
+  min-inline-size: 0;
+  min-block-size: var(--tactil-min);
+  padding: var(--e-2) var(--e-3);
+  border: var(--borde-ancho) solid var(--c-borde);
+  border-radius: var(--r-md);
+  color: var(--c-texto);
+  background: var(--c-fondo);
+  font: inherit;
+}
+
+.campo:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}

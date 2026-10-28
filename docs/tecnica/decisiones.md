@@ -1,7 +1,7 @@
 ---
 titulo: Técnica · Decisiones de arquitectura (resumen)
-version: 0.1
-fecha: 2026-10-21
+version: 0.2
+fecha: 2026-10-23
 publico: equipo técnico
 ---
 # Decisiones de arquitectura (resumen)
@@ -24,9 +24,13 @@ Resumen de los ADR vigentes; el texto completo está en `.aidlc/reservatuclase/a
 | 012 | Pipeline, despliegue y secretos | Aceptada; ajustada tras S01 y S02 |
 | 013 | Una tabla de alumnos; unión por teléfono | Aceptada |
 | 014 | `app_ahora()`; reloj de prueba solo local | Aceptada |
-| 015 | Fila del profesor sin datos personales en el repositorio | Aceptada |
+| 015 | Fila del profesor sin datos personales en el repositorio | Reemplazada por la 018 |
 | 016 | Topes anti-abuso configurables | Ver nota abajo |
 | 017 | Agenda: postgrest-js y supabase-js diferido | Aceptada (S03) |
+| 018 | Varios profesores: persona única, inscripción por profesor, enlace, Administrador y pausa | Aceptada (CR-002); **reemplaza a la 015** |
+| 019 | Mails y topes por profesor: remitente con su nombre, Reply-To, tope global de 400 por día | Aceptada (CR-002; el nombre del servicio, por CR-003) |
+| 020 | Rutas por profesor (`#/p/<slug>`), inicio sin listado, selector y nueva `sesion_actual` | Aceptada (CR-002) |
+| 021 | Migración de producción en dos fases y orden de despliegue de B14, B15 y B06 | Aceptada (CR-002) |
 
 Qué cambió con los spikes:
 
@@ -37,6 +41,8 @@ Qué cambió con los spikes:
 - **ADR-017 (S03):** lectura pública con cliente REST liviano.
 - **ADR-016 y CR-001:** los topes son 5 solicitudes pendientes por alumno, 20 mails por hora, 200 por día y 10 fichas por hora, fijos en la spec (DEC-12), más CAPTCHA en el pedido de código (DEC-13). El texto actual de ADR-016 sigue en «propuesta, sujeta a DEC-12 y DEC-13» y los contratos dicen «sujeto a DEC-12»: el Arquitecto debe actualizarlos (CR-001 §3).
 
+- **ADR-018 a ADR-021 (CR-002, B14):** resumen y estado en `varios-profesores-b14.md`. La 016 pasa a topes por profesor y globales (10 pendientes por alumno y profesor, 400 mails por día).
+
 Detalle operativo: `tecnica/configuracion-y-despliegue.md`.
 
 ## Bitácora de versiones
@@ -44,3 +50,4 @@ Detalle operativo: `tecnica/configuracion-y-despliegue.md`.
 | Versión | Fecha | Bolt | IDs | Cambio |
 | --- | --- | --- | --- | --- |
 | 0.1 | 2026-10-21 | construcción (hito spikes S01-S03 y CR-001) | ADR-001..017, CR-001 | Primera versión del resumen de ADR |
+| 0.2 | 2026-10-23 | B14 | ADR-018..021, CR-002 | ADR-018 a 021; la 015 queda reemplazada |

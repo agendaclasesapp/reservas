@@ -1,7 +1,7 @@
 ---
 titulo: Funcional · Agenda, reservas y solicitudes
-version: 0.4
-fecha: 2026-10-21
+version: 0.5
+fecha: 2026-10-23
 publico: negocio y equipo
 ---
 # Agenda, reservas y solicitudes
@@ -9,7 +9,7 @@ publico: negocio y equipo
 > Estado por tema tras B02-B05: **construido y verificado** la agenda pública por día (AGE-01 semilla, AGE-07, AGE-08, WEB-01; CA-15, CA-16) y la configuración de grilla en la base. El resto (reservas, solicitudes, bloqueos, gestión directa) sigue **diseñado**, sin construir ni verificar.
 
 ## Agenda y disponibilidad
-**Agenda pública por día (B02, verificado; WEB-01, CA-15, CA-16).** La pantalla de inicio (`#/`) muestra los huecos de un día en el huso del profesor, sin iniciar sesión. Abre en «hoy» según el huso del profesor, aunque el navegador esté en otro huso (con el navegador en Asia/Tokyo abre el lunes 2 y no el martes 3). Cada hueco se ve libre, ocupado o bloqueado; no aparecen nombres, observaciones ni motivos. Con la grilla inicial (lunes a viernes, 08:00-13:00 y 14:00-18:00, creada por la migración) y clases de 60 min un lunes tiene 9 huecos; con 90 min son 08:00, 09:30 y 11:00 más dos de la tarde. Un día sin huecos (por ejemplo un domingo) dice «No hay huecos este día». El día se elige con un campo de fecha y se guarda en la dirección (`?d=AAAA-MM-DD`); un `d` ausente, mal formado o fuera de los días válidos vuelve a hoy sin mensaje. Mientras carga se anuncia «Cargando los huecos del día…» y, si falla la red, hay un error con «Reintentar».
+**Agenda pública por día (B02, verificado; WEB-01, CA-15, CA-16).** Desde B14 es la agenda **de un profesor**: se abre en su enlace `#/p/<slug>` (AGE-09; ver `varios-profesores.md`) y, sin enlace, `#/` no muestra agenda. La pantalla muestra los huecos de un día en el huso del profesor, sin iniciar sesión. Abre en «hoy» según el huso del profesor, aunque el navegador esté en otro huso (con el navegador en Asia/Tokyo abre el lunes 2 y no el martes 3). Cada hueco se ve libre, ocupado o bloqueado; no aparecen nombres, observaciones ni motivos. Con la grilla inicial (lunes a viernes, 08:00-13:00 y 14:00-18:00, creada por la migración) y clases de 60 min un lunes tiene 9 huecos; con 90 min son 08:00, 09:30 y 11:00 más dos de la tarde. Un día sin huecos (por ejemplo un domingo) dice «No hay huecos este día». El día se elige con un campo de fecha y se guarda en la dirección (`?d=AAAA-MM-DD`); un `d` ausente, mal formado o fuera de los días válidos vuelve a hoy sin mensaje. Mientras carga se anuncia «Cargando los huecos del día…» y, si falla la red, hay un error con «Reintentar».
 
 **Configuración en la base (B02, sin pantalla todavía).** `guardar_configuracion` (duración, anticipación, huso) y `guardar_grilla` (tramos semanales) existen como operaciones del profesor; su pantalla (WEB-08) llega en un bolt posterior.
 
@@ -41,9 +41,9 @@ publico: negocio y equipo
 - La solicitud no vence: si pasa el horario queda en el historial como «pendiente sin respuesta»; por defecto ya no se puede responder (SOL-08, DEC-09).
 - El alumno solo ve y gestiona lo suyo; sobre lo ajeno la operación se rechaza (SOL-09, NFR-01).
 
-## Tope de solicitudes pendientes (CR-001, DEC-12)
-- Un alumno no puede tener más de **5 solicitudes pendientes** a la vez, sumando reservas, movimientos y cancelaciones. Al pedir la sexta, el sistema la rechaza con un mensaje que dice el límite (error `LIMITE_EXCEDIDO`, 429) y no ocupa ningún hueco. Cuando el profesor responde una solicitud, el alumno vuelve a poder pedir (SOL-10, CA-41).
-- Los valores (5 pendientes; 10 fichas por hora, 20 mails por hora y 200 por día en los otros documentos) están fijos en la spec: cambiarlos exige un pedido de cambio (CR-001 §4).
+## Tope de solicitudes pendientes (CR-001, DEC-12; por profesor desde CR-002, DEC-27)
+- Un alumno no puede tener más de **10 solicitudes pendientes** a la vez **con un mismo profesor** (las de un profesor no cuentan para otro), sumando reservas, movimientos y cancelaciones. Al pedir la undécima, el sistema la rechaza con un mensaje que dice el límite (error `LIMITE_EXCEDIDO`, 429) y no ocupa ningún hueco. Cuando el profesor responde una solicitud, el alumno vuelve a poder pedir (SOL-10, CA-41).
+- Los valores (10 pendientes por profesor; 10 fichas por hora, 20 mails por hora y 200 por día por profesor y 400 por día globales en los otros documentos) están fijos en la spec: cambiarlos exige un pedido de cambio (CR-001 §4).
 - Estado: aceptado por CR-001; se construye en B06 (reserva) y B08 (movimiento y cancelación). Todavía no está verificado.
 
 ## Bitácora de versiones
@@ -54,3 +54,4 @@ publico: negocio y equipo
 | 0.2 | 2026-10-21 | inception | SOL-01, SEC-10, DEC-12, ADR-016 | Topes anti-abuso como propuesta desactivada |
 | 0.3 | 2026-10-21 | construcción (hito spikes S01-S03 y CR-001) | CR-001, SOL-10, WEB-01, CA-41, CA-46, DEC-12, DEC-23, ADR-006 | Tope de 5 pendientes fijo; invitación al visitante; precisión de la agenda pública tras S03 |
 | 0.4 | 2026-10-22 | B02 | AGE-01, AGE-07, AGE-08, WEB-01, CA-15, CA-16 | Agenda pública construida y verificada; semilla de grilla; operaciones de configuración |
+| 0.5 | 2026-10-23 | B14 | CR-002, AGE-09, AGE-10, SOL-10, DEC-27 | Agenda por enlace de profesor; tope de pendientes de 10 por profesor (antes 5) |

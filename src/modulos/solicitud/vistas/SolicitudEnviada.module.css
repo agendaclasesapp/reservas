@@ -1,0 +1,30 @@
+.enviada {
+  display: grid;
+  gap: var(--e-3);
+  min-inline-size: 0;
+}
+
+.enviada:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+  border-radius: var(--r-md);
+}
+
+.texto {
+  margin: 0;
+}
+
+.lista {
+  display: grid;
+  gap: var(--e-1);
+  margin: var(--e-2) 0 0;
+  padding-inline-start: var(--e-6);
+}
+
+.enlace {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tactil-min);
+  color: var(--c-primario);
+  font-weight: var(--peso-fuerte);
+}

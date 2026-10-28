@@ -1,7 +1,7 @@
 ---
 titulo: Técnica · Base de datos, RPC y errores construidos (B02 a B05)
-version: 0.1
-fecha: 2026-10-22
+version: 0.2
+fecha: 2026-10-23
 publico: equipo técnico
 ---
 # Base de datos, RPC y errores construidos (B02 a B05)
@@ -65,7 +65,7 @@ Sin sesión, una RPC de alumno o profesor responde 401 con `42501` porque no tie
 | Fichas completadas | 10 por hora | `completar_ficha` | 429 `LIMITE_EXCEDIDO`; la cuenta sigue sin ficha y no sale mail al profesor (CA-43) |
 | Mails encolados | 20 por hora y 200 por día | `privado.encolar_mail` | La fila nace `fallido` con motivo `TOPE`; la operación que la origina se completa (AVI-08). Los destinatarios inválidos nacen `DESTINATARIO_INVALIDO` y no cuentan |
 
-Los valores son fijos por CR-001 y se miden con `app_ahora()`. Motivos de fallo de un mail: `TOPE`, `SIN_CONFIRMACION` (un envío en curso más de 10 minutos pasa a fallido sin reintento), `DESTINATARIO_INVALIDO` o el texto del servidor SMTP.
+Los valores son fijos por CR-001 y se miden con `app_ahora()`. **Desde B14 los topes son por profesor y hay uno global de 400 mails por día; el de solicitudes pendientes es 10 por alumno y profesor** (ver `varios-profesores-b14.md` §5). Motivos de fallo de un mail: `TOPE`, `SIN_CONFIRMACION` (un envío en curso más de 10 minutos pasa a fallido sin reintento), `DESTINATARIO_INVALIDO` o el texto del servidor SMTP.
 
 ## 5. Permisos de `mail_salida` (ADR-005)
 
@@ -86,3 +86,4 @@ El profesor lee de `mail_salida` solo `id`, `tipo`, `destinatario`, `estado`, `m
 | Versión | Fecha | Bolt | IDs | Cambio |
 | --- | --- | --- | --- | --- |
 | 0.1 | 2026-10-22 | B02-B05 | AGE-07, AVI-02, AVI-03, AVI-08, ALU-02..09, ALU-13, NFR-07, ADR-005, ADR-013 | Primera versión: migraciones, RPC, errores y topes construidos |
+| 0.2 | 2026-10-23 | B14 | CR-002 | Nota: topes por profesor y global desde B14 |

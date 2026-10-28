@@ -1,0 +1,57 @@
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: var(--e-1);
+  min-inline-size: 0;
+}
+
+.etiqueta {
+  font-weight: var(--peso-fuerte);
+}
+
+.opcional {
+  font-weight: var(--peso-normal);
+  color: var(--c-texto-suave);
+}
+
+.ayuda {
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--c-texto-suave);
+}
+
+.entrada {
+  box-sizing: border-box;
+  inline-size: 100%;
+  min-block-size: var(--tactil-min);
+  padding: var(--e-2) var(--e-3);
+  border: var(--borde-ancho) solid var(--c-borde);
+  border-radius: var(--r-md);
+  font: inherit;
+  color: var(--c-texto);
+  background: var(--c-fondo);
+  resize: vertical;
+}
+
+.entrada:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+.entrada:disabled {
+  color: var(--c-texto-suave);
+  background: var(--c-superficie);
+  cursor: not-allowed;
+}
+
+.conError {
+  border-color: var(--c-error);
+  background: var(--c-error-fondo);
+}
+
+.error {
+  margin: 0;
+  font-size: var(--t-xs);
+  font-weight: var(--peso-fuerte);
+  color: var(--c-error);
+}

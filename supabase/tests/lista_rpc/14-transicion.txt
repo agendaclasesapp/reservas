@@ -1,8 +1,0 @@
-# B14 · funciones de transición (ADR-021 §2, ADR-020): quedan mientras se despliega la web de B14 y las
-# borra la contracción de B15 (T15.4), que borra también este archivo. Delegan en el único profesor y con
-# cero o más de uno responden 404 NO_ENCONTRADO.
-# No lo lee tests/soporte/sincronizar-lista-rpc.mjs (solo NN.txt): estas firmas comparten nombre con las
-# de 01.txt/02.txt/14.txt, y SEC-04 las cubre por nombre.
-# Formato: `<rol> <funcion(firma)>`.
-anon config_publica()
-anon agenda_publica(p_dia date)

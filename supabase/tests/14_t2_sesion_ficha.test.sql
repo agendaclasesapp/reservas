@@ -225,8 +225,9 @@ select is(jsonb_array_length(pg_temp.res('s_ana2') -> 'inscripciones'), 1, 'ADR-
 
 -- 7. Personas a cargo (ALU-06): de la persona, sin profesor --------------------------------------------------
 select pg_temp.como('a1420000-0000-0000-0000-000000000001', $$select public.guardar_persona_a_cargo(null, 'Hija de Ana', '2015-05-05')::text$$, 'pc');
-select is((select count(*)::int from public.persona_a_cargo where alumno_id = pg_temp.persona('a1420000-0000-0000-0000-000000000001') and profesor_id is null),
-  1, 'ALU-06: la persona a cargo es de la cuenta, sin profesor');
+select is((select count(*)::int from public.persona_a_cargo where alumno_id = pg_temp.persona('a1420000-0000-0000-0000-000000000001'))
+  || '/' || (select count(*)::int from information_schema.columns where table_schema = 'public' and table_name = 'persona_a_cargo' and column_name = 'profesor_id'),
+  '1/0', 'ALU-06: la persona a cargo es de la cuenta y la tabla ya no tiene columna profesor_id (contracción 0539)');
 select pg_temp.como('a1420000-0000-0000-0000-00000000000b',
   $$select count(*)::text from public.persona_a_cargo where nombre = 'Hija de Ana'$$, 'pc_b');
 select pg_temp.como('a1420000-0000-0000-0000-00000000000a',

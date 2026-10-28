@@ -137,8 +137,7 @@ describe('SEC-02 aislamiento por fila (alumno, persona_a_cargo, profesor)', () =
   });
   it('SEC-02_persona_a_cargo_ajena_no_se_ve', async () => {
     const a = await sesionDe('alumno');
-    const idA = await profesorId(SLUG_A);
-    const [f] = await sql<{ id: string }>("insert into public.persona_a_cargo (profesor_id, alumno_id, nombre) values ($1, $2, 'Hijo de prueba') returning id", [idA, a.alumnoId]);
+    const [f] = await sql<{ id: string }>("insert into public.persona_a_cargo (alumno_id, nombre) values ($1, 'Hijo de prueba') returning id", [a.alumnoId]);
     try {
       expect(((await rest('alumno', 'GET', `persona_a_cargo?select=id&id=eq.${f.id}`)).cuerpo as unknown[]).length).toBe(1);
       expect((await rest('alumnoB', 'GET', `persona_a_cargo?select=id&id=eq.${f.id}`)).cuerpo).toEqual([]);

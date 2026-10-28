@@ -1,8 +1,9 @@
 -- B14 · T14.2 · Alta y edición de alumnos con la persona única (DEC-29 b, DEC-31, DEC-32 A, DEC-36 A) y dos profesores.
--- IDs: ALU-07, ALU-08, ALU-09, AVI-04, AVI-07, PRF-07, PRF-08, SEC-06, SEC-09. CA-06, CA-27, CA-52, CA-61, CA-63.
+-- IDs: ALU-07, ALU-08, ALU-09, AVI-04, AVI-07, AVI-08, PRF-07, PRF-08, SEC-06, SEC-09. CA-06, CA-27, CA-52, CA-61, CA-63.
+-- B15 · T15.0: DEC-38 a (aviso «te sumó» al agregar por edición un mail nuevo a un alumno sin cuenta).
 -- Pruebas propias del developer; datos sintéticos (@example.test); todo se deshace con el rollback.
 begin;
-select plan(27);
+select plan(32);
 
 create function pg_temp.como(p_sub uuid, p_sql text, p_clave text) returns void language plpgsql as $f$
 declare
@@ -135,6 +136,9 @@ $f$;
 select pg_temp.editar('a1420000-0000-0000-0000-00000000000a', current_setting('rtc.nuevo'), 'Nuevo Editado', 'pgtap142.nuevo@example.test', 'ed_ok');
 select is(pg_temp.r('ed_ok') || (select nombre from public.alumno where id = current_setting('rtc.nuevo')::uuid), 'ok Nuevo Editado',
   'DEC-32: A edita la ficha que cargó, sin usuario y sin otro profesor');
+select is((select count(*)::int from public.mail_salida where tipo = 'alumno_sumado' and alumno_id = current_setting('rtc.nuevo')::uuid
+            and profesor_id = current_setting('rtc.pa')::uuid), 1,
+  'DEC-38: editar otros campos sin cambiar el mail no repite el aviso «te sumó» (solo el del alta)');
 select pg_temp.editar('a1420000-0000-0000-0000-00000000000a', current_setting('rtc.ana'), 'Ana Pisada', 'pgtap142.ana@example.test', 'ed_ana');
 select is(pg_temp.r('ed_ana') || '|' || (select nombre from public.alumno where id = current_setting('rtc.ana')::uuid),
   'PT403 PROHIBIDO|Ana Original', 'DEC-32: la ficha de quien tiene cuenta no la edita el profesor (403)');
@@ -145,6 +149,10 @@ select is(pg_temp.r('ed_ajeno'), 'PT404 NO_ENCONTRADO', 'PRF-07/CA-52: editar a 
 select pg_temp.editar('a1420000-0000-0000-0000-00000000000a', current_setting('rtc.sin'), 'Sin Mail', 'pgtap142.agregado@example.test', 'ed_add');
 select is((select estado from public.inscripcion where alumno_id = current_setting('rtc.sin')::uuid), 'aprobado',
   'DEC-36 A/ALU-07: agregar un mail nuevo a un alumno sin cuenta lo deja aprobado');
+select is((select string_agg(estado || '|' || remitente_nombre || '|' || responder_a || '|' || destinatario, ',') from public.mail_salida
+            where tipo = 'alumno_sumado' and alumno_id = current_setting('rtc.sin')::uuid and profesor_id = current_setting('rtc.pa')::uuid),
+  'pendiente|Profe A|pgtap142.profa@example.test|pgtap142.agregado@example.test',
+  'DEC-38 a/AVI-04: al agregarle un mail nuevo, el alumno sin cuenta recibe el mismo aviso «te sumó» del alta');
 select pg_temp.editar('a1420000-0000-0000-0000-00000000000a', current_setting('rtc.sin'), 'Sin Mail', 'pgtap142.ana@example.test', 'ed_usado');
 select is(pg_temp.rd('ed_usado'), 'PT409 MAIL_YA_REGISTRADO ' || jsonb_build_object('alumno_id', current_setting('rtc.ana')::uuid)::text,
   'DEC-36 A: con el mail de otra persona que ya es alumna suya da 409 con su alumno_id y no la asocia');
@@ -156,6 +164,24 @@ select is(array[pg_temp.rd('ed_otro'), pg_temp.rd('ed_prof')],
 select pg_temp.editar('a1420000-0000-0000-0000-00000000000a', current_setting('rtc.sin'), 'Sin Mail', '', 'ed_quitar');
 select is((select coalesce(a.mail::text, '-') || '/' || i.estado from public.alumno a join public.inscripcion i on i.alumno_id = a.id
             where a.id = current_setting('rtc.sin')::uuid), '-/sin_cuenta', 'ALU-08: quitar el mail lo deja sin cuenta');
+select is((select count(*)::int from public.mail_salida where tipo = 'alumno_sumado' and alumno_id = current_setting('rtc.sin')::uuid), 1,
+  'DEC-38: el mail ya usado (409) y quitar el mail no encolan otro aviso');
+
+-- DEC-38 con el tope de mails del profesor (AVI-08): la edición se guarda y el aviso nace fallido `TOPE`;
+-- cambiar después el mail de quien ya lo tenía no repite el aviso.
+select pg_temp.alta('a1420000-0000-0000-0000-00000000000a', 'Tope', null, 'al_tope');
+select set_config('rtc.tope', pg_temp.res('al_tope') ->> 'alumno_id', true) is not null as _;
+update privado.ajustes set tope_mails_hora = 1;
+select pg_temp.editar('a1420000-0000-0000-0000-00000000000a', current_setting('rtc.tope'), 'Tope', 'pgtap142.tope@example.test', 'ed_tope');
+select is(pg_temp.r('ed_tope') || '|' || (select i.estado from public.inscripcion i where i.alumno_id = current_setting('rtc.tope')::uuid)
+          || '|' || (select string_agg(m.estado || '/' || coalesce(m.motivo_fallo, '-'), ',') from public.mail_salida m
+                      where m.tipo = 'alumno_sumado' and m.alumno_id = current_setting('rtc.tope')::uuid),
+  'ok |aprobado|fallido/TOPE', 'DEC-38/AVI-08: sobre el tope del profesor la edición se guarda y el aviso nace fallido TOPE');
+update privado.ajustes set tope_mails_hora = 20;
+select pg_temp.editar('a1420000-0000-0000-0000-00000000000a', current_setting('rtc.tope'), 'Tope', 'pgtap142.tope2@example.test', 'ed_tope2');
+select is(pg_temp.r('ed_tope2') || '|' || (select count(*)::int from public.mail_salida
+                                            where tipo = 'alumno_sumado' and alumno_id = current_setting('rtc.tope')::uuid)::text,
+  'ok |1', 'DEC-38: cambiar el mail de un alumno que ya tenía uno no manda otro aviso');
 
 -- Ficha compartida: B asocia a «Nuevo» (sin usuario) y A ya no la edita.
 select pg_temp.alta('a1420000-0000-0000-0000-00000000000b', 'Lo que carga B', 'pgtap142.nuevo@example.test', 'al_b_nuevo');

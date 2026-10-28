@@ -1,0 +1,50 @@
+.form {
+  display: grid;
+  gap: var(--e-4);
+  min-inline-size: 0;
+}
+
+.horario {
+  margin: 0;
+  font-size: var(--t-md);
+}
+
+.quien {
+  display: grid;
+  gap: var(--e-2);
+}
+
+.texto {
+  margin: 0;
+}
+
+.ayuda {
+  margin: 0;
+  font-size: var(--t-xs);
+  color: var(--c-texto-suave);
+}
+
+.enlace {
+  color: var(--c-primario);
+  font-weight: var(--peso-fuerte);
+}
+
+.enlaceAccion {
+  display: inline-flex;
+  align-items: center;
+  min-block-size: var(--tactil-min);
+  color: var(--c-primario);
+  font-weight: var(--peso-fuerte);
+}
+
+.acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-3);
+}
+
+.envio {
+  display: grid;
+  gap: var(--e-2);
+}

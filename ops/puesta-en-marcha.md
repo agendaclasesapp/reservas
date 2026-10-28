@@ -31,8 +31,13 @@ Comprobación en `verificar-repo.md`.
 
 ## 5. Secretos de la función y Vault (a mano, ADR-012)
 `GMAIL_USER`, `GMAIL_APP_PASSWORD` (sin espacios) y `MAIL_SECRETO` ya están cargados (S01). Verifica nombres y
-digest con `mails.md`. Vault de producción (`url_funcion_mail`, `mail_secreto`) se carga a mano, nunca por
-migración ni `seed.sql`.
+digest con `mails.md`. Vault de producción (`url_funcion_mail`, `mail_secreto` y `url_sitio`) se carga a mano, nunca por
+migración ni `seed.sql`. `url_sitio` es la dirección del sitio publicado (enlace del mail de alta del profesor,
+ADM-02) y se carga **antes del alta de profesores en `#/admin`** (§7b):
+
+    select vault.create_secret('https://agendaclasesapp.github.io/reservas/', 'url_sitio');
+
+Detalle y actualización: `mails.md`.
 
 ## 6. Primer `supabase-deploy`
 Actions > supabase-deploy > Run workflow; apruébalo como revisor del environment tras mirar el
@@ -57,6 +62,18 @@ operador, con tres argumentos (devuelve el id):
 Los mails y el nombre no se escriben en el repositorio, en variables de GitHub ni en logs de Actions.
 Es idempotente. Si falla por «otro user_id», la fila ya está vinculada a otra cuenta: no la fuerces.
 Instalación que viene de B01 a B05 con un profesor ya configurado: `ops/migracion-multiprofesor.md`.
+
+## 7b. Alta del profesor actual y contracción (B15, ADM-01, ADM-02; ADR-021)
+Con la expansión de B14 desplegada y el humo en verde (`migracion-multiprofesor.md` §3 y §4), en este orden:
+
+1. Cargar `url_sitio` en Vault (§5).
+2. Migraciones `202611000526`, `0530` y `0531` desde la etiqueta `prod-b15a` (el dry-run lista exactamente esas tres).
+3. Leer el mail de la fila provisional (`migracion-multiprofesor.md` §5.1 paso 3). El Administrador ingresa y en `#/admin`
+   da de alta al profesor actual con ese mail, nombre y **slug definitivo** (adopta la fila de slug provisional,
+   `adoptado: true`; con `adoptado: false` parar e inactivar el profesor nuevo; el enlace provisional deja de valer: avisar antes).
+4. Humo con el slug nuevo y contracción `202611000539` desde `prod-b15b`: `migracion-multiprofesor.md` §5.1 y §5.2. Solo
+   con la web de B14 publicada y el humo en verde, y **siempre antes de cualquier migración `2026110006*`** (B06, etiqueta
+   `prod-b06`): `db push` va sin `--include-all`. Desde la contracción `inversa-b14.sql` no sirve: solo el dump.
 
 ## 8. Keepalive
 Actions > keepalive > Run workflow (manual). Debe quedar en verde y el workflow se re-habilita solo

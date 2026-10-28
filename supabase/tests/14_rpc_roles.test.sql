@@ -4,7 +4,7 @@
 -- Las respuestas se comparan como `sqlstate mensaje`. No repite 14_t2_* (rama feliz y errores propios de cada RPC).
 -- Datos sintéticos (@example.test); todo se deshace con el rollback.
 begin;
-select plan(24);
+select plan(26);
 
 create function pg_temp.llamar(p_sub text, p_sql text, p_rol text default 'authenticated') returns text language plpgsql as $f$
 declare v text;
@@ -158,9 +158,19 @@ select is(array[
   array['42501 permission denied for table profesor', '42501 permission denied for table administrador',
         '42501 permission denied for table administrador', '42501 permission denied for table administrador'],
   'CA-49/ADM-01: UPDATE directo del profesor o INSERT en la tabla de roles dan 42501; ni siquiera se lee quién es el Administrador');
+-- B15: `alta_profesor` existe como RPC `[Adm]` (contratos.md §3) y es la única; ninguna otra permite darse de alta.
 select is((select coalesce(array_agg(p.proname::text order by p.proname), '{}') from pg_proc p join pg_namespace n on n.oid = p.pronamespace
             where n.nspname = 'public' and p.proname ~ 'administrador|alta_profesor|configurar|profesor_alta'),
-  '{}'::text[], 'CA-49: no existe ninguna RPC pública para darse de alta como profesor ni como Administrador (la de B15 es solo del Administrador)');
+  '{alta_profesor}'::text[], 'CA-49: la única RPC pública de alta de profesores es alta_profesor [Adm]; no hay otra para darse de alta como profesor ni como Administrador');
+select is(array[
+    pg_temp.llamar(null, $$select public.alta_profesor('pgtap14p.nuevo@example.test', 'Nuevo', 'pgtap14p-nuevo')$$, 'anon'),
+    pg_temp.llamar('e1411000-0000-0000-0000-0000000000a2', $$select public.alta_profesor('pgtap14p.nuevo@example.test', 'Nuevo', 'pgtap14p-nuevo')$$),
+    pg_temp.llamar('e1411000-0000-0000-0000-0000000000a1', $$select public.alta_profesor('pgtap14p.nuevo@example.test', 'Nuevo', 'pgtap14p-nuevo')$$),
+    pg_temp.llamar('e1411000-0000-0000-0000-00000000000a', $$select public.alta_profesor('pgtap14p.nuevo@example.test', 'Nuevo', 'pgtap14p-nuevo')$$),
+    pg_temp.llamar('e1411000-0000-0000-0000-00000000000b', $$select public.alta_profesor('pgtap14p.nuevo@example.test', 'Nuevo', 'pgtap14p-nuevo')$$)],
+  array['42501 permission denied for function alta_profesor', 'PT403 PROHIBIDO', 'PT403 PROHIBIDO', 'PT403 PROHIBIDO', 'PT403 PROHIBIDO'],
+  'CA-49/SEC-06: alta_profesor da 403 a la ficha incompleta, a la persona y a los dos profesores, y 42501 a anon');
+select is((select count(*)::int from public.profesor where mail = 'pgtap14p.nuevo@example.test'), 0, 'CA-49: ninguna de esas llamadas creó un profesor');
 -- Un mail sin alta entra como persona (DEC-30, DEC-31, SEC-14).
 select pg_temp.usuario('e1411000-0000-0000-0000-0000000000a9', 'pgtap14p.cualquiera@example.test');
 select is((select public.sesion_actual()::jsonb ->> 'rol' from (select set_config('request.jwt.claims', '{"sub":"e1411000-0000-0000-0000-0000000000a9","role":"authenticated"}', true)) _ ),

@@ -35,7 +35,7 @@ export interface ErrorTraducido {
 }
 
 /** Tope de SOL-10; se usa si `details.limite` no llega o no es válido. */
-export const LIMITE_PENDIENTES_SOL10 = 5;
+export const LIMITE_PENDIENTES_SOL10 = 10;
 
 export const MENSAJE_GENERICO = 'No pudimos completar la operación. Probá de nuevo en unos minutos.';
 export const MENSAJE_SIN_CONEXION = 'No hay conexión con el servidor. Revisá tu conexión y probá de nuevo.';

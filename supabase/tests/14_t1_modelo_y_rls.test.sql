@@ -107,7 +107,7 @@ select is((select user_id::text from privado.administrador), 'e1400000-0000-0000
   'ADM-01: el trigger vincula al Administrador por su mail confirmado');
 select is((select count(*) from public.alumno where user_id = 'e1400000-0000-0000-0000-0000000000c1')::int, 0,
   'ADM-01/DEC-31: el Administrador que no es profesor no recibe ficha de alumno');
-select ok((select estado = 'ficha_incompleta' and profesor_id is null and creado_por is null and ficha_origen_profesor_id is null
+select ok((select estado = 'ficha_incompleta' and creado_por is null and ficha_origen_profesor_id is null
              from public.alumno where user_id = 'e1400000-0000-0000-0000-0000000000d1'),
   'ALU-14/DEC-25: un mail sin alta entra como persona con ficha incompleta y sin profesor');
 select is((select count(*) from public.inscripcion i join public.alumno a on a.id = i.alumno_id

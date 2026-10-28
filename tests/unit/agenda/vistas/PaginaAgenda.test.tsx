@@ -87,7 +87,9 @@ describe('Agenda por día: huecos (WEB-01, AGE-07, NFR-05)', () => {
     ]);
     // Cada estado lleva ícono (decorativo) además del texto.
     for (const fila of filas) expect(fila.querySelector('svg')).not.toBeNull();
-    expect(filas.map((f) => f.getAttribute('data-estado'))).toEqual(['libre', 'ocupado', 'bloqueado']);
+    // El libre es un botón para tocarlo (WEB-01, CA-46): ocupado y bloqueado conservan su `data-estado`.
+    expect(filas.map((f) => f.getAttribute('data-estado'))).toEqual([null, 'ocupado', 'bloqueado']);
+    expect(within(filas[0] as HTMLElement).getByRole('button', { name: '08:00 a 09:00 Libre' })).toBeTruthy();
     expect(screen.getByText('Horarios en el huso America/Argentina/Buenos_Aires.')).toBeTruthy();
     await sinViolacionesAxe(container);
   });
@@ -99,10 +101,11 @@ describe('Agenda por día: huecos (WEB-01, AGE-07, NFR-05)', () => {
     expect(screen.getByText('1 hueco libre de 3.')).toBeTruthy();
   });
 
-  it('AGE_07_la_vista_publica_no_interactua_ni_muestra_mas_que_hora_y_estado', async () => {
+  it('AGE_07_solo_el_hueco_libre_se_toca_y_la_vista_no_muestra_mas_que_hora_y_estado', async () => {
     montar();
     const lista = await screen.findByRole('list', { name: 'Huecos del día' });
-    expect(within(lista).queryAllByRole('button')).toHaveLength(0);
+    // Ocupado y bloqueado nunca son interactivos; el libre es el único botón (WEB-01).
+    expect(within(lista).getAllByRole('button').map((b) => b.textContent)).toEqual(['08:00 a 09:00 Libre']);
     expect(lista.textContent).not.toMatch(/@|motivo|observaci/i);
   });
 

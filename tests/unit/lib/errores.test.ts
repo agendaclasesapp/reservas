@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   CODIGOS_ERROR,
-  LIMITE_PENDIENTES_SOL10,
   MENSAJE_FICHAS_ALU13,
   MENSAJE_GENERICO,
   MENSAJE_LIMITE_OTRO,
@@ -117,7 +116,7 @@ describe('errores.ts: LIMITE_EXCEDIDO según details.tope (ADR-016)', () => {
   it('SOL_10_limite_ausente_o_invalido_usa_el_de_la_spec_y_no_lo_copia', () => {
     for (const limite of [undefined, -1, 2.5, '9; DROP', null]) {
       const m = mensajeDeError(errorRpc('LIMITE_EXCEDIDO', { tope: 'pendientes', limite }, 'PT429'));
-      expect(m).toContain(`${LIMITE_PENDIENTES_SOL10} solicitudes pendientes`);
+      expect(m).toContain('10 solicitudes pendientes'); // SOL-10: literal, no la constante [H-292]
       expect(m).not.toContain('DROP');
     }
   });

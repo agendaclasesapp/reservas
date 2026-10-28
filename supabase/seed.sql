@@ -39,3 +39,9 @@ select vault.create_secret('http://kong:8000/functions/v1/enviar-mail', 'url_fun
  where not exists (select 1 from vault.secrets where name = 'url_funcion_mail');
 select vault.create_secret('secreto-solo-local-sin-valor', 'mail_secreto')
  where not exists (select 1 from vault.secrets where name = 'mail_secreto');
+
+-- 5. Vault: dirección del sitio publicado (DEC-14; ADM-02, CA-49). El mail de alta del profesor arma con ella
+--    el enlace completo `<url>/#/p/<slug>`; sin el secreto el mail solo dice cómo termina el enlace. Local:
+--    la misma URL que `RTC_SITE_URL` de `supabase/.env.development` (Vite). Producción: a mano (`ops/mails.md`).
+select vault.create_secret('http://127.0.0.1:5173/reservas/', 'url_sitio')
+ where not exists (select 1 from vault.secrets where name = 'url_sitio');

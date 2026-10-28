@@ -395,7 +395,13 @@ describe('CA-51 / CA-63 agenda por slug con dos profesores', () => {
     }
   });
 
-  it('CA-63_sin_slug_con_dos_profesores_las_funciones_de_transicion_dan_404', async () => {
+  it('CA-47_CA-63_las_funciones_de_transicion_sin_slug_ya_no_existen_tras_la_contraccion_0539', async () => {
+    // Catálogo: no queda config_publica() ni agenda_publica(date); solo las versiones con slug.
+    const firmas = await sql<{ f: string }>(
+      "select p.proname || '(' || pg_get_function_identity_arguments(p.oid) || ')' f from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'public' and p.proname in ('config_publica', 'agenda_publica') order by 1",
+    );
+    expect(firmas.map((x) => x.f)).toEqual(['agenda_publica(p_slug text, p_dia date)', 'config_publica(p_slug text)']);
+    // API: PostgREST no la encuentra (PGRST202), no es un 404 de la aplicación.
     const e = entorno();
     for (const [fn, cuerpo] of [
       ['agenda_publica', { p_dia: LUNES }],
@@ -406,7 +412,9 @@ describe('CA-51 / CA-63 agenda por slug con dos profesores', () => {
         headers: { apikey: e.anonKey, Authorization: `Bearer ${e.anonKey}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(cuerpo),
       });
-      expect(r.status, `${fn}: ${await r.text()}`).toBe(404);
+      const texto = await r.text();
+      expect(r.status, `${fn}: ${texto}`).toBe(404);
+      expect((JSON.parse(texto) as { code: string }).code, fn).toBe('PGRST202');
     }
   });
 });
