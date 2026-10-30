@@ -38,7 +38,9 @@ describe('SEC-11 / H-130 la función exige la firma HMAC y valida `ids`', () => 
   it('SEC-11_H-130_sin_firma_con_firma_mala_ts_fuera_de_ventana_cuerpo_alterado_o_el_x_mail_secreto_viejo_es_401_y_la_fila_pendiente_no_se_toca', async () => {
     const id = await insertarFila({ estado: 'pendiente' }, true);
     const texto = textoDe({ ids: [id] });
-    const ahora = Math.floor(Date.now() / 1000);
+    // La hora se toma al firmar cada pedido: con una sola al principio, las invocaciones anteriores acercan el ts
+    // futuro a la ventana y la función lo acepta (200) cuando tardan más de un segundo en total.
+    const ahora = () => Math.floor(Date.now() / 1000);
     const respuestas = {
       sinCabecera: await invocar({ ids: [id] }, {}),
       secretoViejo: await invocar({ ids: [id] }, { 'x-mail-secreto': SECRETO_LOCAL }),
@@ -46,8 +48,8 @@ describe('SEC-11 / H-130 la función exige la firma HMAC y valida `ids`', () => 
       prefijo: await invocar({ ids: [id] }, firmar(texto, SECRETO_LOCAL.slice(0, -1))),
       firmaVacia: await invocar({ ids: [id] }, { ...firmar(texto), 'x-mail-firma': '' }),
       sinTs: await invocar({ ids: [id] }, { 'x-mail-firma': firmar(texto)['x-mail-firma'] }),
-      tsViejo: await invocar({ ids: [id] }, firmar(texto, SECRETO_LOCAL, ahora - 301)),
-      tsFuturo: await invocar({ ids: [id] }, firmar(texto, SECRETO_LOCAL, ahora + 301)),
+      tsViejo: await invocar({ ids: [id] }, firmar(texto, SECRETO_LOCAL, ahora() - 360)),
+      tsFuturo: await invocar({ ids: [id] }, firmar(texto, SECRETO_LOCAL, ahora() + 360)),
       cuerpoAlterado: await invocar({ ids: [id] }, firmar(textoDe({ ids: [] }))),
     };
     const [fila] = await sql<{ estado: string; intentado_en: Date | null }>('select estado, intentado_en from public.mail_salida where id = $1', [id]);
