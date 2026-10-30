@@ -16,13 +16,17 @@ export type EstadoCuentaNavegacion =
   | 'sin_cuenta'
   | 'borrado';
 
-/** Quién navega. */
-export type UsuarioNavegacion =
+/**
+ * Quién navega. `nombre`: quién está conectado, que se muestra junto a "Salir" (WEB-13); la vista lo muestra
+ * como texto (SEC-16).
+ */
+export type UsuarioNavegacion = { nombre?: string } & (
   /** `esAdministrador`: el profesor que además es Administrador ve también «Administración» (ADR-020). */
   | { rol: 'profesor'; esAdministrador?: boolean }
   /** Administrador que no es profesor: solo «Administración» (WEB-10, B15). */
   | { rol: 'administrador' }
-  | { rol: 'alumno'; estado: EstadoCuentaNavegacion };
+  | { rol: 'alumno'; estado: EstadoCuentaNavegacion }
+);
 
 export type NavegacionProps = {
   /** Sin usuario: visitante. */
@@ -119,6 +123,20 @@ export function Navegacion({ usuario, ruta, onSalir, rutaAgenda = '/', etiqueta 
             </a>
           </li>
         ))}
+        {usuario?.nombre ? (
+          // WEB-13: quién está conectado, junto a "Salir"; el rol solo si la cuenta tiene más de uno.
+          <li className={estilos.conectado}>
+            <span className={estilos.soloLectores}>Conectado como </span>
+            <span className={estilos.nombre} title={usuario.nombre}>
+              {usuario.nombre}
+            </span>
+            {usuario.rol === 'profesor' && usuario.esAdministrador === true ? (
+              <span className={estilos.rol}>
+                <span className={estilos.soloLectores}>, </span>Profesor y Administrador
+              </span>
+            ) : null}
+          </li>
+        ) : null}
         {usuario && onSalir ? (
           <li>
             <Boton variante="secundario" onClick={onSalir}>

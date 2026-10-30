@@ -71,6 +71,54 @@ describe('Navegacion (C-13, NFR-05, NFR-06)', () => {
     expect(screen.getByRole('link', { name: 'Agenda' }).getAttribute('href')).toBe('#/');
   });
 
+  describe('WEB-13, CA-66: quién está conectado', () => {
+    it('WEB_13_muestra_el_nombre_junto_a_Salir_y_el_lector_anuncia_Conectado_como', () => {
+      render(
+        <Navegacion ruta="/panel" usuario={{ rol: 'profesor', nombre: 'Prof Ana Pérez' }} onSalir={() => undefined} />,
+      );
+      expect(textos()).toEqual(['Panel', 'Lista', 'Configuración', 'Conectado como Prof Ana Pérez', 'Salir']);
+      expect(screen.getByText('Prof Ana Pérez').getAttribute('title')).toBe('Prof Ana Pérez');
+      expect(screen.queryByText(/Administrador/)).toBeNull();
+    });
+
+    it('WEB_13_el_rol_aparece_solo_si_la_cuenta_tiene_mas_de_uno', () => {
+      render(
+        <>
+          <Navegacion ruta="/panel" usuario={{ rol: 'profesor', esAdministrador: true, nombre: 'Prof Ana' }} />
+          <Navegacion ruta="/admin" etiqueta="Admin" usuario={{ rol: 'administrador', nombre: 'admin@example.com' }} />
+          <Navegacion ruta="/ficha" etiqueta="Alumno" usuario={{ rol: 'alumno', estado: 'aprobado', nombre: 'Beto' }} />
+        </>,
+      );
+      expect(textos()).toContain('Conectado como Prof Ana, Profesor y Administrador');
+      expect(screen.getAllByText('Profesor y Administrador')).toHaveLength(1);
+      expect(screen.getByText('admin@example.com')).toBeTruthy();
+      expect(screen.getByText('Beto')).toBeTruthy();
+    });
+
+    it('WEB_13_sin_sesion_o_sin_nombre_no_aparece', () => {
+      render(
+        <>
+          <Navegacion ruta="/" />
+          <Navegacion ruta="/panel" etiqueta="Profesor" usuario={{ rol: 'profesor' }} />
+        </>,
+      );
+      expect(screen.queryByText(/Conectado como/)).toBeNull();
+    });
+
+    it('WEB_13_sin_violaciones_de_axe_con_el_menu_abierto_y_cerrado', async () => {
+      const { container } = render(
+        <Navegacion
+          ruta="/panel"
+          usuario={{ rol: 'profesor', esAdministrador: true, nombre: 'Prof Ana Pérez' }}
+          onSalir={() => undefined}
+        />,
+      );
+      await sinViolacionesAxe(container);
+      await userEvent.click(screen.getByRole('button', { name: 'Menú' }));
+      await sinViolacionesAxe(container);
+    });
+  });
+
   it('"Salir" llama a onSalir', async () => {
     const onSalir = vi.fn();
     render(<Navegacion ruta="/" usuario={{ rol: 'profesor' }} onSalir={onSalir} />);
