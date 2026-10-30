@@ -276,7 +276,7 @@ test('WEB-03 ficha obligatoria, errores por campo, estado pendiente con el profe
       await expect(page.getByRole('heading', { level: 2, name: 'Tus profesores' })).toBeVisible();
       await expect(page.getByRole('heading', { level: 3, name: NOMBRE_A })).toBeVisible();
       await expect(page.getByText('Pendiente de aprobación', { exact: true })).toBeVisible();
-      await expect(page.getByText('Ana Pérez')).toBeVisible();
+      await expect(page.locator('#contenido').getByText('Ana Pérez')).toBeVisible();
       const [i] = await sql<{ estado: string; como_llego: string }>(
         `select i.estado, i.como_llego from public.inscripcion i
            join public.alumno a on a.id = i.alumno_id join public.profesor p on p.id = i.profesor_id
