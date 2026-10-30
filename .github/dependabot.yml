@@ -8,6 +8,18 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
+    # Saltos de versión mayor que hoy no se toman (2026-10-30): eslint 10 no lo soportan aún jsx-a11y ni
+    # eslint-plugin-react; @types/node sigue la versión de Node de .nvmrc (22); react-router 8 espera a cerrar
+    # las comprobaciones manuales de producción. Las alertas de seguridad siguen llegando igual.
+    ignore:
+      - dependency-name: eslint
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+      - dependency-name: react-router
+        update-types: ['version-update:semver-major']
     groups:
       menores-y-parches:
         update-types: [minor, patch]
