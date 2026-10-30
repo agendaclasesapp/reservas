@@ -417,6 +417,15 @@ const proximoDomingo = () => {
   while (d.getUTCDay() !== 0) d.setUTCDate(d.getUTCDate() + 1);
   return d.toISOString().slice(0, 10);
 };
+/**
+ * Próximo día hábil desde mañana: la grilla de AGE-01 es de lunes a viernes y, en ese día, todos sus huecos están por
+ * delante. «Hoy» deja de servir pasadas las 18:00 de Uruguay, cuando ya no le quedan huecos libres.
+ */
+const proximoHabil = () => {
+  const d = new Date(Date.now() + 86_400_000);
+  while (d.getUTCDay() === 0 || d.getUTCDay() === 6) d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
 const encabezado = (page: Page) => expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible({ timeout: 30_000 });
 const agendaCargada = async (page: Page) => {
   await encabezado(page);
@@ -529,8 +538,8 @@ const CASOS: Caso[] = [
   {
     rol: 'profesor',
     id: 'WEB-06 panel con acciones de un hueco abiertas',
-    ruta: '#/panel',
-    esperar: encabezado,
+    ruta: `#/panel?d=${proximoHabil()}`,
+    esperar: agendaCargada,
     disparador: libres,
     web: 'WEB-06',
   },
