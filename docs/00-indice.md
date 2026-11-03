@@ -1,7 +1,7 @@
 ---
 titulo: Índice de la documentación · Agenda Clases App
-version: 0.12
-fecha: 2026-10-28
+version: 0.17
+fecha: 2026-10-31
 publico: todos
 ---
 # Índice de la documentación
@@ -13,6 +13,7 @@ Estado: B01 a B05 (plataforma, agenda pública, mails, ingreso y cuentas), B14 (
 | [onboarding.md](onboarding.md) | Qué es el sistema, piezas, cómo se levanta, dónde está cada cosa, glosario | Equipo nuevo |
 | [funcional/alumnos-y-cuentas.md](funcional/alumnos-y-cuentas.md) | Ingreso, ficha, aprobación, unión, retención | Negocio, equipo |
 | [funcional/agenda-reservas-solicitudes.md](funcional/agenda-reservas-solicitudes.md) | Agenda, reservas y solicitudes | Negocio, equipo |
+| [funcional/calendario-del-panel.md](funcional/calendario-del-panel.md) | Calendario Día/Semana del Panel del profesor (en construcción; Día con acciones construido en B18) | Negocio, equipo |
 | [funcional/varios-profesores.md](funcional/varios-profesores.md) | Enlace por profesor, vínculos, selector, Administrador, pausa, mails y topes, nombre del producto | Negocio, equipo |
 | [funcional/profesor-y-avisos.md](funcional/profesor-y-avisos.md) | Gestión directa, vista lista, avisos y mails | Negocio, equipo |
 | [tecnica/configuracion-y-despliegue.md](tecnica/configuracion-y-despliegue.md) | Entornos, correo local, secretos, despliegue, ingreso, carga de la agenda (medido en spikes) | Equipo técnico, operación |
@@ -21,6 +22,7 @@ Estado: B01 a B05 (plataforma, agenda pública, mails, ingreso y cuentas), B14 (
 | [tecnica/varios-profesores-b14.md](tecnica/varios-profesores-b14.md) | Modelo multiprofesor, contratos, rutas, mails y topes, nombre visible, migración y vuelta atrás | Equipo técnico, operación |
 | [tecnica/configuracion-y-bloqueos-b10.md](tecnica/configuracion-y-bloqueos-b10.md) | `bloquear`, `desbloquear`, configuración de la agenda y huso por reserva (ADR-022) | Equipo técnico |
 | [tecnica/solicitudes-gestion-y-retencion-b07-b11.md](tecnica/solicitudes-gestion-y-retencion-b07-b11.md) | Migraciones, RPC, errores, procesos programados y mails de B07, B08, B09 y B11; DEC-39 cerrada | Equipo técnico, operación |
+| [tecnica/calendario-profesor-b16-b23.md](tecnica/calendario-profesor-b16-b23.md) | RPC `agenda_profesor_dias` (B16), calendario Día (B17, B18), ADR-023..026, orden de bolts, seguridad y plan de pruebas (en construcción) | Equipo técnico |
 | [secuencias/solicitar-reserva.md](secuencias/solicitar-reserva.md) | Diagrama de secuencia de pedir una reserva, con sus fallos | Equipo técnico |
 | [tecnica/decisiones.md](tecnica/decisiones.md) | Resumen de los ADR 001..021 y lo que cambiaron los spikes | Equipo técnico |
 | [manuales/alumno.md](manuales/alumno.md) | Ver la agenda, ingresar, ficha, pedir una clase suelta o una serie, Mis clases, mover y avisar que no voy, personas a cargo, estado de la cuenta, borrado de datos | Alumnos, visitantes |
@@ -46,3 +48,8 @@ Pendientes de escribir: resto de la documentación técnica (arquitectura, model
 | 0.10 | 2026-10-28 | B12 | NFR-05, NFR-06, CA-37, CA-38 | Accesibilidad y uso en celular (B12) en plataforma, manuales y onboarding |
 | 0.11 | 2026-10-28 | B13 | NFR-04, CA-36, DEC-41 | Rendimiento y mediciones (B13) en plataforma y onboarding; manuales sin cambios |
 | 0.12 | 2026-10-28 | verificación | WEB-01, WEB-02, AVI-01 | Fallos de dependencias (correo y API) verificados en manuales y funcional; prueba opt-in y entorno limpio en plataforma y onboarding |
+| 0.13 | 2026-10-30 | inception (calendario-profesor) | CAL-01..20, WEB-14..16, ADR-023..026 | Documentos nuevos `funcional/calendario-del-panel.md` y `tecnica/calendario-profesor-b16-b23.md`, en construcción; el manual del profesor espera a la verificación |
+| 0.14 | 2026-10-30 | G1 aprobada (calendario-profesor) | DEC-42..50, H-461..H-465, CA-67..90 | Funcional con decisiones pendientes y plan de verificación; técnica con orden de bolts, seguridad y plan de pruebas; nada construido |
+| 0.15 | 2026-10-30 | B16 (calendario-profesor) | CAL-07..09, ADR-023, SEC-34 | Técnica del calendario con la RPC de varios días y su lector construidos; el funcional no cambia (sin cambios visibles) |
+| 0.16 | 2026-10-30 | B17 (calendario-profesor) | CAL-02..04, ADR-024, H-472, H-475 | Funcional y técnica con el calendario del día construido; manual del profesor con aviso del cambio en el Panel y «Elegir día» ausente hasta B18 |
+| 0.17 | 2026-10-31 | B18 (calendario-profesor) | CAL-03, CAL-05, CAL-06, CAL-11, H-472..H-475 | Calendario Día con acciones, «Elegir día» corregido y adenda A-2..A-4 en funcional, manual y técnica |

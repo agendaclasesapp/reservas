@@ -1,0 +1,53 @@
+.barra {
+  display: grid;
+  gap: var(--e-3);
+  min-inline-size: 0;
+}
+
+.navegacion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--e-3) var(--e-6);
+}
+
+.vistas,
+.flechas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
+
+.vista {
+  box-sizing: border-box;
+  min-block-size: var(--tactil-min);
+  min-inline-size: var(--tactil-min);
+  padding: var(--e-2) var(--e-4);
+  border: var(--borde-ancho) solid var(--c-primario);
+  border-radius: var(--r-md);
+  color: var(--c-primario);
+  background: var(--c-fondo);
+  font: inherit;
+  font-weight: var(--peso-fuerte);
+  cursor: pointer;
+}
+
+.vista[aria-pressed='true'] {
+  color: var(--c-sobre-primario);
+  background: var(--c-primario);
+}
+
+.vista:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--t-xl);
+  line-height: var(--interlineado-titulo);
+}
+
+.fecha {
+  min-inline-size: 0;
+}

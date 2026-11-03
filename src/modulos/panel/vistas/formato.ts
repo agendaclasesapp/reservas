@@ -110,3 +110,33 @@ export const TEXTOS_BLOQUEO = {
   motivoDe: 'Motivo',
   horarioDe: 'Horario',
 } as const;
+
+/** Textos del calendario del Panel (CAL-01, CAL-03, CAL-07, CAL-08, CAL-19; flujos F-CAL-01..03 y F-CAL-09). */
+export const TEXTOS_CALENDARIO = {
+  navegacion: 'Navegación del calendario',
+  calendario: 'Calendario',
+  dia: 'Día',
+  semana: 'Semana',
+  hoy: 'Hoy',
+  diaAnterior: 'Día anterior',
+  diaSiguiente: 'Día siguiente',
+  /** Sufijo del nombre accesible de una flecha deshabilitada por el rango de la agenda (CAL-03, A11Y-49). */
+  noDisponible: ', no disponible',
+  verComoLista: 'Ver como lista',
+  verComoCalendario: 'Ver como calendario',
+  cargando: 'Cargando la agenda…',
+  /** Texto visible de los bloques; se muestra en mayúsculas con CSS (CAL-07, CAL-08). */
+  confirmada: 'Confirmada',
+  pendiente: 'Pendiente',
+  /** CC-07, CC-08, CC-10: el texto de cada estado (el color nunca es lo único, A11Y-41). */
+  libre: 'Libre',
+  bloqueado: 'Bloqueado',
+  /** CC-10 · Leyenda (CAL-17). */
+  leyenda: 'Leyenda del calendario',
+  /** CC-11 · Ayuda: literal de WEB-14. */
+  ayuda: 'Toque un horario libre para crear una clase; con el teclado, use las acciones del hueco',
+  /** CAL-18 (día). */
+  sinClasesDia: 'No hay clases este día',
+  /** H-B17-03 · nombre accesible del campo de fecha de la barra (CAL-03). */
+  elegirDia: 'Elegir día',
+} as const;

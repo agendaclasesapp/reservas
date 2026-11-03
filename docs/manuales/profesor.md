@@ -1,7 +1,7 @@
 ---
 titulo: Manual de usuario · Agenda Clases App · Profesor
-version: 0.7
-fecha: 2026-10-28
+version: 0.9
+fecha: 2026-10-31
 publico: profesor
 ---
 # Manual de usuario · Agenda Clases App · Profesor
@@ -48,7 +48,9 @@ En `#/lista` las secciones van en este orden: **Solicitudes pendientes**, **Clas
 El alumno recibe un mail con tu nombre como remitente y tu mail en «Responder a», con la fecha y hora en tu huso. Fuente: handoffs de B07 y B08, `tests/integracion/respuestas`, E2E de respuestas (SOL-04..08, PRF-06, WEB-07, AVI-03).
 
 ## Panel: la agenda del día y la gestión directa
-El **panel** muestra el día elegido con cada hueco: hora, estado y, si está ocupado, quién toma la clase, el titular, la observación y si está **confirmada** o **pendiente de respuesta** (un hueco bloqueado muestra su motivo). Tiene el mismo selector de día que la agenda pública (de un año atrás a un año adelante). Arriba, los avisos «N solicitudes pendientes» y «N cuentas pendientes» con enlace a la lista; solo cuentan las solicitudes que todavía se pueden responder y los accesos pendientes de personas no borradas, y cada profesor ve solo los suyos.
+> **Cambio en curso (B17 y B18, calendario del Panel).** El Panel ahora abre en un **calendario del día**: una grilla con eje de horas donde cada clase es un bloque (CONFIRMADA con borde sólido, PENDIENTE con borde punteado) de alto proporcional a su duración. Arriba tenés **Día anterior**, **Hoy** y **Día siguiente** y la fecha como título; **Ver como lista** muestra la lista de huecos de abajo, con las mismas acciones, y **Ver como calendario** vuelve a la grilla. Con **Elegir día** (en la misma barra) vas a cualquier día entre un año antes y un año después de hoy; fuera de ese rango dice «Ese día no está disponible…». **Desde B18 podés actuar en el calendario:** tocá un hueco libre futuro para **Crear clase**; tocá una clase para ver quién la toma, el titular y la observación, y **Mover** o **Cancelar**; tocá un bloqueo tuyo para **Desbloquear**. El detalle es un diálogo en pantallas angostas y una columna en escritorio. El fondo sombreado (fuera de tus horarios) y los huecos pasados no se tocan. Arriba de la grilla hay una leyenda (Confirmada, Pendiente, Bloqueado, Libre) y una ayuda; si el día no tiene clases dice «No hay clases este día». Con la agenda inactiva «Crear clase» y «Mover» están deshabilitados con su explicación y «Cancelar» funciona. Si tus clases duran menos de 10 minutos, un hueco puede quedar chico para tocar: usá «Ver como lista». Todavía no están disponibles responder solicitudes desde el calendario, la vista Semana ni arrastrar. Fuente: verificación de B17 (CAL-02, CAL-04, CAL-19, WEB-14, WEB-16).
+
+El **panel** muestra el día elegido con cada hueco: hora, estado y, si está ocupado, quién toma la clase, el titular, la observación y si está **confirmada** o **pendiente de respuesta** (un hueco bloqueado muestra su motivo). Tiene el mismo selector de día que la agenda pública (de un año atrás a un año adelante; en el calendario las flechas y el campo «Elegir día» llegan hasta un año antes o después de hoy). Arriba, los avisos «N solicitudes pendientes» y «N cuentas pendientes» con enlace a la lista; solo cuentan las solicitudes que todavía se pueden responder y los accesos pendientes de personas no borradas, y cada profesor ve solo los suyos.
 
 **Crear una clase.** Tocá un hueco libre: se abre «Crear clase».
 1. Buscá un alumno aprobado o sin cuenta; si tiene personas a cargo, elegí quién toma la clase.
@@ -115,3 +117,5 @@ Todas las pantallas, también el panel, la lista, la configuración y los bloque
 | 0.5 | 2026-10-26 | B10 | AGE-03, AGE-05, AGE-06, AGE-08, WEB-08, ADR-022 | Bloquear horarios y configurar la agenda (grilla, duración, anticipación, huso) |
 | 0.6 | 2026-10-28 | B12 | NFR-05, NFR-06, CA-37, CA-38 | Uso en celular y con teclado; navegadores verificados |
 | 0.7 | 2026-10-28 | verificación | AVI-01, NFR-07, CA-34, CA-52, DEC-10 | Qué ve el profesor cuando el correo cae; remitente real pendiente |
+| 0.8 | 2026-10-30 | B17 (calendario-profesor) | CAL-02, CAL-04, CAL-19, WEB-14, WEB-16 | Aviso: el Panel abre en el calendario del día con Día anterior / Hoy / Día siguiente y «Ver como lista»; «Elegir día» ausente hasta B18 |
+| 0.9 | 2026-10-31 | B18 (calendario-profesor) | CAL-03, CAL-05, CAL-06, CAL-11, CAL-14, CAL-17, CAL-18, H-472, H-B17-03 | «Elegir día» vuelve a la barra; crear, mover, cancelar y desbloquear desde el calendario; leyenda y ayuda; corregido el aviso de B17 |

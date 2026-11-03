@@ -1,0 +1,124 @@
+/* Medidas de la grilla (no son colores, no se tocan los tokens): 5,5 rem por hora hacen que 30 min midan
+   `--tactil-min` (NFR-12); la lógica pisa `--cal-alto-hora` si la duración del profesor lo pide (DEC-50 A). */
+.calendario {
+  --cal-alto-hora: 5.5rem;
+  --cal-ancho-eje: 3rem;
+
+  min-inline-size: 0;
+}
+
+.releyendo {
+  opacity: 0.6;
+}
+
+.cuerpo {
+  display: grid;
+  grid-template-columns: var(--cal-ancho-eje) minmax(0, 1fr);
+  padding-block: var(--e-2);
+}
+
+.eje {
+  position: relative;
+  block-size: calc(var(--cal-horas) * var(--cal-alto-hora));
+}
+
+.hora {
+  position: absolute;
+  inset-block-start: calc(var(--cal-hora) * var(--cal-alto-hora));
+  inset-inline-start: 0;
+  translate: 0 -50%;
+  color: var(--c-texto-suave);
+  font-size: var(--t-xs);
+  line-height: 1;
+}
+
+/* Una línea por hora y otra, más tenue, por media hora (CAL-04). */
+.columnas {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+  block-size: calc(var(--cal-horas) * var(--cal-alto-hora));
+  border-block-end: var(--borde-fino) solid var(--c-borde);
+  background-image:
+    linear-gradient(to bottom, var(--c-borde) var(--borde-fino), transparent var(--borde-fino)),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--c-borde) 40%, transparent) var(--borde-fino),
+      transparent var(--borde-fino)
+    );
+  background-size:
+    100% var(--cal-alto-hora),
+    100% calc(var(--cal-alto-hora) / 2);
+}
+
+.columna {
+  position: relative;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Columna de un día: capa decorativa de zonas sombreadas y lista de elementos encima (CAL-05). */
+.zonas,
+.elementos {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.elementos {
+  list-style: none;
+}
+
+.fueraDeTramo {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: calc(var(--cal-arriba) * var(--cal-alto-hora));
+  block-size: calc(var(--cal-alto) * var(--cal-alto-hora));
+  background: color-mix(in srgb, var(--c-texto-suave) 14%, transparent);
+}
+
+.vacio {
+  margin: 0;
+  color: var(--c-texto-suave);
+}
+
+/* El contenedor de la grilla recibe el foco al volver de una acción cuando su bloque ya no existe (A11Y-38). */
+.calendario:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+.ayuda {
+  margin: 0;
+  color: var(--c-texto-suave);
+  font-size: var(--t-xs);
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2) var(--e-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--t-xs);
+}
+
+.leyendaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-2);
+}
+
+.muestra {
+  display: inline-block;
+  box-sizing: border-box;
+  inline-size: 1.5rem;
+  block-size: 1rem;
+  border-width: var(--borde-ancho);
+  border-radius: var(--r-sm);
+}

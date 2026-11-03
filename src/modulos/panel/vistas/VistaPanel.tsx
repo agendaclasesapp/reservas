@@ -5,19 +5,36 @@
 // deshabilitados; «Cancelar» sigue (PRF-08). El éxito se anuncia y se muestra sobre la agenda. B10 (AGE-05, AGE-06,
 // CA-14, F-09): «Bloquear horarios» abre, en un diálogo, el bloqueo de un rango de horas o de días completos; un hueco
 // libre ofrece «Bloquear este horario» y uno bloqueado ofrece «Desbloquear».
+// B17 (CAL-01, CAL-03, CAL-07, CAL-08, CAL-19; WEB-14, F-CAL-01..03, F-CAL-09): el día se ve como calendario (grilla con
+// eje de horas y bloques de clase); «Ver como lista» (estado local, no va en la dirección) devuelve la lista de huecos
+// con las mismas acciones y «Ver como calendario» vuelve a la grilla.
+// B18 (CAL-05, CAL-06, CAL-11, CAL-17, CAL-18; WEB-14, F-CAL-04, F-CAL-05, F-CAL-07, F-CAL-11; A11Y-38, A11Y-48, A11Y-53):
+// tocar un hueco libre futuro, una clase o un bloqueo propio de la grilla abre el detalle (`DetalleCalendario`: diálogo
+// o columna) con las acciones de hoy; al cerrarlo el foco vuelve al bloque (o a la grilla si ya no existe). Repone
+// «Elegir día» en la barra (H-B17-03).
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Alerta, Boton, Cargando, Dialogo, ErrorCarga, Icono, Vacio } from '../../../ui';
 import { formatearFecha, type Dia } from '../../../lib/fechas';
 import type { LimitesAgenda } from '../../agenda/logica';
 import type { EstadoAlumnos } from '../../lista/logica';
-import { MENSAJES_PANEL, type Contadores, type EstadoLecturaPanel, type FilaAgendaProfesor } from '../logica';
+import {
+  MENSAJES_PANEL,
+  type Contadores,
+  type EjeCalendario,
+  type EstadoLecturaPanel,
+  type FilaAgendaProfesor,
+  type NavegacionCalendario,
+} from '../logica';
+import { AccionesVista } from './AccionesVista';
+import { BarraCalendario } from './BarraCalendario';
 import { BloqueoForm } from './BloqueoForm';
+import { CalendarioPanel } from './CalendarioPanel';
+import type { EstadoCalendario } from './calendario';
 import { ContadoresPanel } from './ContadoresPanel';
 import type { AccionesPanel, ResultadoPanel } from './contrato';
+import { DetalleCalendario } from './DetalleCalendario';
 import { fechaConHora, textoRango, TEXTOS_BLOQUEO, TEXTOS_PANEL } from './formato';
 import { ListaAgendaProfesor } from './ListaAgendaProfesor';
-import { PanelAcciones } from './PanelAcciones';
-import { SelectorDiaPanel } from './SelectorDiaPanel';
 import estilos from './VistaPanel.module.css';
 
 export type VistaPanelProps = {
@@ -27,7 +44,16 @@ export type VistaPanelProps = {
   zona: string;
   /** Extremos de `agenda_profesor`: desde un año atrás hasta un año adelante (SEC-09). */
   limites: LimitesAgenda;
+  /** Los huecos del día para «Ver como lista» (la misma lectura que el calendario). */
   agenda: EstadoLecturaPanel<FilaAgendaProfesor[]>;
+  /** Lo que se dibuja en la grilla del día: cargando, error con el mensaje genérico o listo con sus clases (CC-02). */
+  calendario: EstadoCalendario;
+  /** Se vuelve a leer con la grilla anterior a la vista (cambio de día): `aria-busy`. */
+  calendarioReleyendo?: boolean;
+  /** Eje de horas y alto de la hora que da la lógica (CAL-04, DEC-44 A, DEC-50 A). */
+  eje: EjeCalendario;
+  /** `navegacionCalendario` de la lógica: título y destinos de las flechas y de «Hoy»; `null` = deshabilitada (CAL-03). */
+  navegacion: NavegacionCalendario;
   contadores: EstadoLecturaPanel<Contadores>;
   alumnos: EstadoAlumnos;
   /** `sesion.profesor.activo` (PRF-08). */
@@ -72,6 +98,10 @@ export function VistaPanel({
   zona,
   limites,
   agenda,
+  calendario,
+  calendarioReleyendo = false,
+  eje,
+  navegacion,
   contadores,
   alumnos,
   profesorActivo,
@@ -87,36 +117,70 @@ export function VistaPanel({
   const [seleccion, setSeleccion] = useState<string | null>(null);
   const [resultado, setResultado] = useState<ResultadoPanel | null>(null);
   const [bloqueando, setBloqueando] = useState(false);
+  const [modoLista, setModoLista] = useState(false);
+  /** B18 (A11Y-48): hubo una acción de la persona; si después falla la lectura, el foco va a «Reintentar». */
+  const [accionReciente, setAccionReciente] = useState(false);
+  /** Adónde va el foco tras una operación: la grilla (calendario) o el resultado (lista). */
+  const [focoTras, setFocoTras] = useState<'grilla' | 'resultado'>('resultado');
   const resultadoRef = useRef<HTMLDivElement>(null);
-  const columnaRef = useRef<HTMLHeadingElement>(null);
+  const grillaRef = useRef<HTMLDivElement>(null);
 
   const filas = agenda.datos ?? [];
   const fila = seleccion === null ? undefined : filas.find((f) => f.inicio === seleccion);
 
-  // El resultado se anuncia (región `status`) y recibe el foco: la fila que se tocó ya cambió.
+  // El resultado se anuncia (región `status`). En la lista recibe el foco (la fila que se tocó ya cambió); en el
+  // calendario el foco va a la grilla, porque el bloque que abrió el detalle cambió o ya no existe (A11Y-38).
   useEffect(() => {
-    if (resultado !== null) resultadoRef.current?.focus();
-  }, [resultado]);
+    if (resultado === null) return;
+    if (focoTras === 'grilla' && grillaRef.current) grillaRef.current.focus();
+    else resultadoRef.current?.focus();
+  }, [resultado, focoTras]);
 
-  // En escritorio la columna aparece junto a la agenda: el foco pasa a su título al elegir otro hueco.
-  useEffect(() => {
-    if (enEscritorio && seleccion !== null) columnaRef.current?.focus();
-  }, [enEscritorio, seleccion]);
-
-  const cerrar = () => setSeleccion(null);
+  /** Cierra el detalle y devuelve el foco al bloque que lo abrió, o a la grilla si ya no existe (A11Y-38). */
+  const cerrar = () => {
+    if (!modoLista && enEscritorio && seleccion !== null) {
+      const grilla = grillaRef.current;
+      const origen = Array.from(grilla?.querySelectorAll<HTMLElement>('[data-inicio]') ?? []).find(
+        (el) => el.dataset['inicio'] === seleccion,
+      );
+      (origen ?? grilla)?.focus();
+    }
+    setSeleccion(null);
+  };
+  const irADia = (nuevo: Dia) => {
+    setSeleccion(null);
+    setAccionReciente(false);
+    if (nuevo !== dia) onCambiarDia(nuevo);
+  };
+  const { anterior, siguiente } = navegacion;
   const elegir = (f: FilaAgendaProfesor) => {
     setResultado(null);
     setSeleccion(f.inicio);
   };
+  /** Tocar un elemento de la grilla: el detalle se abre por el `inicio` de su fila. */
+  const abrirDesdeGrilla = (inicio: string) => {
+    setResultado(null);
+    setSeleccion(inicio);
+  };
   const hecho = (r: ResultadoPanel) => {
     setResultado(r);
     setSeleccion(null);
+    setFocoTras(modoLista ? 'resultado' : 'grilla');
+    setAccionReciente(true);
     onRecargarAgenda();
+    onRecargarContadores();
+  };
+  /** La agenda quedó desactualizada (HUECO_NO_LIBRE, etc.): se relee el rango visible y los contadores (CA-87). */
+  const desactualizada = () => {
+    onRecargarAgenda();
+    onRecargarContadores();
   };
 
-  const contenido = fila ? (
-    <PanelAcciones
-      key={fila.inicio}
+  const detalle = fila ? (
+    <DetalleCalendario
+      enEscritorio={enEscritorio}
+      titulo={tituloDelHueco(fila, zona)}
+      onCerrar={cerrar}
       fila={fila}
       zona={zona}
       dia={dia}
@@ -126,7 +190,7 @@ export function VistaPanel({
       onReintentarAlumnos={onRecargarAlumnos}
       acciones={acciones}
       onHecho={hecho}
-      onDesactualizada={onRecargarAgenda}
+      onDesactualizada={desactualizada}
       onIrAConflicto={cerrar}
     />
   ) : null;
@@ -191,31 +255,43 @@ export function VistaPanel({
               </div>
             ) : null}
           </div>
-          <SelectorDiaPanel
-            dia={dia}
-            zona={zona}
-            limites={limites}
-            onCambio={(nuevo) => {
+          <BarraCalendario
+            vista="dia"
+            titulo={navegacion.titulo}
+            elegirDia={{ dia, limites, onElegir: irADia }}
+            puedeAnterior={anterior !== null}
+            puedeSiguiente={siguiente !== null}
+            onAnterior={() => anterior && irADia(anterior.dia)}
+            onSiguiente={() => siguiente && irADia(siguiente.dia)}
+            onHoy={() => irADia(navegacion.hoy.dia)}
+          />
+          <AccionesVista
+            modoLista={modoLista}
+            onModo={() => {
               setSeleccion(null);
-              onCambiarDia(nuevo);
+              setModoLista((actual) => !actual);
             }}
           />
           <p className={estilos.nota}>Horarios en el huso {zona}.</p>
-          {lista}
+          {modoLista ? (
+            lista
+          ) : (
+            <CalendarioPanel
+              estado={calendario}
+              releyendo={calendarioReleyendo}
+              titulo={navegacion.titulo}
+              zona={zona}
+              eje={eje}
+              onReintentar={onRecargarAgenda}
+              enfocarReintentar={accionReciente}
+              onAbrirHueco={(hueco) => abrirDesdeGrilla(hueco.inicio)}
+              onAbrirClase={(clase) => abrirDesdeGrilla(clase.fila.inicio)}
+              onAbrirBloqueo={(bloqueo) => abrirDesdeGrilla(bloqueo.inicio)}
+              grillaRef={grillaRef}
+            />
+          )}
         </div>
-        {enEscritorio && fila ? (
-          <aside aria-labelledby="panel-columna-titulo" className={estilos.columna}>
-            <div className={estilos.columnaCabecera}>
-              <h2 id="panel-columna-titulo" ref={columnaRef} tabIndex={-1} className={estilos.columnaTitulo}>
-                {tituloDelHueco(fila, zona)}
-              </h2>
-              <Boton variante="secundario" onClick={cerrar}>
-                Cerrar
-              </Boton>
-            </div>
-            {contenido}
-          </aside>
-        ) : null}
+        {enEscritorio && fila ? detalle : null}
       </div>
       <Dialogo abierto={bloqueando} titulo={TEXTOS_BLOQUEO.tituloDialogo} onCerrar={() => setBloqueando(false)}>
         <BloqueoForm
@@ -227,15 +303,11 @@ export function VistaPanel({
             setBloqueando(false);
             hecho(r);
           }}
-          onDesactualizada={onRecargarAgenda}
+          onDesactualizada={desactualizada}
           onIrAConflicto={() => setBloqueando(false)}
         />
       </Dialogo>
-      {!enEscritorio && fila ? (
-        <Dialogo abierto titulo={tituloDelHueco(fila, zona)} onCerrar={cerrar}>
-          {contenido}
-        </Dialogo>
-      ) : null}
+      {!enEscritorio && fila ? detalle : null}
     </>
   );
 }
