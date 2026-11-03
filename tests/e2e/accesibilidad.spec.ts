@@ -593,6 +593,10 @@ test.describe('profesor', () => {
     await con(browser, 'profesor', async (page) => {
       await page.goto(RUTA('#/panel'));
       await h1(page, 'Panel');
+      // B17: el Panel abre en el calendario Día; la lista de huecos está en «Ver como lista» (CA-83).
+      await expect(page.getByRole('group', { name: /^Calendario, / })).toBeVisible({ timeout: 20_000 });
+      await auditar(page, 'profesor', '#/panel', 'calendario Día');
+      await page.getByRole('button', { name: 'Ver como lista' }).click();
       await expect(page.getByRole('list', { name: 'Huecos del día' })).toBeVisible({ timeout: 20_000 });
       await auditar(page, 'profesor', '#/panel', 'ok');
       const acciones = page.getByRole('button', { name: /^(Crear clase|Bloquear|Agregar clase|Bloquear horario)/ });

@@ -1,6 +1,7 @@
 // Tipos, esquemas y textos del panel del profesor (B09): `agenda_profesor`, `contadores`, `crear_clase`,
 // `mover_clase` y `cancelar_clase` (contratos.md §3). Tipos a mano contra supabase/migrations/2026110009*.
 // B10 (T10.1): `bloquear` y `desbloquear` (AGE-05, AGE-06), contra supabase/migrations/2026110010*.
+// B16 (T16.1): `agenda_profesor_dias` (CAL-07, CAL-08, CAL-09, SEC-34), contra supabase/migrations/2026110016*.
 // PRF-01..05, PRF-08, AVI-01, AVI-04, SEC-09, SEC-16 (todo texto se muestra como texto).
 import { z } from 'zod';
 
@@ -51,6 +52,28 @@ export const esquemaFilaAgenda = z.object({
   pasada: z.boolean(),
 });
 export type FilaAgendaProfesor = z.infer<typeof esquemaFilaAgenda>;
+
+/** B16 (T16.1): tipo de la solicitud pendiente de una fila (`solicitud.tipo`; DEC-42, DEC-43). */
+export const TIPOS_SOLICITUD = ['reserva', 'movimiento', 'cancelacion'] as const;
+export type TipoSolicitud = (typeof TIPOS_SOLICITUD)[number];
+
+/** contratos.md §2 (calendario-profesor), SEC-09: `agenda_profesor_dias` lee de 1 a 7 días seguidos. */
+export const MAX_DIAS_AGENDA = 7;
+
+/**
+ * Fila de `agenda_profesor_dias(p_desde, p_hasta)` (B16, ADR-023), contra
+ * supabase/migrations/202611001601_agenda_profesor_dias.sql: las 13 columnas de `agenda_profesor` con el mismo
+ * significado más `dia` (día del rango, huso del profesor), `clase_inicio`/`clase_fin` (horas reales de la clase,
+ * null sin clase; CAL-07) y `solicitud_tipo` (null sin solicitud; CAL-08). Ni una más (SEC-34): una columna extra
+ * que llegara se descarta al validar. Canceladas y rechazadas no llegan (CAL-09).
+ */
+export const esquemaFilaAgendaDias = esquemaFilaAgenda.extend({
+  dia: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  clase_inicio: z.string().nullable(),
+  clase_fin: z.string().nullable(),
+  solicitud_tipo: z.enum(TIPOS_SOLICITUD).nullable(),
+});
+export type FilaAgendaDias = z.infer<typeof esquemaFilaAgendaDias>;
 
 /** `contadores()` (AVI-01): los del profesor que mira (CA-55). */
 export const esquemaContadores = z.object({

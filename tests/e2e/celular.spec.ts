@@ -432,6 +432,18 @@ const agendaCargada = async (page: Page) => {
   await expect(page.getByRole('list', { name: 'Huecos del día' })).toBeVisible({ timeout: 30_000 });
 };
 
+/** B17 (CAL-01): el Panel abre en el calendario Día. */
+const calendarioDelPanel = async (page: Page) => {
+  await encabezado(page);
+  await expect(page.getByRole('group', { name: /^Calendario, / })).toBeVisible({ timeout: 30_000 });
+};
+/** B17 (CA-83): la lista de huecos del Panel se alcanza con «Ver como lista». */
+const listaDelPanel = async (page: Page) => {
+  await encabezado(page);
+  await page.getByRole('button', { name: 'Ver como lista' }).click();
+  await expect(page.getByRole('list', { name: 'Huecos del día' })).toBeVisible({ timeout: 30_000 });
+};
+
 const CASOS: Caso[] = [
   // Visitante
   { rol: 'visitante', id: 'WEB-09 inicio sin enlace', ruta: '#/', web: 'WEB-09' },
@@ -526,12 +538,13 @@ const CASOS: Caso[] = [
   { rol: 'dosProfesores', id: 'WEB-03 ficha con varios profesores', ruta: '#/ficha', esperar: encabezado, web: 'WEB-03' },
   { rol: 'dosProfesores', id: 'WEB-05 mis clases vacío', ruta: '#/mis-clases', esperar: encabezado, web: 'WEB-05' },
   // Profesor
-  { rol: 'profesor', id: 'WEB-06 panel', ruta: '#/panel', esperar: encabezado, web: 'WEB-06' },
+  { rol: 'profesor', id: 'WEB-06 panel (calendario Día)', ruta: '#/panel', esperar: calendarioDelPanel, web: 'WEB-06' },
+  { rol: 'profesor', id: 'WEB-06 panel como lista («Ver como lista»)', ruta: '#/panel', esperar: listaDelPanel, web: 'WEB-06' },
   {
     rol: 'profesor',
     id: 'WEB-06 panel con diálogo «Bloquear horarios»',
     ruta: '#/panel',
-    esperar: encabezado,
+    esperar: calendarioDelPanel,
     disparador: (p) => p.getByRole('button', { name: 'Bloquear horarios' }).first(),
     web: 'WEB-06',
   },
@@ -539,7 +552,7 @@ const CASOS: Caso[] = [
     rol: 'profesor',
     id: 'WEB-06 panel con acciones de un hueco abiertas',
     ruta: `#/panel?d=${proximoHabil()}`,
-    esperar: agendaCargada,
+    esperar: listaDelPanel,
     disparador: libres,
     web: 'WEB-06',
   },

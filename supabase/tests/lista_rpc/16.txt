@@ -1,0 +1,5 @@
+# B16 · funciones de `public` ejecutables por API (SEC-04, contratos.md §2 de calendario-profesor).
+# Formato: `<rol> <funcion>`; anon = la ejecutan anon y authenticated. Las sobrecargas comparten línea.
+# T16.1: `agenda_profesor_dias(p_desde, p_hasta)` [P]: la ejecuta `authenticated` y el rol (profesor) se comprueba
+# adentro (403, SEC-06); `privado.agenda_profesor_dias` no la ejecuta nadie de la API.
+authenticated agenda_profesor_dias

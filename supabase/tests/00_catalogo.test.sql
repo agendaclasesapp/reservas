@@ -9,6 +9,7 @@ create temp table lista_rpc (rol text, funcion text) on commit drop;
 -- LISTA_RPC:INICIO (generado por tests/soporte/sincronizar-lista-rpc.mjs; no editar a mano)
 insert into lista_rpc (rol, funcion) values
   ('authenticated', 'agenda_profesor'),
+  ('authenticated', 'agenda_profesor_dias'),
   ('anon', 'agenda_publica'),
   ('authenticated', 'alta_alumno'),
   ('authenticated', 'alta_profesor'),

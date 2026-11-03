@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 // Panel del profesor, agenda y contadores (T09.2): WEB-06, PRF-05, PRF-08, AVI-01, SEC-16; CA-28 (nombres en cada hueco
-// ocupado), F-07 (estados), AGE-07 (mismo selector de día).
-import { cleanup, fireEvent, screen, within } from '@testing-library/react';
+// ocupado), F-07 (estados), AGE-07. Desde B17 el Panel abre en el calendario: estas pruebas llegan a la lista con
+// «Ver como lista» (CAL-19, CA-83, WEB-16; `montar` lo hace por defecto) y conservan sus aserciones de reglas y mensajes.
+import { cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it } from 'vitest';
 import { MENSAJES_PANEL } from '../../../../src/modulos/panel/logica';
 import { sinViolacionesAxe } from '../../ui/soporte';
-import { fila, H11, LIBRE_11, LIBRE_12, montar, ocupada } from './soporte';
+import { fila, H11, LIBRE_11, LIBRE_12, LIMITES, montar, ocupada } from './soporte';
 
 afterEach(cleanup);
 
@@ -74,23 +75,29 @@ describe('agenda con nombres (F-07, PRF-05, CA-28)', () => {
     expect(screen.getByText('Observación: <script>1</script>')).toBeTruthy();
   });
 
-  it('WEB_06_el_dia_vive_en_el_selector_de_la_agenda_publica', async () => {
+  it('WEB_06_CAL_03_el_dia_se_navega_con_la_barra_del_calendario_en_la_lista', async () => {
+    // Desde B17 el selector con calendario de fecha lo reemplaza la barra del calendario (CC-01): anterior, hoy y siguiente.
     const { onCambiarDia } = montar([LIBRE_11]);
-    expect(screen.getByRole('heading', { level: 2, name: /jueves, 12 de noviembre/i })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 2, name: '12/11/2026' })).toBeTruthy();
     expect(screen.getByText('Horarios en el huso America/Montevideo.')).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: 'Día siguiente' }));
     expect(onCambiarDia).toHaveBeenCalledWith('2026-11-13');
     await userEvent.click(screen.getByRole('button', { name: 'Día anterior' }));
     expect(onCambiarDia).toHaveBeenLastCalledWith('2026-11-11');
-    fireEvent.change(screen.getByLabelText('Elegir día'), { target: { value: '2026-12-01' } });
-    expect(onCambiarDia).toHaveBeenLastCalledWith('2026-12-01');
+    await userEvent.click(screen.getByRole('button', { name: 'Hoy' }));
+    expect(onCambiarDia).toHaveBeenLastCalledWith(LIMITES.hoy);
   });
 
-  it('SEC_09_un_dia_fuera_del_alcance_de_la_agenda_no_se_pide', () => {
-    const { onCambiarDia } = montar([LIBRE_11]);
-    fireEvent.change(screen.getByLabelText('Elegir día'), { target: { value: '2030-01-01' } });
+  it('SEC_09_CAL_03_un_dia_fuera_del_alcance_de_la_agenda_no_se_pide', async () => {
+    const { onCambiarDia } = montar([LIBRE_11], { dia: LIMITES.max });
+    const siguiente = screen.getByRole('button', { name: 'Día siguiente, no disponible' });
+    expect((siguiente as HTMLButtonElement).disabled).toBe(true);
+    await userEvent.click(siguiente);
     expect(onCambiarDia).not.toHaveBeenCalled();
-    expect(screen.getByText(/Ese día no está disponible/)).toBeTruthy();
+    // El otro extremo también: la flecha anterior se deshabilita en hoy − 366.
+    cleanup();
+    montar([LIBRE_11], { dia: LIMITES.min });
+    expect((screen.getByRole('button', { name: 'Día anterior, no disponible' }) as HTMLButtonElement).disabled).toBe(true);
   });
 });
 
