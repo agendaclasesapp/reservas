@@ -1,7 +1,7 @@
 ---
 titulo: Técnica · Decisiones de arquitectura (resumen)
-version: 0.10
-fecha: 2026-10-31
+version: 0.11
+fecha: 2026-11-04
 publico: equipo técnico
 ---
 # Decisiones de arquitectura (resumen)
@@ -51,7 +51,7 @@ Qué cambió con los spikes:
 - **ADR-018 y ADR-019 (B07, B08):** `inscripcion` copia nombre, slug y huso del profesor (triggers); los mails de respuesta, movimiento y cancelación salen con el nombre del profesor y Reply-To.
 
 Detalle operativo: `tecnica/configuracion-y-despliegue.md`.
-- **ADR-023 a ADR-026 (ciclo `calendario-profesor`, propuestas):** RPC `agenda_profesor_dias` (ADR-023: construida en B16), grilla del eje, diálogo de respuesta del Panel y arrastre con Pointer Events; ver `calendario-profesor-b16-b23.md`. G1 aprobada: siguen como propuestas hasta que cada bolt las construya (ADR-024: eje y bloques construidos en B17, con una adenda A-1..A-4 que se aplica en B18: grilla vacía, tope de 16,5 rem del alto de la hora, configuración en error y carriles); DEC-42..45 y DEC-50 (con propuesta A) no mueven ningún bolt.
+- **ADR-023 a ADR-026 (ciclo `calendario-profesor`, propuestas):** RPC `agenda_profesor_dias` (ADR-023: construida en B16), grilla del eje, diálogo de respuesta del Panel y arrastre con Pointer Events; ver `calendario-profesor-b16-b23.md`. G1 aprobada: siguen como propuestas hasta que cada bolt las construya (ADR-025, diálogo de respuesta del Panel: construida en B19 con DEC-42 A y DEC-43 A firmadas el 03/11/2026, con el anexo de consecuencias pendiente; ADR-024: eje y bloques construidos en B17, con una adenda A-1..A-4 que se aplica en B18: grilla vacía, tope de 16,5 rem del alto de la hora, configuración en error y carriles); DEC-42..45 y DEC-50 (con propuesta A) no mueven ningún bolt.
 
 ## Bitácora de versiones
 
@@ -67,3 +67,4 @@ Detalle operativo: `tecnica/configuracion-y-despliegue.md`.
 | 0.8 | 2026-10-30 | B16 (calendario-profesor) | ADR-023 | ADR-023 construida con la RPC de varios días; ADR-024..026 siguen como propuestas |
 | 0.9 | 2026-10-30 | B17 (calendario-profesor) | ADR-024, H-472 | ADR-024 construida en parte (eje y bloques) y su adenda A-1..A-4 con el tope de 16,5 rem; ADR-025 y ADR-026 siguen como propuestas |
 | 0.10 | 2026-10-31 | B18 (calendario-profesor) | ADR-024, H-472..H-475 | ADR-024 con la adenda A-2..A-4 aplicada en B18 (tope 16,5 rem, configuración sin cargar, elementos lado a lado); ADR-025 y ADR-026 siguen como propuestas |
+| 0.11 | 2026-11-04 | B19 (calendario-profesor) | ADR-025, DEC-42, DEC-43 | ADR-025 construida en B19 (responder solicitudes desde el calendario con textos y reglas de la Lista); DEC-42 y DEC-43 cerradas con A; ADR-026 sigue como propuesta |
