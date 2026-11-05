@@ -44,6 +44,16 @@
 //   e.acciones (accionesFila) / e.accionesBloqueo: lo mismo que ofrece hoy la lista (INV-01, INV-05)
 //   tras crear, mover, cancelar, bloquear o desbloquear con ok (y con un fallo de CODIGOS_DESACTUALIZADA):
 //     useAgendaDias(nav.desde, nav.hasta).recargar() y useContadores().recargar()   // relee el rango y los contadores
+//
+// B19 · T19.1 · Solicitudes y enlace del día (CAL-12, CAL-20, INV-03, INV-04, SEC-16, SEC-36; ADR-025, DEC-42 A, DEC-43 A):
+//   const s = solicitudDeBloque(e.clase) | solicitudDeFila(fila);  // PENDIENTE o «Cancelación pendiente»; origen de movimiento: null
+//   const { confirmar, rechazar } = accionesRespuesta(sesion.profesor.activo);   // accionesSolicitud de la Lista (PRF-08)
+//   validarMotivo(texto)                                            // esquemaMotivo / LARGO_MAX_MOTIVO de la Lista: error o null
+//   const releer = () => { agenda.recargar(); contadores.recargar(); };
+//   const r = await confirmarSolicitud(s, { releer }) | await rechazarSolicitud(s, motivo, { releer });
+//   r.ok ? r.mensaje : r.mensaje (r.campo === 'motivo' marca el campo; r.desactualizada: ya se pidió releer)
+//   const enlace = useEnlaceDia(dia);                               // …/#/p/<slug>?d=AAAA-MM-DD o null (deshabilitada)
+//   const c = await copiarEnlaceDia(enlace);                        // 'ok' («Enlace copiado») | 'fallo'
 import { cargarSupabase } from '../../../lib/supabase';
 import type { Dia } from '../../../lib/fechas';
 import * as agendaDias from './agendaDias';
@@ -208,6 +218,34 @@ export type {
 } from './elementosCalendario';
 export { lecturaAgendaDias, useAgendaDiasConLector } from './useAgendaDias';
 export type { AgendaDiasLeida, LecturaAgendaDias, LectorAgendaDias } from './useAgendaDias';
+export {
+  accionesRespuesta,
+  CODIGOS_RESPUESTA_DESACTUALIZADA,
+  confirmarSolicitud,
+  esquemaMotivo,
+  LARGO_MAX_MOTIVO,
+  MENSAJES_RESPUESTA,
+  puedeConfirmar,
+  rechazarSolicitud,
+  solicitudDeBloque,
+  solicitudDeFila,
+  validarMotivo,
+} from './respuesta';
+export type {
+  Decision,
+  FalloRespuesta,
+  OpcionesRespuesta,
+  ResultadoRespuestaCalendario,
+  SolicitudEnCalendario,
+} from './respuesta';
+export {
+  copiarEnlaceDia,
+  enlaceDia,
+  PARAMETRO_DIA_PUBLICO,
+  slugValidoParaEnlace,
+  useEnlaceDia,
+} from './enlaceDia';
+export type { CopiarTexto, ResultadoCopiaEnlace } from './enlaceDia';
 
 /** Dependencias reales: supabase-js cargado con import() (ADR-017). */
 export function dependenciasPanel(): panel.DependenciasPanel {

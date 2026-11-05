@@ -70,6 +70,16 @@ button.bloque:focus-visible {
   text-transform: uppercase;
 }
 
+/* DEC-43 A: «Cancelación pendiente» en la clase confirmada; hereda el color del bloque y se subraya (no solo color). */
+.cancelacion {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-1);
+  font-weight: var(--peso-fuerte);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
 .nombre {
   min-inline-size: 0;
 }

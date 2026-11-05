@@ -1,9 +1,10 @@
-// CC-06 · Bloque de una clase (CAL-07, CAL-08, CA-72; DEC-42 A, DEC-50 A): ítem de la columna de un día. Confirmada
+// CC-06 · Bloque de una clase (CAL-07, CAL-08, CA-72, CAL-12; DEC-42 A, DEC-43 A, DEC-50 A): ítem de la columna de un día. Confirmada
 // (borde sólido) o pendiente (borde punteado), siempre con el texto CONFIRMADA / PENDIENTE (el color nunca es lo único,
 // A11Y-41) antes del nombre de quien toma la clase. Posición y alto salen de `posicionEnEje` de la lógica (horas desde
 // el comienzo del eje y duración en horas) por `--cal-alto-hora` (la hora la da la lógica, DEC-50 A): el alto es
 // proporcional a la duración (CA-72) y nunca baja de `--tactil-min` (NFR-12). El nombre es texto
-// (SEC-16, SEC-35): React lo escapa y no se arma HTML con él.
+// (SEC-16, SEC-35): React lo escapa y no se arma HTML con él. DEC-43 A: la clase confirmada con una cancelación sin
+// responder sigue CONFIRMADA y suma el texto «Cancelación pendiente» (texto e ícono, no solo color: NFR-11).
 import { Icono } from '../../../ui';
 import { nombreVisible } from '../../lista/logica';
 import { formatearHora, type Dia } from '../../../lib/fechas';
@@ -34,7 +35,8 @@ function cuandoDelBloque(clase: DatosBloque, dia: Dia, zona: string): string {
 
 /** «Lun 26/10, 10:00 a 11:00, Confirmada, Ana Pérez» (A11Y-36). */
 export function nombreDelBloque(clase: DatosBloque, dia: Dia, zona: string): string {
-  return `${cuandoDelBloque(clase, dia, zona)}, ${TEXTOS_CALENDARIO[clase.estado]}, ${nombreVisible(clase.quien)}`;
+  const cancelacion = clase.cancelacionPendiente ? `, ${TEXTOS_CALENDARIO.cancelacionPendiente}` : '';
+  return `${cuandoDelBloque(clase, dia, zona)}, ${TEXTOS_CALENDARIO[clase.estado]}${cancelacion}, ${nombreVisible(clase.quien)}`;
 }
 
 export function BloqueClase({ clase, dia, zona, eje, onAbrir, carril = 0, carriles = 1 }: BloqueClaseProps) {
@@ -47,6 +49,12 @@ export function BloqueClase({ clase, dia, zona, eje, onAbrir, carril = 0, carril
         <Icono nombre={clase.estado === 'confirmada' ? 'tilde' : 'reloj'} />
         <span className={estilos.texto}>{TEXTOS_CALENDARIO[clase.estado]}</span>
       </span>
+      {clase.cancelacionPendiente ? (
+        <span className={estilos.cancelacion}>
+          <Icono nombre="reloj" />
+          <span>{TEXTOS_CALENDARIO.cancelacionPendiente}</span>
+        </span>
+      ) : null}
       <span className={estilos.nombre}>{nombreVisible(clase.quien)}</span>
     </>
   );

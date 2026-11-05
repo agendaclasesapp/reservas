@@ -16,6 +16,7 @@ import {
   type FalloPanel,
   type FilaAgendaDias,
   type FilaAgendaProfesor,
+  type TipoSolicitud,
 } from '../../../../src/modulos/panel/logica';
 import type { AccionesPanel } from '../../../../src/modulos/panel/vistas/contrato';
 import type { EstadoCalendario } from '../../../../src/modulos/panel/vistas/calendario';
@@ -108,14 +109,17 @@ export const CARLA: AlumnoLista = alumno({ id: 'a3', nombre: 'Carla Gómez', mai
 /** Eje de la grilla inicial (CAL-04) que da la lógica: 08:00 a 18:00 con 5,5 rem por hora. */
 export const EJE = ejeCalendario([], 60);
 
+/** B19: tipo de cada solicitud por su `solicitud_id` (`agenda_profesor_dias.solicitud_tipo`, CAL-08; DEC-42 A, DEC-43 A). */
+export type TiposDeSolicitud = Record<string, TipoSolicitud>;
+
 /** Filas de `agenda_profesor_dias` de un día: las de `agenda_profesor` más el día y las horas reales de la clase. */
-export function filasDias(filas: FilaAgendaProfesor[], dia = DIA): FilaAgendaDias[] {
+export function filasDias(filas: FilaAgendaProfesor[], dia = DIA, tipos: TiposDeSolicitud = {}): FilaAgendaDias[] {
   return filas.map((f) => ({
     ...f,
     dia,
     clase_inicio: f.clase_id === null ? null : f.inicio,
     clase_fin: f.clase_id === null ? null : f.fin,
-    solicitud_tipo: null,
+    solicitud_tipo: f.solicitud_id === null ? null : (tipos[f.solicitud_id] ?? null),
   }));
 }
 
@@ -133,8 +137,13 @@ export const GRILLA: TramoGrilla[] = ([1, 2, 3, 4, 5] as const).flatMap((d) => [
 ]);
 
 /** El calendario del día como lo arma la lógica (`calendarioConElementos`): clases, huecos libres y bloqueos (CAL-05..08). */
-export function calendarioDe(filas: FilaAgendaProfesor[], dia = DIA, profesorActivo = true): EstadoCalendario {
-  const dias = diasCalendario([dia], filasDias(filas, dia), ZONA);
+export function calendarioDe(
+  filas: FilaAgendaProfesor[],
+  dia = DIA,
+  profesorActivo = true,
+  tipos: TiposDeSolicitud = {},
+): EstadoCalendario {
+  const dias = diasCalendario([dia], filasDias(filas, dia, tipos), ZONA);
   const { columnas } = calendarioConElementos(dias, { grilla: GRILLA, duracionMin: 60 }, ZONA, profesorActivo);
   return { estado: 'listo', columnas, sinClases: sinClases(dias) };
 }
@@ -166,7 +175,7 @@ export function montar(filas: FilaAgendaProfesor[], opciones: OpcionesMontaje = 
     dia: DIA,
     zona: ZONA,
     limites: LIMITES,
-    agenda: { estado: 'listo', datos: filas, error: null },
+    agenda: { estado: 'listo', datos: filasDias(filas, resto.dia ?? DIA), error: null },
     calendario: calendarioDe(filas, resto.dia ?? DIA, resto.profesorActivo ?? true),
     eje: EJE,
     navegacion: navegacionCalendario({ vista: 'dia', dia: resto.dia ?? DIA }, resto.limites ?? LIMITES),

@@ -12,6 +12,10 @@
 // tocar un hueco libre futuro, una clase o un bloqueo propio de la grilla abre el detalle (`DetalleCalendario`: diálogo
 // o columna) con las acciones de hoy; al cerrarlo el foco vuelve al bloque (o a la grilla si ya no existe). Repone
 // «Elegir día» en la barra (H-B17-03).
+// B19 (CAL-12, CAL-20, CA-76, CA-84; DEC-42 A, DEC-43 A; F-CAL-06, F-CAL-10; A11Y-47): con `acciones.responder` el
+// detalle y la lista responden una solicitud; confirmar o rechazar se anuncia («Clase confirmada» / «Clase rechazada») y
+// el foco va a la grilla; si la solicitud ya no se puede responder se relee y el aviso queda sobre la agenda. Con
+// `copiarEnlace`, «Copiar enlace de este día» copia el enlace del día y anuncia «Enlace copiado» (o su fallo).
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { Alerta, Boton, Cargando, Dialogo, ErrorCarga, Icono, Vacio } from '../../../ui';
 import { formatearFecha, type Dia } from '../../../lib/fechas';
@@ -20,12 +24,15 @@ import type { EstadoAlumnos } from '../../lista/logica';
 import {
   MENSAJES_PANEL,
   type Contadores,
+  type Decision,
   type EjeCalendario,
   type EstadoLecturaPanel,
-  type FilaAgendaProfesor,
+  type FilaAgendaDias,
   type NavegacionCalendario,
+  type ResultadoRespuestaCalendario,
+  type SolicitudEnCalendario,
 } from '../logica';
-import { AccionesVista } from './AccionesVista';
+import { AccionesVista, type ResultadoCopia } from './AccionesVista';
 import { BarraCalendario } from './BarraCalendario';
 import { BloqueoForm } from './BloqueoForm';
 import { CalendarioPanel } from './CalendarioPanel';
@@ -33,7 +40,7 @@ import type { EstadoCalendario } from './calendario';
 import { ContadoresPanel } from './ContadoresPanel';
 import type { AccionesPanel, ResultadoPanel } from './contrato';
 import { DetalleCalendario } from './DetalleCalendario';
-import { fechaConHora, textoRango, TEXTOS_BLOQUEO, TEXTOS_PANEL } from './formato';
+import { fechaConHora, textoRango, TEXTOS_BLOQUEO, TEXTOS_CALENDARIO, TEXTOS_PANEL } from './formato';
 import { ListaAgendaProfesor } from './ListaAgendaProfesor';
 import estilos from './VistaPanel.module.css';
 
@@ -45,7 +52,7 @@ export type VistaPanelProps = {
   /** Extremos de `agenda_profesor`: desde un año atrás hasta un año adelante (SEC-09). */
   limites: LimitesAgenda;
   /** Los huecos del día para «Ver como lista» (la misma lectura que el calendario). */
-  agenda: EstadoLecturaPanel<FilaAgendaProfesor[]>;
+  agenda: EstadoLecturaPanel<FilaAgendaDias[]>;
   /** Lo que se dibuja en la grilla del día: cargando, error con el mensaje genérico o listo con sus clases (CC-02). */
   calendario: EstadoCalendario;
   /** Se vuelve a leer con la grilla anterior a la vista (cambio de día): `aria-busy`. */
@@ -64,6 +71,11 @@ export type VistaPanelProps = {
   onRecargarAgenda: () => void;
   onRecargarContadores: () => void;
   onRecargarAlumnos: () => void;
+  /**
+   * «Copiar enlace de este día» (CAL-20, solo vista Día): `enlace` es el de `enlaceDia` de la lógica (`null` = no hay,
+   * el botón queda deshabilitado) y `copiar` el portapapeles inyectable (`true` = copió). Sin esta prop no se ofrece.
+   */
+  copiarEnlace?: { enlace: string | null; copiar: (texto: string) => Promise<boolean> };
   /** Solo para pruebas: fuerza la columna (escritorio) o el diálogo (móvil) en lugar de medir la pantalla. */
   escritorio?: boolean;
 };
@@ -86,7 +98,7 @@ function useEscritorio(): boolean {
   return useSyncExternalStore(suscribirPantalla, esEscritorioAhora, () => false);
 }
 
-function tituloDelHueco(fila: FilaAgendaProfesor, zona: string): string {
+function tituloDelHueco(fila: FilaAgendaDias, zona: string): string {
   const cuando = `${formatearFecha(fila.inicio, zona)}, ${textoRango(fila, zona)}`;
   if (fila.estado === 'libre') return `Hueco libre del ${cuando}`;
   if (fila.estado === 'bloqueado') return `Horario bloqueado del ${cuando}`;
@@ -110,6 +122,7 @@ export function VistaPanel({
   onRecargarAgenda,
   onRecargarContadores,
   onRecargarAlumnos,
+  copiarEnlace,
   escritorio,
 }: VistaPanelProps) {
   const detectado = useEscritorio();
@@ -118,6 +131,9 @@ export function VistaPanel({
   const [resultado, setResultado] = useState<ResultadoPanel | null>(null);
   const [bloqueando, setBloqueando] = useState(false);
   const [modoLista, setModoLista] = useState(false);
+  const [copia, setCopia] = useState<ResultadoCopia>('ninguno');
+  /** Una solicitud que ya no se puede responder (vencida, ya respondida): el motivo queda sobre la agenda (`role=alert`). */
+  const [falloRespuesta, setFalloRespuesta] = useState('');
   /** B18 (A11Y-48): hubo una acción de la persona; si después falla la lectura, el foco va a «Reintentar». */
   const [accionReciente, setAccionReciente] = useState(false);
   /** Adónde va el foco tras una operación: la grilla (calendario) o el resultado (lista). */
@@ -149,31 +165,69 @@ export function VistaPanel({
   };
   const irADia = (nuevo: Dia) => {
     setSeleccion(null);
+    setCopia('ninguno');
+    setFalloRespuesta('');
     setAccionReciente(false);
     if (nuevo !== dia) onCambiarDia(nuevo);
   };
   const { anterior, siguiente } = navegacion;
-  const elegir = (f: FilaAgendaProfesor) => {
+  const elegir = (f: FilaAgendaDias) => {
     setResultado(null);
+    setFalloRespuesta('');
     setSeleccion(f.inicio);
   };
   /** Tocar un elemento de la grilla: el detalle se abre por el `inicio` de su fila. */
   const abrirDesdeGrilla = (inicio: string) => {
     setResultado(null);
+    setFalloRespuesta('');
     setSeleccion(inicio);
   };
-  const hecho = (r: ResultadoPanel) => {
+  const hecho = (r: ResultadoPanel, releer = true) => {
     setResultado(r);
     setSeleccion(null);
     setFocoTras(modoLista ? 'resultado' : 'grilla');
     setAccionReciente(true);
-    onRecargarAgenda();
-    onRecargarContadores();
+    if (releer) {
+      onRecargarAgenda();
+      onRecargarContadores();
+    }
   };
   /** La agenda quedó desactualizada (HUECO_NO_LIBRE, etc.): se relee el rango visible y los contadores (CA-87). */
   const desactualizada = () => {
     onRecargarAgenda();
     onRecargarContadores();
+  };
+
+  /**
+   * CAL-12 · F-CAL-06: confirma o rechaza la solicitud. Con `ok` se anuncia «Clase confirmada» / «Clase rechazada» y el
+   * foco va a la grilla (A11Y-47); la relectura (el bloque pasa a CONFIRMADA o desaparece sin recargar la página) la
+   * pidió la lógica (`releer`). Si ya no se puede responder (`desactualizada`, también releída) el motivo queda sobre la
+   * agenda; los demás fallos los muestra quien responde, en su diálogo o junto a los botones.
+   */
+  const responder = acciones.responder;
+  const alResponder = responder
+    ? async (
+        solicitud: SolicitudEnCalendario,
+        decision: Decision,
+        motivo: string | null,
+      ): Promise<ResultadoRespuestaCalendario> => {
+        setFalloRespuesta('');
+        const r = await responder(solicitud, decision, motivo);
+        if (r.ok) {
+          const mensaje = r.estado === 'confirmada' ? TEXTOS_CALENDARIO.claseConfirmada : TEXTOS_CALENDARIO.claseRechazada;
+          hecho({ mensaje, salteadas: [] }, false);
+        } else if (r.desactualizada) {
+          setFalloRespuesta(r.mensaje);
+          setSeleccion(null);
+          if (!modoLista) grillaRef.current?.focus();
+        }
+        return r;
+      }
+    : undefined;
+
+  const alCopiar = async () => {
+    if (!copiarEnlace || copiarEnlace.enlace === null) return;
+    setCopia((await copiarEnlace.copiar(copiarEnlace.enlace)) ? 'copiado' : 'fallo');
   };
 
   const detalle = fila ? (
@@ -192,6 +246,7 @@ export function VistaPanel({
       onHecho={hecho}
       onDesactualizada={desactualizada}
       onIrAConflicto={cerrar}
+      responder={alResponder}
     />
   ) : null;
 
@@ -211,6 +266,7 @@ export function VistaPanel({
           profesorActivo={profesorActivo}
           seleccionada={fila ? fila.inicio : null}
           onElegir={elegir}
+          responder={alResponder}
         />
       </>
     );
@@ -255,6 +311,7 @@ export function VistaPanel({
               </div>
             ) : null}
           </div>
+          {falloRespuesta !== '' ? <Alerta tipo="error">{falloRespuesta}</Alerta> : null}
           <BarraCalendario
             vista="dia"
             titulo={navegacion.titulo}
@@ -271,6 +328,11 @@ export function VistaPanel({
               setSeleccion(null);
               setModoLista((actual) => !actual);
             }}
+            copiable={copiarEnlace !== undefined}
+            hayEnlace={copiarEnlace?.enlace != null}
+            onCopiar={() => void alCopiar()}
+            copia={copia}
+            enlace={copiarEnlace?.enlace ?? null}
           />
           <p className={estilos.nota}>Horarios en el huso {zona}.</p>
           {modoLista ? (

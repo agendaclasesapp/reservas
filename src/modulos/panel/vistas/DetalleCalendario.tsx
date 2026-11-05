@@ -1,30 +1,40 @@
 // CC-13 · Detalle del elemento tocado del calendario (CAL-05, CAL-06, CAL-11; CA-70, CA-71, CA-79; F-CAL-04,
-// F-CAL-05, F-CAL-07; A11Y-38, A11Y-53; SEC-16, SEC-35): quién toma la clase, el titular y la observación (o el
+// F-CAL-05, F-CAL-06, F-CAL-07; A11Y-38, A11Y-53; SEC-16, SEC-35): quién toma la clase, el titular y la observación (o el
 // motivo del bloqueo) con las acciones de hoy de `PanelAcciones` y sus formularios, sin reglas nuevas: qué se ofrece
 // lo decide la lógica (`accionesFila`, `accionesBloqueo`, `permisosPanel`). En un `Dialogo` por debajo de 60 rem
 // (foco al título y atrapado; Esc y «Cerrar» lo cierran) y en una columna en escritorio (el foco pasa a su `h2`,
 // `tabIndex=-1`; Esc y «Cerrar» lo cierran y quien lo monta devuelve el foco al bloque que lo abrió). Con la agenda
 // inactiva «Mover» y «Crear clase» quedan deshabilitados con su porqué y «Cancelar» sigue (PRF-08, A11Y-53). Todo
 // texto de la base se muestra como texto: no hay HTML armado con él.
+// B19 (CAL-12, CA-76; DEC-42 A, DEC-43 A): una solicitud pendiente (reserva, destino de un movimiento) o una clase
+// confirmada con «Cancelación pendiente» suma `ResponderSolicitud` junto a las acciones de clase, con los botones que
+// dice `accionesRespuesta` (= `accionesSolicitud` de la Lista); sin `responder` conserva el enlace a la Lista.
 import { useEffect, useRef } from 'react';
 import { Boton, Dialogo } from '../../../ui';
-import { accionesFila } from '../logica';
+import { accionesFila, accionesRespuesta, type FilaAgendaDias } from '../logica';
+import type { ResponderSolicitudAccion } from './contrato';
 import { TEXTOS_PANEL } from './formato';
 import { PanelAcciones, type PanelAccionesProps } from './PanelAcciones';
+import { ResponderSolicitud } from './ResponderSolicitud';
+import { solicitudDeFila } from './solicitud';
 import estilos from './DetalleCalendario.module.css';
 
-export type DetalleCalendarioProps = PanelAccionesProps & {
+export type DetalleCalendarioProps = Omit<PanelAccionesProps, 'fila'> & {
+  /** La fila de `agenda_profesor_dias`: trae `solicitud_tipo`, con el que se sabe si hay algo que responder (CAL-12). */
+  fila: FilaAgendaDias;
   /** Escritorio (>= 60 rem): columna; si no, diálogo. */
   enEscritorio: boolean;
   /** «Clase del jueves 12 de noviembre, 10:00 a 11:00»: nombra el diálogo y la columna. */
   titulo: string;
   /** «Cerrar» y Esc: quien lo monta devuelve el foco (A11Y-38). */
   onCerrar: () => void;
+  /** Responde la solicitud de la fila (CAL-12); resuelve con el resultado de la Lista. Sin él no se ofrece responder. */
+  responder?: ResponderSolicitudAccion;
 };
 
 const ID_TITULO = 'panel-columna-titulo';
 
-export function DetalleCalendario({ enEscritorio, titulo, onCerrar, ...panel }: DetalleCalendarioProps) {
+export function DetalleCalendario({ enEscritorio, titulo, onCerrar, responder, ...panel }: DetalleCalendarioProps) {
   const tituloRef = useRef<HTMLHeadingElement>(null);
 
   // En columna el foco pasa a su título al abrirla o al tocar otro elemento (A11Y-38).
@@ -50,11 +60,24 @@ export function DetalleCalendario({ enEscritorio, titulo, onCerrar, ...panel }: 
     return () => document.removeEventListener('keydown', alTecla);
   }, [enEscritorio, onCerrar]);
 
+  // Qué botones se ofrecen lo dice `accionesRespuesta` (= `accionesSolicitud` de la Lista): inactivo no confirma.
+  const pedido = responder ? solicitudDeFila(fila, panel.zona) : null;
+  const permitidas = accionesRespuesta(panel.profesorActivo);
+
   const contenido = (
     <>
       <PanelAcciones key={fila.inicio} {...panel} />
+      {responder && pedido && permitidas.rechazar ? (
+        <ResponderSolicitud
+          key={pedido.solicitud.id}
+          solicitud={pedido}
+          puedeConfirmar={permitidas.confirmar}
+          onConfirmar={() => responder(pedido.solicitud, 'confirmar', null)}
+          onRechazar={(motivo) => responder(pedido.solicitud, 'rechazar', motivo)}
+        />
+      ) : null}
       {sinGestion && fila.pasada ? <p className={estilos.nota}>{TEXTOS_PANEL.yaPaso}</p> : null}
-      {sinGestion && !fila.pasada ? (
+      {sinGestion && !fila.pasada && pedido === null ? (
         <p className={estilos.nota}>
           {TEXTOS_PANEL.pedidoSinResponder} <a href="#/lista">{TEXTOS_PANEL.responderEnLista}</a>
         </p>

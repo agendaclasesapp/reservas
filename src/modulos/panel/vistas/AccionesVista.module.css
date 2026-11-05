@@ -3,3 +3,20 @@
   flex-wrap: wrap;
   gap: var(--e-2);
 }
+
+/* Resultado de «Copiar enlace de este día»: reserva su línea para no mover el contenido al aparecer (CLS). */
+.resultado,
+.fallo {
+  flex-basis: 100%;
+  margin: 0;
+  min-block-size: calc(var(--t-base) * var(--interlineado-cuerpo));
+  overflow-wrap: anywhere;
+}
+
+.resultado {
+  color: var(--c-exito-texto);
+}
+
+.fallo {
+  color: var(--c-error);
+}

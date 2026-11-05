@@ -139,4 +139,13 @@ export const TEXTOS_CALENDARIO = {
   sinClasesDia: 'No hay clases este día',
   /** H-B17-03 · nombre accesible del campo de fecha de la barra (CAL-03). */
   elegirDia: 'Elegir día',
+  /** CC-06 · DEC-43 A: clase confirmada con una cancelación pedida y sin responder (texto, no solo color: NFR-11). */
+  cancelacionPendiente: 'Cancelación pendiente',
+  /** CC-14 · F-CAL-06 (A11Y-47): se anuncian en el `role=status` del Panel. */
+  claseConfirmada: 'Clase confirmada',
+  claseRechazada: 'Clase rechazada',
+  /** CC-15 · F-CAL-10 (CAL-20, A11Y-47): «Copiar enlace de este día» y su resultado en `role=status`. */
+  copiarEnlaceDia: 'Copiar enlace de este día',
+  enlaceCopiado: 'Enlace copiado',
+  enlaceNoCopiado: 'No se pudo copiar el enlace. Copialo a mano:',
 } as const;

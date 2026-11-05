@@ -4,6 +4,7 @@ import type { Dia } from '../../../lib/fechas';
 import type { PersonaACargo } from '../../ficha/logica';
 import type {
   Alcance,
+  Decision,
   EntradaBloqueo,
   EntradaCrearClase,
   FilaAgendaProfesor,
@@ -12,7 +13,20 @@ import type {
   ResultadoCrear,
   ResultadoDesbloquear,
   ResultadoMover,
+  ResultadoRespuestaCalendario,
+  SolicitudEnCalendario,
 } from '../logica';
+
+/**
+ * `confirmarSolicitud` / `rechazarSolicitud` de `logica/respuesta.ts` (CAL-12, ADR-025): confirma o rechaza una
+ * solicitud, con motivo opcional solo al rechazar. No lanza. Quien la conecta pasa la relectura (`releer`) a la lógica:
+ * las vistas no vuelven a releer tras un `ok` ni tras un fallo `desactualizada`.
+ */
+export type ResponderSolicitudAccion = (
+  solicitud: SolicitudEnCalendario,
+  decision: Decision,
+  motivo: string | null,
+) => Promise<ResultadoRespuestaCalendario>;
 
 export type AccionesPanel = {
   /** `crearClase` de `logica/` (PRF-01, PRF-04): devuelve un resultado, no lanza. */
@@ -32,6 +46,11 @@ export type AccionesPanel = {
    * Debe ser una referencia estable. Sin ella, la clase queda siempre a nombre del titular.
    */
   leerPersonasACargo?: (alumnoId: string) => Promise<PersonaACargo[]>;
+  /**
+   * Responder una solicitud pendiente desde el calendario o la lista (CAL-12, DEC-42 A, DEC-43 A). Sin ella las
+   * solicitudes quedan de solo lectura con el enlace a la Lista, como antes de B19.
+   */
+  responder?: ResponderSolicitudAccion;
 };
 
 /** Lo que una operación exitosa le cuenta a la página: se anuncia y se muestra sobre la agenda. */

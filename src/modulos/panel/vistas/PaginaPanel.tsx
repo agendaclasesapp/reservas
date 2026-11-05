@@ -6,6 +6,8 @@
 // se corrige reemplazando la entrada del historial) y se acotan a hoy ± 366 en el huso del profesor (SEC-09). Una
 // sola lectura (`agenda_profesor_dias`) alimenta la grilla y la lista; la grilla y la duración salen de la
 // configuración del profesor (ADR-024). La vista Semana todavía no se ofrece: `v=semana` abre Día de ese día.
+// B19 (CAL-12, CAL-20; ADR-025): conecta `confirmarSolicitud` / `rechazarSolicitud` (con la relectura del rango y de los
+// contadores) y «Copiar enlace de este día» (`useEnlaceDia`, `copiarEnlaceDia`).
 import { useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { useSesion } from '../../../estado';
@@ -23,21 +25,25 @@ import {
   diasCalendario,
   direccionCalendario,
   configuracionCalendario,
+  confirmarSolicitud,
+  copiarEnlaceDia,
   leerAgendaProfesor,
   limitesPanel,
   moverClase,
   navegacionCalendario,
+  rechazarSolicitud,
   sinClases,
   useAgendaDias,
   useContadores,
+  useEnlaceDia,
   vistaDesdeDireccion,
   type AgendaDiasLeida,
   type EstadoLecturaPanel,
-  type FilaAgendaProfesor,
+  type FilaAgendaDias,
   type LecturaAgendaDias,
 } from '../logica';
 import type { EstadoCalendario } from './calendario';
-import type { AccionesPanel } from './contrato';
+import type { AccionesPanel, ResponderSolicitudAccion } from './contrato';
 import { TEXTOS_PANEL } from './formato';
 import { VistaPanel } from './VistaPanel';
 
@@ -52,7 +58,7 @@ const ACCIONES: AccionesPanel = {
 };
 
 /** La lectura de la agenda como la ve la lista de huecos (`useLecturaPanel`): una sola lectura para grilla y lista. */
-function lecturaDeLista(lectura: LecturaAgendaDias, dia: string): EstadoLecturaPanel<FilaAgendaProfesor[]> {
+function lecturaDeLista(lectura: LecturaAgendaDias, dia: string): EstadoLecturaPanel<FilaAgendaDias[]> {
   const delDia = (leida: AgendaDiasLeida) => leida.filas.filter((f) => f.dia === dia);
   if (lectura.estado === 'error') return { estado: 'error', datos: null, error: lectura.mensaje };
   if (lectura.estado === 'listo') return { estado: 'listo', datos: delDia(lectura.datos), error: null };
@@ -75,6 +81,25 @@ function PanelConHuso({ zona, profesorActivo }: { zona: string; profesorActivo: 
   const configuracion = useConfiguracionAgenda();
   const contadores = useContadores();
   const alumnos = useAlumnos();
+  const enlace = useEnlaceDia(dia);
+  const copiarEnlace = useMemo(
+    () => ({ enlace, copiar: async (texto: string) => (await copiarEnlaceDia(texto)) === 'ok' }),
+    [enlace],
+  );
+  const recargarAgenda = agenda.recargar;
+  const recargarContadores = contadores.recargar;
+  // CAL-12: la lógica relee el rango visible y los contadores tras responder (o si la solicitud quedó desactualizada).
+  const responder = useMemo<ResponderSolicitudAccion>(() => {
+    const opciones = {
+      releer: () => {
+        recargarAgenda();
+        recargarContadores();
+      },
+    };
+    return (solicitud, decision, motivo) =>
+      decision === 'confirmar' ? confirmarSolicitud(solicitud, opciones) : rechazarSolicitud(solicitud, motivo, opciones);
+  }, [recargarAgenda, recargarContadores]);
+  const accionesConRespuesta = useMemo<AccionesPanel>(() => ({ ...ACCIONES, responder }), [responder]);
 
   const calendario = useMemo(() => {
     const lectura = agenda.lectura;
@@ -111,7 +136,8 @@ function PanelConHuso({ zona, profesorActivo }: { zona: string; profesorActivo: 
       contadores={contadores.lectura}
       alumnos={alumnos.datos}
       profesorActivo={profesorActivo}
-      acciones={ACCIONES}
+      acciones={accionesConRespuesta}
+      copiarEnlace={copiarEnlace}
       onCambiarDia={(nuevo) => {
         if (diaEnLimites(nuevo, limites)) setParametros(direccionCalendario({ vista: 'dia', dia: nuevo }));
       }}
