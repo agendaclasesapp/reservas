@@ -21,6 +21,7 @@ import {
 import type { AccionesPanel } from '../../../../src/modulos/panel/vistas/contrato';
 import type { EstadoCalendario } from '../../../../src/modulos/panel/vistas/calendario';
 import { VistaPanel, type VistaPanelProps } from '../../../../src/modulos/panel/vistas/VistaPanel';
+import type { Dia } from '../../../../src/lib/fechas';
 import { alumno } from '../../lista/vistas/soporte';
 
 export const ZONA = 'America/Montevideo';
@@ -193,4 +194,78 @@ export function montar(filas: FilaAgendaProfesor[], opciones: OpcionesMontaje = 
   const r = render(<VistaPanel {...props} />);
   if (modo === 'lista') fireEvent.click(screen.getByRole('button', { name: 'Ver como lista' }));
   return { ...r, props, simuladas, onCambiarDia, onRecargarAgenda, onRecargarContadores, onRecargarAlumnos };
+}
+
+/** B20 · Semana: instante de las `h`:00 de un día en Montevideo (UTC-3). */
+export function horaDe(dia: Dia, h: number): string {
+  return `${dia}T${String(h + 3).padStart(2, '0')}:00:00Z`;
+}
+
+/** Un hueco libre de una hora a las `h`:00 de un día, como lo lee `agenda_profesor_dias`. */
+export function libreEn(dia: Dia, h: number, extra: Partial<FilaAgendaProfesor> = {}): FilaAgendaDias {
+  return filasDias([fila({ inicio: horaDe(dia, h), fin: horaDe(dia, h + 1), ...extra })], dia)[0] as FilaAgendaDias;
+}
+
+/** Una clase confirmada de una hora a las `h`:00 de un día. */
+export function claseEn(dia: Dia, h: number, extra: Partial<FilaAgendaProfesor> = {}): FilaAgendaDias {
+  return filasDias(
+    [ocupada({ inicio: horaDe(dia, h), fin: horaDe(dia, h + 1), clase_id: `c-${dia}-${h}`, ...extra })],
+    dia,
+  )[0] as FilaAgendaDias;
+}
+
+/** Un bloqueo propio de una hora a las `h`:00 de un día. */
+export function bloqueoEn(dia: Dia, h: number, motivo: string | null): FilaAgendaDias {
+  return libreEn(dia, h, { estado: 'bloqueado', bloqueo_id: `b-${dia}-${h}`, bloqueo_motivo: motivo });
+}
+
+export type OpcionesSemana = Partial<VistaPanelProps> & {
+  simuladas?: AccionesSimuladas;
+  /** `'lista'` pulsa «Ver como lista» (CAL-19); por defecto, la grilla. */
+  modo?: 'lista' | 'calendario';
+  /** CAL-16: la ventana de 3 días (menos de 60 rem). */
+  ventana?: boolean;
+};
+
+/** La vista Semana de `VistaPanel` con la navegación y la grilla que arma la lógica para `dia` (por defecto 30/10/2026). */
+export function montarSemana(filas: FilaAgendaDias[], opciones: OpcionesSemana = {}) {
+  const { simuladas: dadas, modo = 'calendario', ventana = false, ...resto } = opciones;
+  const dia = resto.dia ?? '2026-10-30';
+  const limites = resto.limites ?? LIMITES;
+  const profesorActivo = resto.profesorActivo ?? true;
+  const simuladas = dadas ?? acciones();
+  const navegacion = navegacionCalendario({ vista: 'semana', dia }, limites, { ventana });
+  const dias = diasCalendario(
+    navegacion.dias.map((d) => d.dia),
+    filas,
+    ZONA,
+  );
+  const { columnas, eje } = calendarioConElementos(dias, { grilla: GRILLA, duracionMin: 60 }, ZONA, profesorActivo);
+  const onCambiarDia = vi.fn();
+  const onNavegar = vi.fn();
+  const onRecargarAgenda = vi.fn();
+  const props: VistaPanelProps = {
+    dia,
+    zona: ZONA,
+    limites,
+    agenda: { estado: 'listo', datos: filas, error: null },
+    calendario: { estado: 'listo', columnas, sinClases: sinClases(dias) },
+    eje,
+    navegacion,
+    ventana,
+    contadores: { estado: 'listo', datos: { solicitudes_pendientes: 0, cuentas_pendientes: 0 }, error: null },
+    alumnos: { estado: 'listo', alumnos: [ANA, BRUNO, CARLA], error: null },
+    profesorActivo,
+    acciones: simuladas,
+    onCambiarDia,
+    onNavegar,
+    onRecargarAgenda,
+    onRecargarContadores: vi.fn(),
+    onRecargarAlumnos: vi.fn(),
+    escritorio: !ventana,
+    ...resto,
+  };
+  const r = render(<VistaPanel {...props} />);
+  if (modo === 'lista') fireEvent.click(screen.getByRole('button', { name: 'Ver como lista' }));
+  return { ...r, props, simuladas, onCambiarDia, onNavegar, onRecargarAgenda };
 }

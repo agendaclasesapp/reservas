@@ -39,3 +39,6 @@ export function variablesDeElemento(
 ): VariablesCss {
   return { '--cal-arriba': arribaHoras, '--cal-alto': altoHoras, '--cal-carril': carril, '--cal-carriles': carriles };
 }
+
+/** CC-09 · Posición de la línea de la hora actual de un día, en horas desde el comienzo del eje y su `HH:MM` (`lineaAhora` de la lógica, CAL-10). */
+export type { LineaAhora as LineaAhoraDia } from '../logica';

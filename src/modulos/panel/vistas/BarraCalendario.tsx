@@ -4,7 +4,7 @@
 // la agenda queda deshabilitada y lo dice en su nombre accesible (A11Y-49).
 // B18 (H-B17-03, CAL-03): «Elegir día» repone el campo de fecha que tenía el selector de día de B09: salta a una fecha
 // de hoy ± 366 y navega como las flechas (cambia `d` en la dirección); fuera de ese rango muestra el error y no navega.
-import { useState } from 'react';
+import { useState, type Ref } from 'react';
 import { Boton, CampoFecha, Icono } from '../../../ui';
 import { formatearDia, type Dia } from '../../../lib/fechas';
 import { diaEnLimites, type LimitesAgenda } from '../../agenda/logica';
@@ -35,11 +35,16 @@ export type BarraCalendarioProps = {
   onHoy: () => void;
   /** Si se da, la barra suma el campo de fecha «Elegir día» (H-B17-03). */
   elegirDia?: ElegirDiaCalendario;
+  /** B20 (CAL-16): la Semana se ve como ventana de 3 días; las flechas corren de a 3. */
+  ventana?: boolean;
+  /** B20 (F-CAL-03): el título, para moverle el foco al abrir la vista Día desde un encabezado. */
+  tituloRef?: Ref<HTMLHeadingElement>;
 };
 
-const NOMBRES_FLECHAS: Record<VistaCalendario, { anterior: string; siguiente: string }> = {
+const NOMBRES_FLECHAS: Record<VistaCalendario | 'ventana', { anterior: string; siguiente: string }> = {
   dia: { anterior: TEXTOS_CALENDARIO.diaAnterior, siguiente: TEXTOS_CALENDARIO.diaSiguiente },
-  semana: { anterior: 'Semana anterior', siguiente: 'Semana siguiente' },
+  semana: { anterior: TEXTOS_CALENDARIO.semanaAnterior, siguiente: TEXTOS_CALENDARIO.semanaSiguiente },
+  ventana: { anterior: TEXTOS_CALENDARIO.tresDiasAnteriores, siguiente: TEXTOS_CALENDARIO.tresDiasSiguientes },
 };
 
 function Flecha({
@@ -110,8 +115,10 @@ export function BarraCalendario({
   onSiguiente,
   onHoy,
   elegirDia,
+  ventana = false,
+  tituloRef,
 }: BarraCalendarioProps) {
-  const nombres = NOMBRES_FLECHAS[vista];
+  const nombres = NOMBRES_FLECHAS[vista === 'semana' && ventana ? 'ventana' : vista];
   return (
     <div className={estilos.barra}>
       <nav aria-label={TEXTOS_CALENDARIO.navegacion} className={estilos.navegacion}>
@@ -139,7 +146,7 @@ export function BarraCalendario({
         </div>
         {elegirDia ? <CampoElegirDia {...elegirDia} /> : null}
       </nav>
-      <h2 className={estilos.titulo} aria-live="polite" aria-atomic="true">
+      <h2 ref={tituloRef} tabIndex={-1} className={estilos.titulo} aria-live="polite" aria-atomic="true">
         {titulo}
       </h2>
     </div>

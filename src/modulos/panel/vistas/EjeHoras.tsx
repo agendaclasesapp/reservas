@@ -3,14 +3,17 @@
 // (`aria-hidden`): la hora de cada clase ya va en su nombre accesible. Las líneas por hora y por media hora las dibuja
 // la columna de días con el mismo `--cal-alto-hora`.
 import type { EjeCalendario } from '../logica';
-import type { VariablesCss } from './calendario';
+import type { LineaAhoraDia, VariablesCss } from './calendario';
+import { EtiquetaAhora } from './LineaAhora';
 import estilos from './Calendario.module.css';
 
 export type EjeHorasProps = {
   eje: Pick<EjeCalendario, 'desdeMin' | 'marcas'>;
+  /** B20 (CAL-10): «Ahora 10:42» a la altura de la línea de hoy, si hay una columna de hoy con línea. */
+  ahora?: LineaAhoraDia | null;
 };
 
-export function EjeHoras({ eje }: EjeHorasProps) {
+export function EjeHoras({ eje, ahora = null }: EjeHorasProps) {
   return (
     <div className={estilos.eje} aria-hidden="true">
       {eje.marcas
@@ -23,6 +26,7 @@ export function EjeHoras({ eje }: EjeHorasProps) {
             </time>
           );
         })}
+      {ahora ? <EtiquetaAhora arribaHoras={ahora.arribaHoras} hora={ahora.hora} /> : null}
     </div>
   );
 }

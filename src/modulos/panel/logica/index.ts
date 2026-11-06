@@ -54,6 +54,18 @@
 //   r.ok ? r.mensaje : r.mensaje (r.campo === 'motivo' marca el campo; r.desactualizada: ya se pidió releer)
 //   const enlace = useEnlaceDia(dia);                               // …/#/p/<slug>?d=AAAA-MM-DD o null (deshabilitada)
 //   const c = await copiarEnlaceDia(enlace);                        // 'ok' («Enlace copiado») | 'fallo'
+//
+// B20 · T20.1 · Semana, ventana de 3 días, hoy y lista agrupada (CAL-03, CAL-10, CAL-15, CAL-16, CAL-19, INV-02;
+// DEC-45 A con H-475, DEC-46, ADR-023):
+//   const ahora = useAhora();                                        // se renueva cada minuto (CAL-10)
+//   const limites = limitesPanel(zona, ahora);                       // «hoy» cambia a medianoche sin recargar
+//   const nav = navegacionCalendario(v, limites, { ventana: anchoMenorA60rem });   // Semana: lunes a domingo | 3 días
+//   nav.anterior / nav.siguiente: primer día dentro del bloque nuevo, o null = deshabilitada (H-475)
+//   const { lectura } = useAgendaDias(nav.desde, nav.hasta);         // UNA lectura por semana o ventana; días fuera no se piden
+//   nav.dias[i]: { dia, enRango, esHoy }                             // esHoy: columna resaltada; !enRango: vacía, sin huecos
+//   abrirDia(nav.dias[i])                                            // encabezado «Lun 26/10» → { vista: 'dia', dia } | null (CA-80)
+//   const grupos = agruparPorDia(nav.dias, datos.filas);             // «Ver como lista» en Semana: un grupo por día (DEC-46)
+//   lineaAhora(columna.dia, eje, zona, ahora)                        // { arribaHoras, hora } | null: solo hoy y dentro del eje
 import { cargarSupabase } from '../../../lib/supabase';
 import type { Dia } from '../../../lib/fechas';
 import * as agendaDias from './agendaDias';
@@ -163,6 +175,7 @@ export {
   DIAS_DE_ALCANCE_PANEL,
   PARAMETROS_CALENDARIO,
   VISTAS_CALENDARIO,
+  abrirDia,
   diaSemanaIso,
   direccionCalendario,
   esVistaCalendario,
@@ -176,9 +189,29 @@ export type {
   DiaVisible,
   EstadoVistaCalendario,
   NavegacionCalendario,
+  OpcionesNavegacion,
   VistaCalendario,
   VistaDesdeDireccion,
 } from './vistaCalendario';
+export {
+  agruparPorDia,
+  ahoraDelProfesor,
+  ANCHO_MINIMO_SEMANA_REM,
+  destinoFlecha,
+  DIAS_SEMANA,
+  DIAS_VENTANA,
+  diasDeSemana,
+  diasDeVentana,
+  diasSeguidos,
+  diasVisibles,
+  lineaAhora,
+  PERIODO_AHORA_MS,
+  primerDiaDentro,
+  rangoALeer,
+  tituloRango,
+  useAhora,
+} from './semana';
+export type { AhoraDelProfesor, GrupoDia, LineaAhora, RangoDias } from './semana';
 export {
   ALTO_HORA_BASE_REM,
   ALTO_HORA_MAXIMO_REM,

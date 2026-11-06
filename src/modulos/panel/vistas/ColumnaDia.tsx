@@ -1,6 +1,9 @@
 // CC-05 · Columna de un día (CAL-05..CAL-08): los elementos de un día —huecos libres, bloqueos y clases— en orden
 // horario (= orden de lectura), ubicados contra el eje, con el fondo sombreado fuera de los tramos de la grilla
 // (CAL-05). Todo lo que se dibuja (posición, carriles, zonas) viene de la lógica: acá no se calcula nada (N-1).
+// B20 (CAL-10, CAL-15; CA-74; DEC-45 A): en la vista Semana la columna de hoy va resaltada (`resaltar`) y lleva la línea
+// de la hora actual (`lineaAhora`, CC-09); un día fuera de hoy ± 366 (`enRango` falso) es una columna vacía y sombreada,
+// decorativa (`aria-hidden`): sin huecos tocables ni lectura.
 import {
   posicionEnEje,
   type BloqueClase as DatosBloque,
@@ -9,10 +12,11 @@ import {
   type ElementoBloqueo,
   type ElementoHueco,
 } from '../logica';
-import { nombreDelDia, variablesDeElemento } from './calendario';
+import { nombreDelDia, variablesDeElemento, type LineaAhoraDia } from './calendario';
 import { BloqueBloqueo } from './BloqueBloqueo';
 import { BloqueClase } from './BloqueClase';
 import { HuecoLibre } from './HuecoLibre';
+import { LineaAhora } from './LineaAhora';
 import estilos from './Calendario.module.css';
 
 export type ColumnaDiaProps = {
@@ -25,12 +29,29 @@ export type ColumnaDiaProps = {
   onAbrirClase?: (clase: DatosBloque) => void;
   /** Abre «Desbloquear» de un bloqueo propio. */
   onAbrirBloqueo?: (bloqueo: ElementoBloqueo) => void;
+  /** Vista Semana: la columna de hoy se resalta (CAL-10). */
+  resaltar?: boolean;
+  /** Dentro de hoy ± 366; `false` = día no disponible, columna vacía y sombreada (DEC-45 A). */
+  enRango?: boolean;
+  /** Línea de la hora actual de este día (solo en hoy y dentro del eje), `lineaAhora` de la lógica (CAL-10). */
+  lineaAhora?: LineaAhoraDia | null;
 };
 
-export function ColumnaDia({ columna, zona, eje, onAbrirHueco, onAbrirClase, onAbrirBloqueo }: ColumnaDiaProps) {
+export function ColumnaDia({
+  columna,
+  zona,
+  eje,
+  onAbrirHueco,
+  onAbrirClase,
+  onAbrirBloqueo,
+  resaltar = false,
+  enRango = true,
+  lineaAhora = null,
+}: ColumnaDiaProps) {
   const { dia, elementos, zonasFueraDeTramo } = columna;
+  if (!enRango) return <div aria-hidden="true" className={`${estilos.columna} ${estilos.fueraDeRango}`} />;
   return (
-    <div className={estilos.columna}>
+    <div className={`${estilos.columna}${resaltar ? ` ${estilos.columnaHoy}` : ''}`} data-hoy={resaltar || undefined}>
       <div aria-hidden="true" className={estilos.zonas}>
         {zonasFueraDeTramo.map((tramo) => (
           <div
@@ -67,6 +88,7 @@ export function ColumnaDia({ columna, zona, eje, onAbrirHueco, onAbrirClase, onA
           }
         })}
       </ul>
+      {lineaAhora ? <LineaAhora arribaHoras={lineaAhora.arribaHoras} /> : null}
     </div>
   );
 }

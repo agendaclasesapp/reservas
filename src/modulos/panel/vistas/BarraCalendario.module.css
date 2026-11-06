@@ -48,6 +48,11 @@
   line-height: var(--interlineado-titulo);
 }
 
+.titulo:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
 .fecha {
   min-inline-size: 0;
 }

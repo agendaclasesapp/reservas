@@ -25,6 +25,8 @@ export type ListaAgendaProfesorProps = {
   onElegir: (fila: FilaAgendaDias) => void;
   /** Responde una solicitud (CAL-12). Sin él las solicitudes son de solo lectura con el enlace a la Lista. */
   responder?: ResponderSolicitudAccion;
+  /** B20 (CAL-19): nombre de la lista; en «Ver como lista» de la Semana cada día lleva el suyo («Huecos del Lun 26/10»). */
+  nombre?: string;
 };
 
 /** ¿Tocar esta fila abre acciones? Libre y futuro; ocupado con algo que hacer (mover o cancelar); o bloqueado por él. */
@@ -72,7 +74,7 @@ function Fila({
   seleccionada,
   onElegir,
   responder,
-}: Omit<ListaAgendaProfesorProps, 'filas' | 'seleccionada'> & { fila: FilaAgendaDias; seleccionada: boolean }) {
+}: Omit<ListaAgendaProfesorProps, 'filas' | 'seleccionada' | 'nombre'> & { fila: FilaAgendaDias; seleccionada: boolean }) {
   const clase = `${estilos.fila} ${estilos[fila.estado]}${seleccionada ? ` ${estilos.seleccionada}` : ''}`;
   const contenido = (
     <>
@@ -133,9 +135,17 @@ function Fila({
   );
 }
 
-export function ListaAgendaProfesor({ filas, zona, profesorActivo, seleccionada, onElegir, responder }: ListaAgendaProfesorProps) {
+export function ListaAgendaProfesor({
+  filas,
+  zona,
+  profesorActivo,
+  seleccionada,
+  onElegir,
+  responder,
+  nombre = 'Huecos del día',
+}: ListaAgendaProfesorProps) {
   return (
-    <ul className={estilos.huecos} aria-label="Huecos del día">
+    <ul className={estilos.huecos} aria-label={nombre}>
       {filas.map((fila) => (
         <Fila
           key={`${fila.inicio}|${fila.fin}`}

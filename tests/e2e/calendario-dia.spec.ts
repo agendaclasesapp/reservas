@@ -202,10 +202,11 @@ for (const pantalla of PANTALLAS) {
         await expect(page.getByRole('button', { name: 'Día siguiente' })).toBeEnabled();
       }, { esperado: `Con solo «?d=» se abre el calendario Día de ese día (${titulo(otro)})` });
 
-      await cu.paso('Semana todavía es de B20: ?v=semana abre Día', async () => {
+      await cu.paso('Desde B20, ?v=semana abre la Semana', async () => {
         await abrir(page, `#/panel?v=semana&d=${otro}`);
-        await expect(h2Dia(page, otro)).toBeVisible();
-      }, { esperado: 'Hasta B20, «v=semana» abre la vista Día de ese día' });
+        await expect(page.getByRole('group', { name: 'Vista del calendario' }).getByRole('button', { name: 'Semana' })).toHaveAttribute('aria-pressed', 'true');
+        expect(page.url()).toContain('v=semana');
+      }, { esperado: 'Desde B20, «v=semana» abre la vista Semana (su detalle se prueba en calendario-semana.spec.ts)' });
       await ctx.close();
     });
 

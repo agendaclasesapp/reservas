@@ -16,17 +16,25 @@
 // detalle y la lista responden una solicitud; confirmar o rechazar se anuncia («Clase confirmada» / «Clase rechazada») y
 // el foco va a la grilla; si la solicitud ya no se puede responder se relee y el aviso queda sobre la agenda. Con
 // `copiarEnlace`, «Copiar enlace de este día» copia el enlace del día y anuncia «Enlace copiado» (o su fallo).
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+// B20 (CAL-01, CAL-10, CAL-15, CAL-16, CAL-19; WEB-15, WEB-16; F-CAL-02, F-CAL-03, F-CAL-09; A11Y-49, A11Y-50): la vista
+// sale de `navegacion.vista` (la dirección la decide `PaginaPanel`; H-471). En Semana la grilla trae siete columnas o la
+// ventana de 3 días (`navegacion.dias`), los encabezados abren la vista Día (y le dan el foco al título), las flechas y
+// el deslizamiento de la ventana corren el bloque de días, «Ver como lista» agrupa por día (CC-16) y «Copiar enlace de
+// este día» no se ofrece. Los botones Día/Semana y todo destino que cambia la vista van por `onNavegar`.
+import { useEffect, useRef, useState } from 'react';
 import { Alerta, Boton, Cargando, Dialogo, ErrorCarga, Icono, Vacio } from '../../../ui';
 import { formatearFecha, type Dia } from '../../../lib/fechas';
 import type { LimitesAgenda } from '../../agenda/logica';
 import type { EstadoAlumnos } from '../../lista/logica';
 import {
+  abrirDia,
+  agruparPorDia,
   MENSAJES_PANEL,
   type Contadores,
   type Decision,
   type EjeCalendario,
   type EstadoLecturaPanel,
+  type EstadoVistaCalendario,
   type FilaAgendaDias,
   type NavegacionCalendario,
   type ResultadoRespuestaCalendario,
@@ -36,12 +44,14 @@ import { AccionesVista, type ResultadoCopia } from './AccionesVista';
 import { BarraCalendario } from './BarraCalendario';
 import { BloqueoForm } from './BloqueoForm';
 import { CalendarioPanel } from './CalendarioPanel';
-import type { EstadoCalendario } from './calendario';
+import type { EstadoCalendario, LineaAhoraDia } from './calendario';
 import { ContadoresPanel } from './ContadoresPanel';
 import type { AccionesPanel, ResultadoPanel } from './contrato';
 import { DetalleCalendario } from './DetalleCalendario';
 import { fechaConHora, textoRango, TEXTOS_BLOQUEO, TEXTOS_CALENDARIO, TEXTOS_PANEL } from './formato';
 import { ListaAgendaProfesor } from './ListaAgendaProfesor';
+import { ListaPorDia } from './ListaPorDia';
+import { useEscritorio } from './useEscritorio';
 import estilos from './VistaPanel.module.css';
 
 export type VistaPanelProps = {
@@ -51,7 +61,7 @@ export type VistaPanelProps = {
   zona: string;
   /** Extremos de `agenda_profesor`: desde un año atrás hasta un año adelante (SEC-09). */
   limites: LimitesAgenda;
-  /** Los huecos del día para «Ver como lista» (la misma lectura que el calendario). */
+  /** Los huecos de lo que se ve para «Ver como lista» (la misma lectura que el calendario): del día, o de toda la Semana o ventana. */
   agenda: EstadoLecturaPanel<FilaAgendaDias[]>;
   /** Lo que se dibuja en la grilla del día: cargando, error con el mensaje genérico o listo con sus clases (CC-02). */
   calendario: EstadoCalendario;
@@ -59,14 +69,27 @@ export type VistaPanelProps = {
   calendarioReleyendo?: boolean;
   /** Eje de horas y alto de la hora que da la lógica (CAL-04, DEC-44 A, DEC-50 A). */
   eje: EjeCalendario;
-  /** `navegacionCalendario` de la lógica: título y destinos de las flechas y de «Hoy»; `null` = deshabilitada (CAL-03). */
+  /**
+   * `navegacionCalendario` de la lógica: vista, días visibles (siete, 3 de la ventana o uno), título y destinos de las
+   * flechas y de «Hoy»; `null` = deshabilitada (CAL-03, H-475). La vista sale de acá (H-471).
+   */
   navegacion: NavegacionCalendario;
+  /** CAL-16: la Semana es la ventana de 3 días (menos de 60 rem). Lo decide `PaginaPanel`; solo vale en la vista Semana. */
+  ventana?: boolean;
   contadores: EstadoLecturaPanel<Contadores>;
   alumnos: EstadoAlumnos;
   /** `sesion.profesor.activo` (PRF-08). */
   profesorActivo: boolean;
   acciones: AccionesPanel;
+  /** Cambia el día en la vista Día (flechas, «Hoy» y «Elegir día»). */
   onCambiarDia: (dia: Dia) => void;
+  /**
+   * B20: navega a un estado completo (vista y día): botones Día/Semana, flechas, «Hoy» y deslizamiento en Semana,
+   * encabezados que abren la vista Día. Sin él no se ofrecen los botones Día/Semana y la Semana no se puede recorrer.
+   */
+  onNavegar?: (destino: EstadoVistaCalendario) => void;
+  /** B20 (CAL-10): `lineaAhora` de la lógica para un día (null si no es hoy o la hora sale del eje). */
+  lineaAhora?: (dia: Dia) => LineaAhoraDia | null;
   /** Vuelve a leer la agenda: «Reintentar» y después de cada operación. */
   onRecargarAgenda: () => void;
   onRecargarContadores: () => void;
@@ -79,24 +102,6 @@ export type VistaPanelProps = {
   /** Solo para pruebas: fuerza la columna (escritorio) o el diálogo (móvil) en lugar de medir la pantalla. */
   escritorio?: boolean;
 };
-
-/** Escritorio: desde 60 rem (el mismo corte `lg` de tokens.css). */
-const CONSULTA_ESCRITORIO = '(min-width: 60rem)';
-
-function suscribirPantalla(avisar: () => void): () => void {
-  if (typeof window.matchMedia !== 'function') return () => undefined;
-  const medida = window.matchMedia(CONSULTA_ESCRITORIO);
-  medida.addEventListener('change', avisar);
-  return () => medida.removeEventListener('change', avisar);
-}
-
-function esEscritorioAhora(): boolean {
-  return typeof window.matchMedia === 'function' && window.matchMedia(CONSULTA_ESCRITORIO).matches;
-}
-
-function useEscritorio(): boolean {
-  return useSyncExternalStore(suscribirPantalla, esEscritorioAhora, () => false);
-}
 
 function tituloDelHueco(fila: FilaAgendaDias, zona: string): string {
   const cuando = `${formatearFecha(fila.inicio, zona)}, ${textoRango(fila, zona)}`;
@@ -114,11 +119,14 @@ export function VistaPanel({
   calendarioReleyendo = false,
   eje,
   navegacion,
+  ventana: ventanaDePagina = false,
   contadores,
   alumnos,
   profesorActivo,
   acciones,
   onCambiarDia,
+  onNavegar,
+  lineaAhora,
   onRecargarAgenda,
   onRecargarContadores,
   onRecargarAlumnos,
@@ -140,6 +148,12 @@ export function VistaPanel({
   const [focoTras, setFocoTras] = useState<'grilla' | 'resultado'>('resultado');
   const resultadoRef = useRef<HTMLDivElement>(null);
   const grillaRef = useRef<HTMLDivElement>(null);
+  const tituloRef = useRef<HTMLHeadingElement>(null);
+  /** F-CAL-03: un encabezado de la Semana abrió la vista Día; al llegar el título recibe el foco. */
+  const enfocarTitulo = useRef(false);
+  const esSemana = navegacion.vista === 'semana';
+  /** CAL-16: la Semana en la ventana de 3 días (menos de 60 rem), según `PaginaPanel`. */
+  const ventana = esSemana && ventanaDePagina;
 
   const filas = agenda.datos ?? [];
   const fila = seleccion === null ? undefined : filas.find((f) => f.inicio === seleccion);
@@ -163,14 +177,38 @@ export function VistaPanel({
     }
     setSeleccion(null);
   };
-  const irADia = (nuevo: Dia) => {
+  // F-CAL-03: después de abrir la vista Día desde un encabezado, el foco pasa al título (no se mueve en otros cambios).
+  useEffect(() => {
+    if (enfocarTitulo.current && navegacion.vista === 'dia') {
+      enfocarTitulo.current = false;
+      tituloRef.current?.focus();
+    }
+  }, [navegacion.vista, navegacion.dia]);
+  /** Va a un estado de la vista: Día a Día por `onCambiarDia`, lo demás (otra vista, la Semana) por `onNavegar`. */
+  const irA = (destino: EstadoVistaCalendario) => {
+    if (destino.vista === navegacion.vista && destino.dia === dia) return;
     setSeleccion(null);
     setCopia('ninguno');
     setFalloRespuesta('');
     setAccionReciente(false);
-    if (nuevo !== dia) onCambiarDia(nuevo);
+    if (destino.vista === 'dia' && navegacion.vista === 'dia') onCambiarDia(destino.dia);
+    else onNavegar?.(destino);
   };
+  const irADia = (nuevo: Dia) => irA({ vista: navegacion.vista, dia: nuevo });
   const { anterior, siguiente } = navegacion;
+  /** CAL-15: un encabezado dentro del rango abre la vista Día de ese día (`abrirDia`); fuera del rango no hace nada. */
+  const abrirDesdeEncabezado = (nuevo: Dia) => {
+    const visible = navegacion.dias.find((d) => d.dia === nuevo);
+    const destino = visible ? abrirDia(visible) : null;
+    if (!destino) return;
+    enfocarTitulo.current = true;
+    irA(destino);
+  };
+  /** CAL-16, ADR-026: deslizar a la izquierda es la ventana siguiente; a la derecha, la anterior (como las flechas). */
+  const deslizar = (sentido: -1 | 1) => {
+    const destino = sentido === 1 ? siguiente : anterior;
+    if (destino) irA(destino);
+  };
   const elegir = (f: FilaAgendaDias) => {
     setResultado(null);
     setFalloRespuesta('');
@@ -237,7 +275,7 @@ export function VistaPanel({
       onCerrar={cerrar}
       fila={fila}
       zona={zona}
-      dia={dia}
+      dia={fila.dia}
       limites={limites}
       profesorActivo={profesorActivo}
       alumnos={alumnos}
@@ -252,9 +290,21 @@ export function VistaPanel({
 
   const lista =
     agenda.estado === 'cargando' ? (
-      <Cargando etiqueta={TEXTOS_PANEL.cargandoAgenda} renglones={6} />
+      <Cargando etiqueta={esSemana ? TEXTOS_PANEL.cargandoAgendaSemana : TEXTOS_PANEL.cargandoAgenda} renglones={6} />
     ) : agenda.estado === 'error' && agenda.datos === null ? (
       <ErrorCarga mensaje={`${TEXTOS_PANEL.errorAgenda} ${agenda.error ?? ''}`.trim()} onReintentar={onRecargarAgenda} />
+    ) : esSemana ? (
+      <>
+        <p className={estilos.nota}>{TEXTOS_PANEL.tocarHueco}</p>
+        <ListaPorDia
+          dias={agruparPorDia(navegacion.dias, filas)}
+          zona={zona}
+          profesorActivo={profesorActivo}
+          seleccionada={fila ? fila.inicio : null}
+          onElegir={elegir}
+          responder={alResponder}
+        />
+      </>
     ) : filas.length === 0 ? (
       <Vacio nivel={3} titulo={TEXTOS_PANEL.sinHuecos} texto={TEXTOS_PANEL.sinHuecosAyuda} />
     ) : (
@@ -313,14 +363,17 @@ export function VistaPanel({
           </div>
           {falloRespuesta !== '' ? <Alerta tipo="error">{falloRespuesta}</Alerta> : null}
           <BarraCalendario
-            vista="dia"
+            vista={navegacion.vista}
+            ventana={ventana}
+            tituloRef={tituloRef}
             titulo={navegacion.titulo}
+            onVista={onNavegar ? (vista) => irA({ vista, dia }) : undefined}
             elegirDia={{ dia, limites, onElegir: irADia }}
             puedeAnterior={anterior !== null}
             puedeSiguiente={siguiente !== null}
-            onAnterior={() => anterior && irADia(anterior.dia)}
-            onSiguiente={() => siguiente && irADia(siguiente.dia)}
-            onHoy={() => irADia(navegacion.hoy.dia)}
+            onAnterior={() => anterior && irA(anterior)}
+            onSiguiente={() => siguiente && irA(siguiente)}
+            onHoy={() => irA(navegacion.hoy)}
           />
           <AccionesVista
             modoLista={modoLista}
@@ -328,7 +381,7 @@ export function VistaPanel({
               setSeleccion(null);
               setModoLista((actual) => !actual);
             }}
-            copiable={copiarEnlace !== undefined}
+            copiable={!esSemana && copiarEnlace !== undefined}
             hayEnlace={copiarEnlace?.enlace != null}
             onCopiar={() => void alCopiar()}
             copia={copia}
@@ -350,6 +403,11 @@ export function VistaPanel({
               onAbrirClase={(clase) => abrirDesdeGrilla(clase.fila.inicio)}
               onAbrirBloqueo={(bloqueo) => abrirDesdeGrilla(bloqueo.inicio)}
               grillaRef={grillaRef}
+              vista={navegacion.vista}
+              dias={navegacion.dias}
+              lineaAhora={lineaAhora}
+              onAbrirDia={esSemana && onNavegar ? abrirDesdeEncabezado : undefined}
+              onDeslizar={ventana && onNavegar ? deslizar : undefined}
             />
           )}
         </div>

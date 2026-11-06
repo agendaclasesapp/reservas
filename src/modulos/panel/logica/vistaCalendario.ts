@@ -1,8 +1,24 @@
 // B17 · T17.1 · Estado de la vista del calendario desde la dirección y su navegación (CAL-01, CAL-02, CAL-03).
 // La dirección es la única fuente del estado de la vista (ux/web/flujos.md §1): `#/panel?v=dia|semana&d=AAAA-MM-DD`.
 // Funciones puras: la vista lee con `vistaDesdeDireccion` y escribe con `direccionCalendario`.
-import { esDia, hoyEn, sumarDias, type Dia } from '../../../lib/fechas';
+// B20 · T20.1: rama Semana completa (lunes a domingo) y ventana de 3 días (CAL-15, CAL-16) con las flechas de DEC-45 A
+// en la lectura de H-475; la aritmética de días vive en `semana.ts` y se reexporta acá (eje.ts importa `diaSemanaIso`).
+import { hoyEn, sumarDias, type Dia } from '../../../lib/fechas';
 import { diaEnLimites, type LimitesAgenda } from '../../agenda/logica';
+import {
+  DIAS_SEMANA,
+  DIAS_VENTANA,
+  destinoFlecha,
+  diasSeguidos,
+  diasVisibles,
+  lunesDe,
+  rangoALeer,
+  tituloRango,
+  type DiaVisible,
+} from './semana';
+
+export { diaSemanaIso, fechaNumerica, lunesDe } from './semana';
+export type { DiaVisible } from './semana';
 
 export const VISTAS_CALENDARIO = ['dia', 'semana'] as const;
 export type VistaCalendario = (typeof VISTAS_CALENDARIO)[number];
@@ -12,9 +28,6 @@ export const PARAMETROS_CALENDARIO = { vista: 'v', dia: 'd' } as const;
 
 /** CAL-03: la navegación no pasa de hoy ± 366 días en el huso del profesor (el alcance de `agenda_profesor`). */
 export const DIAS_DE_ALCANCE_PANEL = 366;
-
-/** Días de calendario sin hora: la cuenta no depende del huso (como en `agendaDias.ts`). */
-const CALENDARIO = 'UTC';
 
 /** Vista y día que muestra el calendario. En Semana, `dia` es cualquier día de la semana (flujos.md §1). */
 export interface EstadoVistaCalendario {
@@ -27,28 +40,29 @@ export interface VistaDesdeDireccion extends EstadoVistaCalendario {
   corregida: boolean;
 }
 
-/** Un día visible del calendario: `enRango` dentro de hoy ± 366 (CAL-03), `esHoy` en el huso del profesor. */
-export interface DiaVisible {
-  dia: Dia;
-  enRango: boolean;
-  esHoy: boolean;
-}
-
 /** Todo lo que la barra y la grilla necesitan de la navegación (CC-01, CC-02). */
 export interface NavegacionCalendario extends EstadoVistaCalendario {
-  /** `30/10/2026` en Día; `26/10/2026 - 01/11/2026` en Semana (CAL-03). */
+  /** `30/10/2026` en Día; `26/10/2026 - 01/11/2026` en Semana; los 3 días en la ventana (CAL-03, CAL-16). */
   titulo: string;
-  /** Día: el día; Semana: de lunes a domingo. */
+  /** Día: el día; Semana: de lunes a domingo (CAL-15); ventana: el día elegido y los 2 siguientes (CAL-16). */
   dias: DiaVisible[];
-  /** Rango a leer con `useAgendaDias`: los días visibles dentro de los límites (contratos.md §2). */
+  /**
+   * Rango a leer con `useAgendaDias`: los días visibles dentro de los límites, una sola lectura (ADR-023, DEC-45 A).
+   * Los días fuera no se piden.
+   */
   desde: Dia;
   hasta: Dia;
-  /** Destino de la flecha anterior; null = deshabilitada (saldría de hoy − 366). */
+  /** Destino de la flecha anterior: el primer día dentro del bloque anterior (H-475). Si es null, queda deshabilitada. */
   anterior: EstadoVistaCalendario | null;
-  /** Destino de la flecha siguiente; null = deshabilitada (saldría de hoy + 366, CA-68). */
+  /** Destino de la flecha siguiente: el primer día dentro del bloque siguiente. Si es null, queda deshabilitada (CA-68). */
   siguiente: EstadoVistaCalendario | null;
-  /** Destino de «Hoy»: la misma vista en el día de hoy. */
+  /** Destino de «Hoy»: la misma vista en el día de hoy (en la ventana, la que empieza hoy). */
   hoy: EstadoVistaCalendario;
+}
+
+/** Cómo se dibuja la vista Semana: `ventana` (CAL-16) cuando la pantalla mide menos de 60 rem. */
+export interface OpcionesNavegacion {
+  ventana?: boolean;
 }
 
 export function esVistaCalendario(valor: unknown): valor is VistaCalendario {
@@ -85,73 +99,43 @@ export function direccionCalendario(estado: EstadoVistaCalendario): Record<'v' |
   return { v: estado.vista, d: estado.dia };
 }
 
-/** Día de la semana ISO (1 = lunes … 7 = domingo) de un día de calendario. */
-export function diaSemanaIso(dia: Dia): number {
-  if (!esDia(dia)) throw new RangeError('Día inválido: se espera YYYY-MM-DD.');
-  const [anio, mes, d] = dia.split('-').map(Number) as [number, number, number];
-  const semana = new Date(Date.UTC(anio, mes - 1, d)).getUTCDay();
-  return semana === 0 ? 7 : semana;
-}
-
-/** Lunes de la semana del día (las semanas van de lunes a domingo, CAL-03). */
-export function lunesDe(dia: Dia): Dia {
-  return sumarDias(dia, 1 - diaSemanaIso(dia), CALENDARIO);
-}
-
-/** `30/10/2026` (CAL-03). */
-export function fechaNumerica(dia: Dia): string {
-  if (!esDia(dia)) throw new RangeError('Día inválido: se espera YYYY-MM-DD.');
-  const [anio, mes, d] = dia.split('-');
-  return `${d}/${mes}/${anio}`;
-}
-
-function sumar(dia: Dia, n: number): Dia {
-  return sumarDias(dia, n, CALENDARIO);
+/** CAL-15, CA-80: tocar el encabezado de un día abre la vista Día de ese día; fuera de hoy ± 366, null (DEC-45 A). */
+export function abrirDia(dia: DiaVisible): EstadoVistaCalendario | null {
+  return dia.enRango ? { vista: 'dia', dia: dia.dia } : null;
 }
 
 /**
- * CAL-03, CA-68: título, días visibles, rango a leer y destinos de las flechas y de «Hoy». En Día las flechas van
- * de a un día; en Semana, de a una semana (lunes a domingo). Una flecha que saldría de hoy ± 366 da null. En Semana
- * la flecha se habilita si la semana nueva tiene algún día dentro del rango, y su `dia` es el primero de esos días
- * (con la flecha siguiente, el lunes: DEC-45 A).
+ * CAL-03, CA-68, CAL-15, CAL-16: título, días visibles, rango a leer y destinos de las flechas y de «Hoy».
+ * - Día: las flechas van de a un día.
+ * - Semana: de lunes a domingo, las flechas van de a una semana.
+ * - Semana con `ventana`: 3 días desde el día elegido, las flechas van de a 3 días.
+ * DEC-45 A con la lectura de H-475, para las dos flechas: una flecha se habilita si algún día del bloque nuevo cae
+ * dentro de hoy ± 366 y lleva al primero de esos días. Los días fuera se marcan con `enRango: false` y no se leen.
  */
-export function navegacionCalendario(estado: EstadoVistaCalendario, limites: LimitesAgenda): NavegacionCalendario {
-  const visible = (dia: Dia): DiaVisible => ({ dia, enRango: diaEnLimites(dia, limites), esHoy: dia === limites.hoy });
-  const hoy: EstadoVistaCalendario = { vista: estado.vista, dia: limites.hoy };
-
-  if (estado.vista === 'dia') {
-    const anterior = sumar(estado.dia, -1);
-    const siguiente = sumar(estado.dia, 1);
-    return {
-      ...estado,
-      titulo: fechaNumerica(estado.dia),
-      dias: [visible(estado.dia)],
-      desde: estado.dia,
-      hasta: estado.dia,
-      anterior: diaEnLimites(anterior, limites) ? { vista: 'dia', dia: anterior } : null,
-      siguiente: diaEnLimites(siguiente, limites) ? { vista: 'dia', dia: siguiente } : null,
-      hoy,
-    };
-  }
-
-  const lunes = lunesDe(estado.dia);
-  const domingo = sumar(lunes, 6);
-  const dias = Array.from({ length: 7 }, (_, i) => visible(sumar(lunes, i)));
-  const enRango = dias.filter((d) => d.enRango);
-  const lunesSiguiente = sumar(lunes, 7);
-  const lunesAnterior = sumar(lunes, -7);
-  const domingoAnterior = sumar(lunes, -1);
+export function navegacionCalendario(
+  estado: EstadoVistaCalendario,
+  limites: LimitesAgenda,
+  opciones: OpcionesNavegacion = {},
+): NavegacionCalendario {
+  const [inicio, largo] =
+    estado.vista === 'dia'
+      ? [estado.dia, 1]
+      : opciones.ventana
+        ? [estado.dia, DIAS_VENTANA]
+        : [lunesDe(estado.dia), DIAS_SEMANA];
+  const dias = diasVisibles(diasSeguidos(inicio, largo), limites);
+  // Inalcanzable desde la dirección: `vistaDesdeDireccion` deja `estado.dia` dentro de los límites.
+  const rango = rangoALeer(dias) ?? { desde: estado.dia, hasta: estado.dia };
+  const destino = (dia: Dia | null): EstadoVistaCalendario | null => (dia ? { vista: estado.vista, dia } : null);
   return {
     ...estado,
-    titulo: `${fechaNumerica(lunes)} - ${fechaNumerica(domingo)}`,
+    titulo: tituloRango(dias.map((d) => d.dia)),
     dias,
-    desde: enRango[0]?.dia ?? estado.dia,
-    hasta: enRango[enRango.length - 1]?.dia ?? estado.dia,
-    anterior:
-      domingoAnterior >= limites.min
-        ? { vista: 'semana', dia: lunesAnterior >= limites.min ? lunesAnterior : limites.min }
-        : null,
-    siguiente: lunesSiguiente <= limites.max ? { vista: 'semana', dia: lunesSiguiente } : null,
-    hoy,
+    desde: rango.desde,
+    hasta: rango.hasta,
+    anterior: destino(destinoFlecha(inicio, -largo, largo, limites)),
+    siguiente: destino(destinoFlecha(inicio, largo, largo, limites)),
+    hoy: { vista: estado.vista, dia: limites.hoy },
   };
 }
+

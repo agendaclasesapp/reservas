@@ -6,15 +6,30 @@
 // `role="group"` «Calendario, <título>» descrito por la ayuda (A11Y-35, CC-11). El eje (ya extendido para cubrir lo que
 // queda fuera de la grilla, DEC-44 A) y el alto de la hora (DEC-50 A) los da la lógica; el contenedor es enfocable
 // por programa (`tabIndex=-1`) para devolver el foco a la grilla cuando el bloque que abrió el detalle ya no existe.
+// B20 (CAL-10, CAL-15, CAL-16, CAL-18; WEB-15; F-CAL-02, F-CAL-03; A11Y-44, A11Y-46): en la vista Semana la grilla suma
+// una fila de encabezados «Lun 26/10» (CC-04, abren la vista Día), una columna por día visible —siete, o los 3 de la
+// ventana bajo 60 rem—, la columna de hoy resaltada con la línea de la hora actual (CC-09) y «No hay clases esta
+// semana»; con `onDeslizar` (solo la ventana de 3 días) el dedo la corre con Pointer Events (ADR-026). Los días y su
+// estado (`esHoy`, `enRango`), las flechas y la posición de la línea vienen de la lógica: acá no se calcula nada.
 import { useEffect, useId, useRef, type Ref } from 'react';
 import { Cargando, ErrorCarga } from '../../../ui';
-import type { BloqueClase, EjeCalendario, ElementoBloqueo, ElementoHueco } from '../logica';
-import type { EstadoCalendario, VariablesCss } from './calendario';
+import type { Dia } from '../../../lib/fechas';
+import type {
+  BloqueClase,
+  DiaVisible,
+  EjeCalendario,
+  ElementoBloqueo,
+  ElementoHueco,
+  VistaCalendario,
+} from '../logica';
+import type { EstadoCalendario, LineaAhoraDia, VariablesCss } from './calendario';
 import { AyudaCalendario } from './AyudaCalendario';
 import { ColumnaDia } from './ColumnaDia';
 import { EjeHoras } from './EjeHoras';
+import { EncabezadoDia } from './EncabezadoDia';
 import { TEXTOS_CALENDARIO, TEXTOS_PANEL } from './formato';
 import { LeyendaCalendario } from './LeyendaCalendario';
+import { useDeslizamiento } from './useDeslizamiento';
 import estilos from './Calendario.module.css';
 
 export type CalendarioPanelProps = {
@@ -38,6 +53,16 @@ export type CalendarioPanelProps = {
   onAbrirBloqueo?: (bloqueo: ElementoBloqueo) => void;
   /** El grupo de la grilla, para devolverle el foco (A11Y-38). */
   grillaRef?: Ref<HTMLDivElement>;
+  /** B20: la vista; en Semana hay encabezados por día y «No hay clases esta semana». Por defecto, Día. */
+  vista?: VistaCalendario;
+  /** B20: los días visibles de `navegacionCalendario` (hoy, dentro del rango). Sin ellos, todos en rango y ninguno es hoy. */
+  dias?: readonly DiaVisible[];
+  /** B20 (CAL-10): `lineaAhora` de la lógica para un día (null si no es hoy o la hora sale del eje). */
+  lineaAhora?: (dia: Dia) => LineaAhoraDia | null;
+  /** B20 (CAL-15): abre la vista Día de un encabezado; sin él los encabezados son solo texto. */
+  onAbrirDia?: (dia: Dia) => void;
+  /** B20 (CAL-16, ADR-026): deslizamiento con el dedo; solo en la ventana de 3 días (-1 anterior, 1 siguiente). */
+  onDeslizar?: (sentido: -1 | 1) => void;
 };
 
 export function CalendarioPanel({
@@ -52,10 +77,16 @@ export function CalendarioPanel({
   onAbrirClase,
   onAbrirBloqueo,
   grillaRef,
+  vista = 'dia',
+  dias,
+  lineaAhora,
+  onAbrirDia,
+  onDeslizar,
 }: CalendarioPanelProps) {
   const idAyuda = useId();
   const errorRef = useRef<HTMLDivElement>(null);
   const hayError = estado.estado === 'error';
+  const deslizamiento = useDeslizamiento(onDeslizar);
 
   useEffect(() => {
     if (hayError && enfocarReintentar) errorRef.current?.querySelector('button')?.focus();
@@ -80,11 +111,20 @@ export function CalendarioPanel({
     '--cal-alto-hora': eje.altoHora,
     '--cal-horas': eje.hastaHora - eje.desdeHora,
   };
+  const esSemana = vista === 'semana';
+  // Cada columna con su estado de día (hoy, dentro del rango); sin `dias`, todas en rango y ninguna es hoy.
+  const visibles: DiaVisible[] = estado.columnas.map(
+    (columna) => dias?.find((d) => d.dia === columna.dia) ?? { dia: columna.dia, enRango: true, esHoy: false },
+  );
+  const lineas = visibles.map((d) => (d.enRango && lineaAhora ? lineaAhora(d.dia) : null));
+  const lineaDeHoy = lineas.find((linea) => linea !== null) ?? null;
   return (
     <>
       <LeyendaCalendario />
       <AyudaCalendario id={idAyuda} />
-      {estado.sinClases ? <p className={estilos.vacio}>{TEXTOS_CALENDARIO.sinClasesDia}</p> : null}
+      {estado.sinClases ? (
+        <p className={estilos.vacio}>{esSemana ? TEXTOS_CALENDARIO.sinClasesSemana : TEXTOS_CALENDARIO.sinClasesDia}</p>
+      ) : null}
       <div
         ref={grillaRef}
         role="group"
@@ -92,13 +132,24 @@ export function CalendarioPanel({
         aria-label={`${TEXTOS_CALENDARIO.calendario}, ${titulo}`}
         aria-describedby={idAyuda}
         aria-busy={releyendo || undefined}
-        className={`${estilos.calendario}${releyendo ? ` ${estilos.releyendo}` : ''}`}
+        className={`${estilos.calendario}${releyendo ? ` ${estilos.releyendo}` : ''}${deslizamiento ? ` ${estilos.deslizable}` : ''}`}
         style={variables}
+        {...deslizamiento}
       >
+        {esSemana ? (
+          <div className={estilos.encabezados}>
+            <div aria-hidden="true" />
+            <div className={estilos.columnas}>
+              {visibles.map((d) => (
+                <EncabezadoDia key={d.dia} dia={d.dia} esHoy={d.esHoy} enRango={d.enRango} onAbrir={onAbrirDia} />
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className={estilos.cuerpo}>
-          <EjeHoras eje={eje} />
-          <div className={estilos.columnas}>
-            {estado.columnas.map((columna) => (
+          <EjeHoras eje={eje} ahora={lineaDeHoy} />
+          <div className={`${estilos.columnas} ${estilos.cuerpoColumnas}`}>
+            {estado.columnas.map((columna, i) => (
               <ColumnaDia
                 key={columna.dia}
                 columna={columna}
@@ -107,6 +158,9 @@ export function CalendarioPanel({
                 onAbrirHueco={onAbrirHueco}
                 onAbrirClase={onAbrirClase}
                 onAbrirBloqueo={onAbrirBloqueo}
+                resaltar={esSemana && visibles[i]?.esHoy === true}
+                enRango={visibles[i]?.enRango ?? true}
+                lineaAhora={lineas[i] ?? null}
               />
             ))}
           </div>
