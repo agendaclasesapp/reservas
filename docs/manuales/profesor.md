@@ -1,6 +1,6 @@
 ---
 titulo: Manual de usuario · Agenda Clases App · Profesor
-version: 0.12
+version: 0.13
 fecha: 2026-11-06
 publico: profesor
 ---
@@ -91,6 +91,18 @@ Solo con el mouse y en pantallas anchas (desde 60 rem), en la vista Día o Seman
 
 Los pedidos pendientes, las clases pasadas y, con tu perfil inactivo, ninguna clase se arrastran. Con el dedo o el teclado, tocá la clase y usá **Mover** en el detalle. Si soltás en un hueco más corto que la clase, la aplicación lo intenta igual y te avisa que no alcanza, sin cambiar nada. Fuente: verificación de B21 (CAL-13, CAL-14, CA-77, CA-78, CA-79, CA-87).
 
+## Usar el calendario con teclado, lector de pantalla y celular
+**Con el teclado (Panel, vistas Día y Semana).**
+1. Con **Tab** entrás a la grilla en un solo punto (el horario activo); no hace falta pasar por cada clase. **Tab** de nuevo te saca de la grilla.
+2. **Flecha abajo / arriba** van de un horario al siguiente o al anterior del mismo día, sin dar la vuelta. **Inicio** y **Fin** van al primero y al último del día.
+3. En la vista Semana, **flecha derecha / izquierda** pasan al día contiguo, al horario igual o más cercano (también en la ventana de 3 días). Los días sin horarios se saltan. Los encabezados de día («Abrir el Lun 26/10, vista Día») son botones con su propio Tab, antes de la grilla.
+4. **Enter** o **Espacio** abren el detalle del horario. **Escape** o **Cerrar** lo cierran y el foco vuelve al horario.
+5. **Mover una clase sin arrastrar:** abrí el detalle de la clase, andá con Tab hasta **Mover**, elegí el horario con Espacio o las flechas y confirmá con **Mover clase** (Enter). Se oye «Clase movida al dd/mm 14:00». Es la misma operación que el arrastre, con las mismas reglas y el mismo alcance en una serie.
+
+**Con lector de pantalla.** Cada horario se lee con día, hora, estado y nombre, por ejemplo «Mié 18/11, 10:00 a 11:00, Confirmada, nombre del alumno». Además de la ayuda visible, el lector oye «Con el teclado, Tab entra en la grilla y las flechas cambian de horario» (el texto visible de la ayuda no cambió). Los avisos (clase movida, enlace copiado) se anuncian solos. **Pendiente:** la revisión manual con NVDA y VoiceOver todavía no se hizo (H-B22-Q02); hasta entonces lo dicho vale para lo probado con axe y con el teclado en Chromium.
+
+**En el celular (360 px).** El calendario no se desplaza de costado en Día ni en Semana (tampoco con el detalle abierto) y los horarios, clases, bloqueos y botones miden al menos 44 x 44 px. **Excepción:** un hueco libre de menos de 10 minutos se dibuja más bajo que 44 px, pero el elemento tocable conserva 44 px de alto y, si se pisa con otro, se reparten en carriles. En la ventana de 3 días dos clases en carriles quedan justas, en 44 px de ancho (sin medir en el navegador, H-B22-Q03). Fuente: handoffs de UX, Tester y QA de B22 (NFR-11, NFR-12, CA-89, CA-90).
+
 ## Bloquear horarios
 En `#/panel`, **Bloquear horarios** abre un diálogo para bloquear un rango de horas de un día o días completos. Un hueco libre ofrece además **Bloquear este horario**. En ambos casos podés poner un motivo (opcional, hasta 500 caracteres) que solo ves vos: el calendario público no lo muestra.
 - Se puede bloquear desde las 00:00 de hace 366 días hasta hoy + 366 días inclusive, con hasta 366 días de largo. Si el inicio es anterior, se ve «Elegí desde cuándo bloquear: el inicio no puede ser de hace más de un año.».
@@ -143,3 +155,4 @@ Todas las pantallas, también el panel, la lista, la configuración y los bloque
 | 0.10 | 2026-11-04 | B19 (calendario-profesor) | CAL-12, CAL-20, CA-76, CA-84 | Aviso del calendario: responder solicitudes (reserva, movimiento, cancelación pendiente) y copiar el enlace del día |
 | 0.11 | 2026-11-06 | B20 (calendario-profesor) | CAL-15, CAL-16, CAL-19, WEB-15, WEB-16, CA-67, CA-68, CA-74, CA-81, CA-83, CA-85 | Nueva sección «Ver tu semana»: 7 columnas, ventana de 3 días con flechas y deslizamiento, hoy y «Ahora», lista agrupada por día |
 | 0.12 | 2026-11-06 | B21 (calendario-profesor) | CAL-13, CAL-14, CA-77, CA-78, CA-79, CA-87 | Nueva sección «Mover una clase arrastrándola (computadora)» |
+| 0.13 | 2026-11-06 | B22 (calendario-profesor) | NFR-11, NFR-12, CA-89, CA-90 | Nueva sección del calendario con teclado, lector de pantalla y celular de 360 px; revisión con NVDA/VoiceOver pendiente |

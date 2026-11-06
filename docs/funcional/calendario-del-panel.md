@@ -1,12 +1,12 @@
 ---
 titulo: Funcional · Calendario del Panel del profesor
-version: 0.7
+version: 0.8
 fecha: 2026-11-06
 publico: negocio y equipo
 ---
 # Calendario del Panel del profesor
 
-> **En construcción.** Describe lo diseñado en el ciclo `calendario-profesor` (spec `docs/specs/calendario-profesor.md`, CAL-01..20, WEB-14..16). **Construido y verificado hasta ahora: B16 (lectura de varios días, sin efecto visible), B17 (el Panel abre en el calendario del día), B18 (huecos, bloqueos y detalle tocables, «Elegir día», leyenda y ayuda) B19 (responder solicitudes y copiar el enlace del día) B20 (vista Semana, hoy, ventana de 3 días y lista agrupada por día) y B21 (arrastre de clases con el mouse).** Lo demás (B22 y B23) sigue planificado y se marca como disponible cuando su bolt pase la verificación; hasta entonces no lo está.
+> **En construcción.** Describe lo diseñado en el ciclo `calendario-profesor` (spec `docs/specs/calendario-profesor.md`, CAL-01..20, WEB-14..16). **Construido y verificado hasta ahora: B16 (lectura de varios días, sin efecto visible), B17 (el Panel abre en el calendario del día), B18 (huecos, bloqueos y detalle tocables, «Elegir día», leyenda y ayuda) B19 (responder solicitudes y copiar el enlace del día) B20 (vista Semana, hoy, ventana de 3 días y lista agrupada por día) B21 (arrastre de clases con el mouse) y B22 (teclado, lector de pantalla y celular; revisión manual con NVDA/VoiceOver pendiente para G3).** Lo demás (B23) sigue planificado y se marca como disponible cuando su bolt pase la verificación; hasta entonces no lo está.
 
 ## Estado de construcción
 | Parte | Estado |
@@ -25,6 +25,7 @@ publico: negocio y equipo
 | «Ver como lista» en Semana agrupada por día (CAL-19, WEB-16, DEC-46, CA-83) | **Construido y verificado en B20**: un título por día y las filas de la misma lectura, con las acciones de siempre |
 | Bordes del rango en Semana (DEC-45 A, H-475, CA-68) | **Construido y verificado en B20** (ver Vistas y navegación) |
 | Arrastre (CAL-13, CAL-14, CA-77, CA-78, CA-79, CA-87) | **Construido y verificado en B21** en Día y Semana, con el mouse desde 60 rem (ver Acciones) |
+| Teclado, lector de pantalla y celular de 360 px (NFR-11, NFR-12, CA-86, CA-89, CA-90) | **Construido y verificado en B22** (chromium): un solo Tab entra a la grilla; flechas, Inicio/Fin, Enter/Espacio; «Mover» como alternativa al arrastre; axe sin errores en Día, Semana, detalle y diálogos; 360 px sin desplazamiento y controles de 44 x 44 px, salvo huecos de menos de 10 min (el tocable conserva 44 px). **No hecho:** revisión manual con NVDA/VoiceOver (H-B22-Q02, para G3); zoom 200 %, escala de grises y movimiento reducido sin prueba en navegador (H-B22-Q01); carriles de 3 días sin medir (H-B22-Q03). Ver el manual del profesor |
 
 ## Qué cambia
 El Panel (`#/panel`) deja de ser una lista de un solo día y pasa a ser un **calendario** con vista **Día** y vista **Semana**, con eje de horas. Se mantienen las reglas de crear, mover, cancelar y bloquear (INV-01), el profesor solo ve su agenda (INV-02), la agenda pública y las pantallas del alumno no cambian (INV-03), la Lista conserva filtro, solicitudes, cuentas y alumnos (INV-04) y el profesor inactivo ve su agenda y cancela, pero no crea ni mueve (INV-05).
@@ -91,3 +92,4 @@ Fuentes: spec §3.1 y §4; `.aidlc/calendario-profesor/ux/web/flujos.md` (F-CAL-
 | 0.5 | 2026-11-04 | B19 (calendario-profesor) | CAL-08, CAL-12, CAL-20, CA-76, CA-84, INV-03, INV-04, DEC-42, DEC-43, H-B19-04 | Responder solicitudes desde el calendario Día (reserva, destino de movimiento, cancelación pendiente) y «Copiar enlace de este día» construidos y verificados; DEC-42 y DEC-43 cerradas con A |
 | 0.6 | 2026-11-06 | B20 (calendario-profesor) | CAL-03, CAL-15, CAL-16, CAL-19, WEB-15, WEB-16, CA-67, CA-68, CA-74, CA-81, CA-83, CA-85, DEC-45, DEC-46, H-475, H-B20-01, H-B20-03 | Vista Semana (7 columnas, ventana de 3 días con flechas y deslizamiento, hoy y «Ahora»), lista agrupada por día y bordes del rango construidos y verificados; sin «Copiar enlace» en la Semana; DEC-45 cerrada con A |
 | 0.7 | 2026-11-06 | B21 (calendario-profesor) | CAL-13, CAL-14, CA-77, CA-78, CA-79, CA-87, INV-01 | Arrastre en escritorio construido y verificado: qué se arrastra, destinos, confirmación con alcance en series, cancelación, inactivo y destino corto rechazado por la base |
+| 0.8 | 2026-11-06 | B22 (calendario-profesor) | NFR-11, NFR-12, CA-86, CA-89, CA-90, INV-03, INV-04 | Estado de construcción: teclado, lector y celular verificados; pendientes NVDA/VoiceOver (H-B22-Q02) y pruebas H-B22-Q01/Q03 |
