@@ -5,11 +5,15 @@
 // proporcional a la duración (CA-72) y nunca baja de `--tactil-min` (NFR-12). El nombre es texto
 // (SEC-16, SEC-35): React lo escapa y no se arma HTML con él. DEC-43 A: la clase confirmada con una cancelación sin
 // responder sigue CONFIRMADA y suma el texto «Cancelación pendiente» (texto e ícono, no solo color: NFR-11).
+// B21 (CAL-13, CAL-14; ADR-026; A11Y-40): `arrastrable` (lo decide la lógica) agrega el cursor de arrastre y el inicio del
+// gesto con el mouse; `arrastrando` lo lleva con el puntero (`--cal-dx`, `--cal-dy`) por encima del resto. El nombre
+// accesible no cambia: el arrastre es un atajo del mouse y la alternativa es «Mover» (NFR-11).
+import type { PointerEvent as EventoPuntero } from 'react';
 import { Icono } from '../../../ui';
 import { nombreVisible } from '../../lista/logica';
 import { formatearHora, type Dia } from '../../../lib/fechas';
 import { posicionEnEje, type BloqueClase as DatosBloque, type EjeCalendario } from '../logica';
-import { diaCorto, variablesDeElemento } from './calendario';
+import { diaCorto, variablesDeElemento, type VariablesCss } from './calendario';
 import { TEXTOS_CALENDARIO } from './formato';
 import estilos from './BloqueClase.module.css';
 
@@ -26,6 +30,13 @@ export type BloqueClaseProps = {
   /** Carril entre los elementos que se solapan (`carril` desde 0 de `carriles`; ADR-024 A-4). */
   carril?: number;
   carriles?: number;
+  /** B21 (CAL-13): la lógica deja arrastrar esta clase (confirmada, futura, sin solicitud, profesor activo). */
+  arrastrable?: boolean;
+  /** B21: se está arrastrando; el bloque sigue al puntero en `desplazamiento` (px) y queda sobre el resto. */
+  arrastrando?: boolean;
+  desplazamiento?: { dx: number; dy: number };
+  /** B21: `onPointerDown` del botón; el hook decide si es el inicio de un arrastre (solo mouse y escritorio). */
+  onIniciarArrastre?: (evento: EventoPuntero<HTMLElement>) => void;
 };
 
 /** «Lun 26/10, 10:00 a 11:00». */
@@ -39,10 +50,27 @@ export function nombreDelBloque(clase: DatosBloque, dia: Dia, zona: string): str
   return `${cuandoDelBloque(clase, dia, zona)}, ${TEXTOS_CALENDARIO[clase.estado]}${cancelacion}, ${nombreVisible(clase.quien)}`;
 }
 
-export function BloqueClase({ clase, dia, zona, eje, onAbrir, carril = 0, carriles = 1 }: BloqueClaseProps) {
-  const posicion = variablesDeElemento(posicionEnEje(clase.inicioMin, clase.finMin, eje), { carril, carriles });
+export function BloqueClase({
+  clase,
+  dia,
+  zona,
+  eje,
+  onAbrir,
+  carril = 0,
+  carriles = 1,
+  arrastrable = false,
+  arrastrando = false,
+  desplazamiento,
+  onIniciarArrastre,
+}: BloqueClaseProps) {
+  const base = variablesDeElemento(posicionEnEje(clase.inicioMin, clase.finMin, eje), { carril, carriles });
+  const posicion: VariablesCss =
+    arrastrando && desplazamiento
+      ? { ...base, '--cal-dx': `${desplazamiento.dx}px`, '--cal-dy': `${desplazamiento.dy}px` }
+      : base;
   const nombre = nombreDelBloque(clase, dia, zona);
-  const clases = `${estilos.bloque} ${estilos[clase.estado]}`;
+  const puedeArrastrar = arrastrable && onAbrir !== undefined;
+  const clases = `${estilos.bloque} ${estilos[clase.estado]}${puedeArrastrar ? ` ${estilos.arrastrable}` : ''}`;
   const contenido = (
     <>
       <span className={estilos.estado}>
@@ -59,13 +87,17 @@ export function BloqueClase({ clase, dia, zona, eje, onAbrir, carril = 0, carril
     </>
   );
   return (
-    <li className={estilos.item} style={posicion}>
+    <li className={`${estilos.item}${arrastrando ? ` ${estilos.arrastrando}` : ''}`} style={posicion}>
       {onAbrir ? (
         <button
           type="button"
           className={clases}
           aria-label={nombre}
           data-inicio={clase.fila.inicio}
+          data-clase-id={clase.fila.clase_id ?? undefined}
+          data-tipo="clase"
+          data-arrastrando={arrastrando || undefined}
+          onPointerDown={puedeArrastrar ? onIniciarArrastre : undefined}
           onClick={() => onAbrir(clase)}
         >
           {contenido}

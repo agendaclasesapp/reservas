@@ -1,7 +1,8 @@
 // Textos y formatos de las vistas del panel del profesor (WEB-06, PRF-01..05, PRF-08, AVI-01; F-07 y F-08).
 // Todo lo que viene de la base (nombres, observaciones) se muestra como texto (SEC-16).
 import { diaDeInstante, formatearFecha, formatearHora, type Instante } from '../../../lib/fechas';
-import type { FilaAgendaProfesor } from '../logica';
+import type { Alcance, FilaAgendaProfesor } from '../logica';
+import type { ResultadoPanel } from './contrato';
 
 export const TEXTOS_PANEL = {
   titulo: 'Panel',
@@ -161,4 +162,36 @@ export const TEXTOS_CALENDARIO = {
   copiarEnlaceDia: 'Copiar enlace de este día',
   enlaceCopiado: 'Enlace copiado',
   enlaceNoCopiado: 'No se pudo copiar el enlace. Copialo a mano:',
+  /** B21 · CC-07 (CAL-13, F-CAL-08): el texto de un hueco que es destino válido mientras se arrastra una clase. */
+  soltarAca: 'Soltar acá',
 } as const;
+
+/**
+ * Textos de «Mover» que comparten el formulario de «Mover» y la confirmación del arrastre (CAL-13, CA-87): un mismo
+ * mensaje de error y un mismo anuncio de éxito sea cual sea el camino.
+ */
+export const TEXTOS_MOVER = {
+  titulo: 'Mover clase',
+  mover: 'Mover',
+  cancelar: 'Cancelar',
+  moviendo: 'Moviendo…',
+  queMovemos: '¿Qué movemos?',
+  errorTitulo: 'No se pudo mover; no se cambió nada',
+  irALaLista: 'Ir a la lista',
+  avisoMail: 'Si el titular tiene mail, le avisamos.',
+} as const;
+
+/** El anuncio de una clase movida (F-08): «Clase movida al 12/11 10:00» o, en una serie, «Serie movida: …». */
+export function resultadoDeMovimiento(
+  alcance: Alcance,
+  destino: Instante,
+  zona: string,
+  salteadas: readonly string[],
+): ResultadoPanel {
+  const cuando = fechaCorta(destino, zona);
+  return {
+    mensaje: alcance === 'desde_aca' ? `Serie movida: la próxima clase pasa al ${cuando}` : `Clase movida al ${cuando}`,
+    detalle: TEXTOS_MOVER.avisoMail,
+    salteadas,
+  };
+}

@@ -11,9 +11,15 @@
 // ventana bajo 60 rem—, la columna de hoy resaltada con la línea de la hora actual (CC-09) y «No hay clases esta
 // semana»; con `onDeslizar` (solo la ventana de 3 días) el dedo la corre con Pointer Events (ADR-026). Los días y su
 // estado (`esHoy`, `enRango`), las flechas y la posición de la línea vienen de la lógica: acá no se calcula nada.
+// B21 (CAL-13, CAL-14; ADR-026; A11Y-40): con `reglasArrastre` (solo desde 60 rem; la lógica decide qué se arrastra y
+// dónde se suelta) el mouse arrastra una clase confirmada futura a un hueco libre; al soltar sobre un destino válido se
+// llama a `onSoltarClase` (la vista pide confirmar). El contenedor de la grilla lleva `data-calendario` para ubicar las
+// columnas; el arrastre no le pone manejadores (empieza en el bloque y sigue en `window`), así que no pisa los del
+// deslizamiento: gestos disjuntos, touch en la ventana de 3 días y mouse en escritorio (ADR-026 A-2).
 import { useEffect, useId, useRef, type Ref } from 'react';
 import { Cargando, ErrorCarga } from '../../../ui';
 import type { Dia } from '../../../lib/fechas';
+import type { ArrastreEnColumna, ClaseSoltada, ReglasArrastre } from './arrastre';
 import type {
   BloqueClase,
   DiaVisible,
@@ -29,6 +35,7 @@ import { EjeHoras } from './EjeHoras';
 import { EncabezadoDia } from './EncabezadoDia';
 import { TEXTOS_CALENDARIO, TEXTOS_PANEL } from './formato';
 import { LeyendaCalendario } from './LeyendaCalendario';
+import { useArrastreClase } from './useArrastreClase';
 import { useDeslizamiento } from './useDeslizamiento';
 import estilos from './Calendario.module.css';
 
@@ -63,6 +70,10 @@ export type CalendarioPanelProps = {
   onAbrirDia?: (dia: Dia) => void;
   /** B20 (CAL-16, ADR-026): deslizamiento con el dedo; solo en la ventana de 3 días (-1 anterior, 1 siguiente). */
   onDeslizar?: (sentido: -1 | 1) => void;
+  /** B21 (CAL-13, ADR-026): reglas del arrastre con el mouse; solo se pasan desde 60 rem y con la lógica conectada. */
+  reglasArrastre?: ReglasArrastre;
+  /** B21 (CAL-13): se soltó la clase sobre un hueco destino válido; la vista pide confirmar el movimiento. */
+  onSoltarClase?: (soltada: ClaseSoltada) => void;
 };
 
 export function CalendarioPanel({
@@ -82,11 +93,26 @@ export function CalendarioPanel({
   lineaAhora,
   onAbrirDia,
   onDeslizar,
+  reglasArrastre,
+  onSoltarClase,
 }: CalendarioPanelProps) {
   const idAyuda = useId();
   const errorRef = useRef<HTMLDivElement>(null);
   const hayError = estado.estado === 'error';
   const deslizamiento = useDeslizamiento(onDeslizar);
+  const arrastre = useArrastreClase({
+    reglas: onSoltarClase ? reglasArrastre : undefined,
+    eje,
+    alSoltar: (soltada) => onSoltarClase?.(soltada),
+  });
+  const enColumna: ArrastreEnColumna | undefined = reglasArrastre
+    ? {
+        estado: arrastre.estado,
+        puedeArrastrar: (clase) => reglasArrastre.origenDe(clase.fila) !== null,
+        iniciar: arrastre.iniciar,
+        esDestino: arrastre.esDestino,
+      }
+    : undefined;
 
   useEffect(() => {
     if (hayError && enfocarReintentar) errorRef.current?.querySelector('button')?.focus();
@@ -132,6 +158,8 @@ export function CalendarioPanel({
         aria-label={`${TEXTOS_CALENDARIO.calendario}, ${titulo}`}
         aria-describedby={idAyuda}
         aria-busy={releyendo || undefined}
+        data-calendario=""
+        data-arrastrando={arrastre.estado.activo || undefined}
         className={`${estilos.calendario}${releyendo ? ` ${estilos.releyendo}` : ''}${deslizamiento ? ` ${estilos.deslizable}` : ''}`}
         style={variables}
         {...deslizamiento}
@@ -161,6 +189,7 @@ export function CalendarioPanel({
                 resaltar={esSemana && visibles[i]?.esHoy === true}
                 enRango={visibles[i]?.enRango ?? true}
                 lineaAhora={lineas[i] ?? null}
+                arrastre={enColumna}
               />
             ))}
           </div>

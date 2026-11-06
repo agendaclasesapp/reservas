@@ -32,3 +32,14 @@
 .pasado {
   pointer-events: none;
 }
+
+/* B21 · destino de un arrastre (CAL-13): borde discontinuo y el texto «Soltar acá»; el activo, además, relleno. */
+.destino {
+  border-style: dashed;
+  outline: var(--borde-ancho) solid var(--c-libre-borde);
+  outline-offset: calc(-1 * var(--borde-ancho));
+}
+
+.destinoActivo {
+  background: color-mix(in srgb, var(--c-libre-fondo) 60%, var(--c-libre-borde));
+}

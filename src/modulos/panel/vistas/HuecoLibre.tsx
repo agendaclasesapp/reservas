@@ -2,6 +2,9 @@
 // «Lun 26/10, 10:00 a 11:00, Libre» que abre «Crear clase»; uno que ya pasó (o que cae fuera de los tramos) es
 // decorativo: sin marca de libre, sin botón y fuera del árbol de accesibilidad. Posición, alto y carril los da la
 // lógica; acá solo se dibuja (N-1).
+// B21 (CAL-13; F-CAL-08): con `esDestino` el hueco es un destino válido de la clase que se arrastra: se resalta y dice
+// «Soltar acá» (texto y borde, no solo color); `destinoActivo` marca el que está bajo el puntero. Su nombre accesible y su
+// función de botón no cambian.
 import { Icono } from '../../../ui';
 import { formatearHora } from '../../../lib/fechas';
 import type { ElementoHueco } from '../logica';
@@ -16,6 +19,10 @@ export type HuecoLibreProps = {
   zona: string;
   /** Abre «Crear clase» para este hueco; solo se llama si `hueco.tocable`. */
   onAbrir?: (hueco: ElementoHueco) => void;
+  /** B21: destino válido de lo que se arrastra (la regla es de la lógica). */
+  esDestino?: boolean;
+  /** B21: el destino que está bajo el puntero ahora. */
+  destinoActivo?: boolean;
 };
 
 /** «Lun 26/10, 10:00 a 11:00, Libre» (A11Y-36). */
@@ -23,7 +30,7 @@ export function nombreDelHueco(hueco: ElementoHueco, zona: string): string {
   return `${diaCorto(hueco.dia)}, ${formatearHora(hueco.inicio, zona)} a ${formatearHora(hueco.fin, zona)}, ${TEXTOS_CALENDARIO.libre}`;
 }
 
-export function HuecoLibre({ hueco, zona, onAbrir }: HuecoLibreProps) {
+export function HuecoLibre({ hueco, zona, onAbrir, esDestino = false, destinoActivo = false }: HuecoLibreProps) {
   const posicion = variablesDeElemento(hueco.posicion, hueco);
   if (!hueco.tocable || !onAbrir) {
     return <li aria-hidden="true" className={`${estilos.item} ${estilos.pasado}`} style={posicion} />;
@@ -32,14 +39,15 @@ export function HuecoLibre({ hueco, zona, onAbrir }: HuecoLibreProps) {
     <li className={estilos.item} style={posicion}>
       <button
         type="button"
-        className={`${estilos.bloque} ${estilos.libre}`}
-        aria-label={nombreDelHueco(hueco, zona)}
+        className={`${estilos.bloque} ${estilos.libre}${esDestino ? ` ${estilos.destino}` : ''}${esDestino && destinoActivo ? ` ${estilos.destinoActivo}` : ''}`}
+        aria-label={esDestino ? `${nombreDelHueco(hueco, zona)}, ${TEXTOS_CALENDARIO.soltarAca}` : nombreDelHueco(hueco, zona)}
         data-inicio={hueco.inicio}
+        data-destino={esDestino || undefined}
         onClick={() => onAbrir(hueco)}
       >
         <span className={estilos.estado}>
           <Icono nombre="tilde" />
-          <span className={estilos.texto}>{TEXTOS_CALENDARIO.libre}</span>
+          <span className={estilos.texto}>{esDestino ? TEXTOS_CALENDARIO.soltarAca : TEXTOS_CALENDARIO.libre}</span>
         </span>
       </button>
     </li>

@@ -21,6 +21,11 @@
 // ventana de 3 días (`navegacion.dias`), los encabezados abren la vista Día (y le dan el foco al título), las flechas y
 // el deslizamiento de la ventana corren el bloque de días, «Ver como lista» agrupa por día (CC-16) y «Copiar enlace de
 // este día» no se ofrece. Los botones Día/Semana y todo destino que cambia la vista van por `onNavegar`.
+// B21 (CAL-13, CAL-14, CA-77, CA-78, CA-79, CA-87; ADR-026; F-CAL-08; A11Y-40, A11Y-52): con `reglasArrastre` y desde 60 rem
+// el mouse arrastra una clase a un hueco libre; al soltarla sobre un destino válido se abre `ConfirmarMovimiento` (CC-12)
+// y, al confirmar, `reglasArrastre.mover` hace lo mismo que «Mover» (mismo anuncio, mismo mensaje de error). Cancelar,
+// `Esc` o soltar mal no llaman a nada y el foco vuelve al bloque; tras mover, al bloque movido cuando la lectura nueva
+// lo trae. Las reglas no se calculan acá.
 import { useEffect, useRef, useState } from 'react';
 import { Alerta, Boton, Cargando, Dialogo, ErrorCarga, Icono, Vacio } from '../../../ui';
 import { formatearFecha, type Dia } from '../../../lib/fechas';
@@ -30,6 +35,7 @@ import {
   abrirDia,
   agruparPorDia,
   MENSAJES_PANEL,
+  type Alcance,
   type Contadores,
   type Decision,
   type EjeCalendario,
@@ -37,18 +43,28 @@ import {
   type EstadoVistaCalendario,
   type FilaAgendaDias,
   type NavegacionCalendario,
+  type ResultadoMover,
   type ResultadoRespuestaCalendario,
   type SolicitudEnCalendario,
 } from '../logica';
 import { AccionesVista, type ResultadoCopia } from './AccionesVista';
+import type { ClaseSoltada, ReglasArrastre } from './arrastre';
 import { BarraCalendario } from './BarraCalendario';
 import { BloqueoForm } from './BloqueoForm';
 import { CalendarioPanel } from './CalendarioPanel';
 import type { EstadoCalendario, LineaAhoraDia } from './calendario';
+import { ConfirmarMovimiento } from './ConfirmarMovimiento';
 import { ContadoresPanel } from './ContadoresPanel';
-import type { AccionesPanel, ResultadoPanel } from './contrato';
+import { CODIGOS_DESACTUALIZADA, type AccionesPanel, type ResultadoPanel } from './contrato';
 import { DetalleCalendario } from './DetalleCalendario';
-import { fechaConHora, textoRango, TEXTOS_BLOQUEO, TEXTOS_CALENDARIO, TEXTOS_PANEL } from './formato';
+import {
+  fechaConHora,
+  resultadoDeMovimiento,
+  textoRango,
+  TEXTOS_BLOQUEO,
+  TEXTOS_CALENDARIO,
+  TEXTOS_PANEL,
+} from './formato';
 import { ListaAgendaProfesor } from './ListaAgendaProfesor';
 import { ListaPorDia } from './ListaPorDia';
 import { useEscritorio } from './useEscritorio';
@@ -99,9 +115,29 @@ export type VistaPanelProps = {
    * el botón queda deshabilitado) y `copiar` el portapapeles inyectable (`true` = copió). Sin esta prop no se ofrece.
    */
   copiarEnlace?: { enlace: string | null; copiar: (texto: string) => Promise<boolean> };
+  /**
+   * B21 (CAL-13, CAL-14, ADR-026): reglas del arrastre con el mouse (`reglasDeArrastre` de `PaginaPanel`, sobre
+   * `logica/arrastre.ts`). Solo valen desde 60 rem y en la grilla; sin ellas la grilla no arrastra nada.
+   */
+  reglasArrastre?: ReglasArrastre;
   /** Solo para pruebas: fuerza la columna (escritorio) o el diálogo (móvil) en lugar de medir la pantalla. */
   escritorio?: boolean;
 };
+
+/** El botón de la clase de la grilla con ese `clase_id`: dos clases pueden empezar a la misma hora (carriles). */
+function bloqueDeClase(grilla: HTMLElement | null, claseId: string | null): HTMLElement | undefined {
+  if (claseId === null) return undefined;
+  return Array.from(grilla?.querySelectorAll<HTMLElement>('[data-tipo="clase"]') ?? []).find(
+    (el) => el.dataset['claseId'] === claseId,
+  );
+}
+
+/** El botón de la clase que empieza en `inicio`: solo para la clase ya movida, cuyo destino era un hueco libre (nadie más empieza ahí). */
+function bloqueEnInicio(grilla: HTMLElement | null, inicio: string): HTMLElement | undefined {
+  return Array.from(grilla?.querySelectorAll<HTMLElement>('[data-tipo="clase"]') ?? []).find(
+    (el) => el.dataset['inicio'] === inicio,
+  );
+}
 
 function tituloDelHueco(fila: FilaAgendaDias, zona: string): string {
   const cuando = `${formatearFecha(fila.inicio, zona)}, ${textoRango(fila, zona)}`;
@@ -131,6 +167,7 @@ export function VistaPanel({
   onRecargarContadores,
   onRecargarAlumnos,
   copiarEnlace,
+  reglasArrastre,
   escritorio,
 }: VistaPanelProps) {
   const detectado = useEscritorio();
@@ -140,6 +177,8 @@ export function VistaPanel({
   const [bloqueando, setBloqueando] = useState(false);
   const [modoLista, setModoLista] = useState(false);
   const [copia, setCopia] = useState<ResultadoCopia>('ninguno');
+  /** B21 (CAL-13): la clase soltada sobre un hueco que espera la confirmación; `null` = ninguna. */
+  const [movimiento, setMovimiento] = useState<ClaseSoltada | null>(null);
   /** Una solicitud que ya no se puede responder (vencida, ya respondida): el motivo queda sobre la agenda (`role=alert`). */
   const [falloRespuesta, setFalloRespuesta] = useState('');
   /** B18 (A11Y-48): hubo una acción de la persona; si después falla la lectura, el foco va a «Reintentar». */
@@ -151,6 +190,8 @@ export function VistaPanel({
   const tituloRef = useRef<HTMLHeadingElement>(null);
   /** F-CAL-03: un encabezado de la Semana abrió la vista Día; al llegar el título recibe el foco. */
   const enfocarTitulo = useRef(false);
+  /** B21 (A11Y-52): `inicio` de la clase movida; el foco va a su bloque cuando la lectura nueva lo trae. */
+  const enfocarClase = useRef<string | null>(null);
   const esSemana = navegacion.vista === 'semana';
   /** CAL-16: la Semana en la ventana de 3 días (menos de 60 rem), según `PaginaPanel`. */
   const ventana = esSemana && ventanaDePagina;
@@ -165,6 +206,15 @@ export function VistaPanel({
     if (focoTras === 'grilla' && grillaRef.current) grillaRef.current.focus();
     else resultadoRef.current?.focus();
   }, [resultado, focoTras]);
+
+  // A11Y-52: tras mover, el foco vuelve al bloque movido (la grilla ya lo tiene, o cuando llega la relectura).
+  useEffect(() => {
+    if (enfocarClase.current === null) return;
+    const bloque = bloqueEnInicio(grillaRef.current, enfocarClase.current);
+    if (!bloque) return;
+    enfocarClase.current = null;
+    bloque.focus();
+  });
 
   /** Cierra el detalle y devuelve el foco al bloque que lo abrió, o a la grilla si ya no existe (A11Y-38). */
   const cerrar = () => {
@@ -188,6 +238,8 @@ export function VistaPanel({
   const irA = (destino: EstadoVistaCalendario) => {
     if (destino.vista === navegacion.vista && destino.dia === dia) return;
     setSeleccion(null);
+    setMovimiento(null);
+    enfocarClase.current = null;
     setCopia('ninguno');
     setFalloRespuesta('');
     setAccionReciente(false);
@@ -262,6 +314,40 @@ export function VistaPanel({
         return r;
       }
     : undefined;
+
+  /**
+   * CAL-13 · F-CAL-08: la clase se soltó sobre un destino válido. El foco pasa a su bloque antes de abrir el diálogo,
+   * para que al cerrarlo sin mover vuelva ahí (A11Y-52); la confirmación se pide, no se mueve nada todavía.
+   */
+  const alSoltarClase = (soltada: ClaseSoltada) => {
+    bloqueDeClase(grillaRef.current, soltada.origen.claseId)?.focus();
+    setResultado(null);
+    setFalloRespuesta('');
+    setMovimiento(soltada);
+  };
+  /** «Cancelar», `Esc` o cerrar: no cambia nada y el foco queda en el bloque, que sigue en su lugar (CAL-14). */
+  const cancelarMovimiento = () => {
+    if (movimiento) bloqueDeClase(grillaRef.current, movimiento.origen.claseId)?.focus();
+    setMovimiento(null);
+  };
+  /** «Mover» del diálogo: la misma operación que «Mover» (CA-87); un fallo queda en el diálogo y, si la agenda cambió, se relee. */
+  const confirmarMovimiento = async (
+    { origen, destino }: ClaseSoltada,
+    reglas: ReglasArrastre,
+    alcance: Alcance,
+  ): Promise<ResultadoMover> => {
+    // Como en la lógica (`alcanceDeArrastre`): solo una serie lleva el alcance elegido; el anuncio sale de lo que viajó.
+    const viaja: Alcance = origen.elegirAlcance ? alcance : 'solo_esta';
+    const r = await reglas.mover(origen, destino, viaja);
+    if (r.ok) {
+      enfocarClase.current = destino.inicio;
+      setMovimiento(null);
+      hecho(resultadoDeMovimiento(viaja, destino.inicio, zona, r.salteadas));
+    } else if (CODIGOS_DESACTUALIZADA.has(r.codigo)) {
+      desactualizada();
+    }
+    return r;
+  };
 
   const alCopiar = async () => {
     if (!copiarEnlace || copiarEnlace.enlace === null) return;
@@ -408,6 +494,8 @@ export function VistaPanel({
               lineaAhora={lineaAhora}
               onAbrirDia={esSemana && onNavegar ? abrirDesdeEncabezado : undefined}
               onDeslizar={ventana && onNavegar ? deslizar : undefined}
+              reglasArrastre={enEscritorio ? reglasArrastre : undefined}
+              onSoltarClase={alSoltarClase}
             />
           )}
         </div>
@@ -428,6 +516,17 @@ export function VistaPanel({
         />
       </Dialogo>
       {!enEscritorio && fila ? detalle : null}
+      {movimiento && reglasArrastre ? (
+        <ConfirmarMovimiento
+          clase={movimiento.clase}
+          dia={movimiento.dia}
+          destino={movimiento.destino}
+          zona={zona}
+          esSerie={movimiento.origen.elegirAlcance}
+          onConfirmar={(alcance) => confirmarMovimiento(movimiento, reglasArrastre, alcance)}
+          onCancelar={cancelarMovimiento}
+        />
+      ) : null}
     </>
   );
 }

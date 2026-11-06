@@ -95,3 +95,23 @@ button.bloque:focus-visible {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* B21 · Arrastre con el mouse (CAL-13, ADR-026): solo lo arrastrable lleva el cursor de arrastre (sin cursor, no se
+   arrastra: pendientes, pasadas, profesor inactivo). Mientras se arrastra el bloque sigue al puntero, sobre la línea de
+   la hora actual y sin transiciones (nada se anima, `prefers-reduced-motion` no tiene qué recortar). */
+button.arrastrable {
+  cursor: grab;
+  user-select: none;
+}
+
+.arrastrando {
+  z-index: 3;
+  translate: var(--cal-dx, 0) var(--cal-dy, 0);
+  opacity: 0.85;
+}
+
+.arrastrando button.arrastrable {
+  cursor: grabbing;
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: calc(-1 * var(--foco-ancho));
+}

@@ -13,6 +13,8 @@
 // (`useAhora`, un minuto) en el huso del profesor. Nada de la agenda se guarda en el navegador (SEC-37).
 // B19 (CAL-12, CAL-20; ADR-025): conecta `confirmarSolicitud` / `rechazarSolicitud` (con la relectura del rango y de los
 // contadores) y «Copiar enlace de este día» (`useEnlaceDia`, `copiarEnlaceDia`).
+// B21 (CAL-13, CAL-14; ADR-026): liga las reglas del arrastre de `logica/arrastre.ts` (`reglasDeArrastre`: columnas
+// visibles, reloj y permisos del profesor) y se las da a `VistaPanel`, que solo las usa desde 60 rem.
 import { useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
 import { useSesion } from '../../../estado';
@@ -53,6 +55,7 @@ import {
   type LecturaAgendaDias,
 } from '../logica';
 import type { EstadoCalendario } from './calendario';
+import { reglasDeArrastre } from './conexionArrastre';
 import type { AccionesPanel, ResponderSolicitudAccion } from './contrato';
 import { TEXTOS_PANEL } from './formato';
 import { useEscritorio } from './useEscritorio';
@@ -161,6 +164,10 @@ function PanelConHuso({ zona, profesorActivo }: { zona: string; profesorActivo: 
   const eje = calendario.eje;
   // CAL-10: la línea de la hora actual de un día (solo hoy y dentro del eje), calculada por la lógica.
   const lineaDeAhora = (d: string) => lineaAhora(d, eje, zona, ahora);
+  // CAL-13: las reglas del arrastre, sobre las columnas que se dibujan; sin la grilla leída no hay con qué arrastrar.
+  const reglasArrastre = calendario.estado.estado === 'listo'
+    ? reglasDeArrastre({ columnas: calendario.estado.columnas, eje, profesorActivo, ahora })
+    : undefined;
   const navegar = (destino: EstadoVistaCalendario) => {
     if (diaEnLimites(destino.dia, limites)) setParametros(direccionCalendario(destino));
   };
@@ -184,6 +191,7 @@ function PanelConHuso({ zona, profesorActivo }: { zona: string; profesorActivo: 
       onCambiarDia={(nuevo) => navegar({ vista: 'dia', dia: nuevo })}
       onNavegar={navegar}
       lineaAhora={lineaDeAhora}
+      reglasArrastre={reglasArrastre}
       onRecargarAgenda={agenda.recargar}
       onRecargarContadores={contadores.recargar}
       onRecargarAlumnos={alumnos.recargar}

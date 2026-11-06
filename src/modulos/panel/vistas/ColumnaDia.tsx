@@ -4,6 +4,9 @@
 // B20 (CAL-10, CAL-15; CA-74; DEC-45 A): en la vista Semana la columna de hoy va resaltada (`resaltar`) y lleva la línea
 // de la hora actual (`lineaAhora`, CC-09); un día fuera de hoy ± 366 (`enRango` falso) es una columna vacía y sombreada,
 // decorativa (`aria-hidden`): sin huecos tocables ni lectura.
+// B21 (CAL-13, CAL-14; ADR-026): `data-columna-dia` deja al arrastre ubicar la columna bajo el puntero por su geometría
+// (una columna fuera de rango no la tiene: no hay destino); con `arrastre` los bloques que la lógica deja mover inician el
+// gesto, el que se arrastra sigue al puntero y los huecos destino se resaltan.
 import {
   posicionEnEje,
   type BloqueClase as DatosBloque,
@@ -12,6 +15,7 @@ import {
   type ElementoBloqueo,
   type ElementoHueco,
 } from '../logica';
+import type { ArrastreEnColumna } from './arrastre';
 import { nombreDelDia, variablesDeElemento, type LineaAhoraDia } from './calendario';
 import { BloqueBloqueo } from './BloqueBloqueo';
 import { BloqueClase } from './BloqueClase';
@@ -35,6 +39,8 @@ export type ColumnaDiaProps = {
   enRango?: boolean;
   /** Línea de la hora actual de este día (solo en hoy y dentro del eje), `lineaAhora` de la lógica (CAL-10). */
   lineaAhora?: LineaAhoraDia | null;
+  /** B21: el arrastre de clases (escritorio con mouse); sin él nada se arrastra. */
+  arrastre?: ArrastreEnColumna;
 };
 
 export function ColumnaDia({
@@ -47,11 +53,16 @@ export function ColumnaDia({
   resaltar = false,
   enRango = true,
   lineaAhora = null,
+  arrastre,
 }: ColumnaDiaProps) {
   const { dia, elementos, zonasFueraDeTramo } = columna;
   if (!enRango) return <div aria-hidden="true" className={`${estilos.columna} ${estilos.fueraDeRango}`} />;
   return (
-    <div className={`${estilos.columna}${resaltar ? ` ${estilos.columnaHoy}` : ''}`} data-hoy={resaltar || undefined}>
+    <div
+      className={`${estilos.columna}${resaltar ? ` ${estilos.columnaHoy}` : ''}`}
+      data-hoy={resaltar || undefined}
+      data-columna-dia={dia}
+    >
       <div aria-hidden="true" className={estilos.zonas}>
         {zonasFueraDeTramo.map((tramo) => (
           <div
@@ -66,7 +77,14 @@ export function ColumnaDia({
           switch (elemento.tipo) {
             case 'hueco':
               return (
-                <HuecoLibre key={elemento.clave} hueco={elemento} zona={zona} onAbrir={onAbrirHueco} />
+                <HuecoLibre
+                  key={elemento.clave}
+                  hueco={elemento}
+                  zona={zona}
+                  onAbrir={onAbrirHueco}
+                  esDestino={arrastre?.esDestino(elemento) ?? false}
+                  destinoActivo={arrastre?.estado.activo === true && arrastre.estado.destino?.inicio === elemento.inicio}
+                />
               );
             case 'bloqueo':
               return (
@@ -83,6 +101,10 @@ export function ColumnaDia({
                   carril={elemento.carril}
                   carriles={elemento.carriles}
                   onAbrir={elemento.tocable ? onAbrirClase : undefined}
+                  arrastrable={arrastre?.puedeArrastrar(elemento.clase) ?? false}
+                  arrastrando={arrastre?.estado.activo === true && arrastre.estado.origen.claseId === elemento.clase.fila.clase_id}
+                  desplazamiento={arrastre?.estado.activo ? { dx: arrastre.estado.dx, dy: arrastre.estado.dy } : undefined}
+                  onIniciarArrastre={(evento) => arrastre?.iniciar(evento, elemento.clase, dia)}
                 />
               );
           }

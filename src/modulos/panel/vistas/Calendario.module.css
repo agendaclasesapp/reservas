@@ -226,3 +226,9 @@ button.encabezado:disabled {
 .deslizable {
   touch-action: pan-y;
 }
+
+/* B21 · ADR-026: mientras se arrastra una clase no se selecciona texto y el cursor lo dice. */
+.calendario[data-arrastrando] {
+  cursor: grabbing;
+  user-select: none;
+}

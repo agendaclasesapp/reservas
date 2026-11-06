@@ -237,7 +237,9 @@ describe('INV-03 igualdad con agenda_profesor(p_dia)', () => {
       const recibidas = a
         .filter((f) => f.dia === dia(n))
         .map((f) => {
-          const { dia: _d, clase_inicio: _ci, clase_fin: _cf, solicitud_tipo: _st, ...resto } = f as unknown as Record<string, unknown>;
+          // Las 4 columnas que agenda_profesor(p_dia) no devuelve quedan fuera de la comparación.
+          const resto: Record<string, unknown> = { ...(f as unknown as Record<string, unknown>) };
+          for (const clave of ['dia', 'clase_inicio', 'clase_fin', 'solicitud_tipo']) delete resto[clave];
           return resto;
         });
       registrar(`INV-03_${dia(n)}`, { p_dia: dia(n) }, { filas: esperadas.length });

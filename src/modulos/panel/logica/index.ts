@@ -66,9 +66,19 @@
 //   abrirDia(nav.dias[i])                                            // encabezado «Lun 26/10» → { vista: 'dia', dia } | null (CA-80)
 //   const grupos = agruparPorDia(nav.dias, datos.filas);             // «Ver como lista» en Semana: un grupo por día (DEC-46)
 //   lineaAhora(columna.dia, eje, zona, ahora)                        // { arribaHoras, hora } | null: solo hoy y dentro del eje
+//
+// B21 · T21.1 · Arrastre en escritorio (CAL-13, CAL-14, INV-01, INV-05; ADR-026). Umbral, puntero y Escape: la vista.
+//   const origen = origenDeArrastre(e.clase.fila, sesion.profesor.activo);   // null = no se arrastra (accionesFila)
+//   esArrastrable(e.clase.fila, sesion.profesor.activo)                        // lo mismo, como booleano
+//   const minutos = minutosEnPunto(yDesdeArribaDeLaColumna, { eje, pxPorRem });   // null fuera del eje
+//   const destino = destinoEnPunto({ columna: columnas[i], minutos, origen, ahora });   // hueco de destinosLibres | null
+//   origen.elegirAlcance → «solo esta clase» / «de acá en adelante»; alcanceDeArrastre(origen, alcance) el que viaja
+//   const r = await moverPorArrastre(origen, destino, alcance);    // = moverClase: mismos códigos y mensajes (CA-87)
+//   r.ok ? mensaje de «Mover» : r.mensaje; con fallo, recargar() y la clase vuelve a su lugar
 import { cargarSupabase } from '../../../lib/supabase';
 import type { Dia } from '../../../lib/fechas';
 import * as agendaDias from './agendaDias';
+import * as arrastre from './arrastre';
 import * as bloqueos from './bloqueos';
 import * as panel from './panel';
 import type {
@@ -279,6 +289,8 @@ export {
   useEnlaceDia,
 } from './enlaceDia';
 export type { CopiarTexto, ResultadoCopiaEnlace } from './enlaceDia';
+export { alcanceDeArrastre, destinoEnPunto, esArrastrable, minutosEnPunto, origenDeArrastre } from './arrastre';
+export type { DestinoArrastre, GeometriaEje, OrigenArrastre, PuntoDeSoltar } from './arrastre';
 
 /** Dependencias reales: supabase-js cargado con import() (ADR-017). */
 export function dependenciasPanel(): panel.DependenciasPanel {
@@ -301,6 +313,19 @@ export function moverClase(
   deps: panel.DependenciasPanel = dependenciasPanel(),
 ): Promise<panel.ResultadoMover> {
   return panel.moverClase(claseId, destino, alcance, deps);
+}
+
+/**
+ * B21 (CAL-13, INV-01, CA-87): mueve la clase arrastrada al hueco soltado con el alcance elegido; es `moverClase`, con
+ * los mismos códigos y mensajes que «Mover».
+ */
+export function moverPorArrastre(
+  origen: arrastre.OrigenArrastre,
+  destino: Pick<arrastre.DestinoArrastre, 'inicio'>,
+  alcance: Alcance,
+  deps: panel.DependenciasPanel = dependenciasPanel(),
+): Promise<panel.ResultadoMover> {
+  return arrastre.moverPorArrastre(origen, destino, alcance, deps);
 }
 
 /** `cancelar_clase` (PRF-03, PRF-08, AVI-04). */
