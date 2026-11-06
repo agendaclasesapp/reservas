@@ -1,7 +1,7 @@
 ---
 titulo: Índice de la documentación · Agenda Clases App
-version: 0.18
-fecha: 2026-11-04
+version: 0.20
+fecha: 2026-11-06
 publico: todos
 ---
 # Índice de la documentación
@@ -13,7 +13,7 @@ Estado: B01 a B05 (plataforma, agenda pública, mails, ingreso y cuentas), B14 (
 | [onboarding.md](onboarding.md) | Qué es el sistema, piezas, cómo se levanta, dónde está cada cosa, glosario | Equipo nuevo |
 | [funcional/alumnos-y-cuentas.md](funcional/alumnos-y-cuentas.md) | Ingreso, ficha, aprobación, unión, retención | Negocio, equipo |
 | [funcional/agenda-reservas-solicitudes.md](funcional/agenda-reservas-solicitudes.md) | Agenda, reservas y solicitudes | Negocio, equipo |
-| [funcional/calendario-del-panel.md](funcional/calendario-del-panel.md) | Calendario Día/Semana del Panel del profesor (en construcción; Día con acciones y respuesta de solicitudes en B19; Semana, hoy y lista agrupada en B20) | Negocio, equipo |
+| [funcional/calendario-del-panel.md](funcional/calendario-del-panel.md) | Calendario Día/Semana del Panel del profesor (en construcción; Día con acciones y respuesta de solicitudes en B19; Semana, hoy y lista agrupada en B20; arrastre en B21) | Negocio, equipo |
 | [funcional/varios-profesores.md](funcional/varios-profesores.md) | Enlace por profesor, vínculos, selector, Administrador, pausa, mails y topes, nombre del producto | Negocio, equipo |
 | [funcional/profesor-y-avisos.md](funcional/profesor-y-avisos.md) | Gestión directa, vista lista, avisos y mails | Negocio, equipo |
 | [tecnica/configuracion-y-despliegue.md](tecnica/configuracion-y-despliegue.md) | Entornos, correo local, secretos, despliegue, ingreso, carga de la agenda (medido en spikes) | Equipo técnico, operación |
@@ -55,3 +55,4 @@ Pendientes de escribir: resto de la documentación técnica (arquitectura, model
 | 0.17 | 2026-10-31 | B18 (calendario-profesor) | CAL-03, CAL-05, CAL-06, CAL-11, H-472..H-475 | Calendario Día con acciones, «Elegir día» corregido y adenda A-2..A-4 en funcional, manual y técnica |
 | 0.18 | 2026-11-04 | B19 (calendario-profesor) | CAL-08, CAL-12, CAL-20, ADR-025, DEC-42, DEC-43 | Funcional, técnica, decisiones y manual con responder solicitudes desde el calendario y «Copiar enlace de este día» |
 | 0.19 | 2026-11-06 | B20 (calendario-profesor) | CAL-15, CAL-16, CAL-19, DEC-45, ADR-025, ADR-026 | Funcional, técnica, decisiones y manual con la vista Semana, la lista agrupada y los bordes del rango; paso de publicación de la migración B16 |
+| 0.20 | 2026-11-06 | B21 (calendario-profesor) | CAL-13, CAL-14, ADR-026 | Funcional, técnica, decisiones y manual con el arrastre en escritorio |

@@ -1,6 +1,6 @@
 ---
 titulo: Técnica · Decisiones de arquitectura (resumen)
-version: 0.12
+version: 0.13
 fecha: 2026-11-06
 publico: equipo técnico
 ---
@@ -51,7 +51,7 @@ Qué cambió con los spikes:
 - **ADR-018 y ADR-019 (B07, B08):** `inscripcion` copia nombre, slug y huso del profesor (triggers); los mails de respuesta, movimiento y cancelación salen con el nombre del profesor y Reply-To.
 
 Detalle operativo: `tecnica/configuracion-y-despliegue.md`.
-- **ADR-023 a ADR-026 (ciclo `calendario-profesor`, propuestas):** RPC `agenda_profesor_dias` (ADR-023: construida en B16), grilla del eje, diálogo de respuesta del Panel y arrastre con Pointer Events; ver `calendario-profesor-b16-b23.md`. G1 aprobada: siguen como propuestas hasta que cada bolt las construya (ADR-025, diálogo de respuesta del Panel: construida en B19 con DEC-42 A y DEC-43 A firmadas el 03/11/2026, con su adenda B19 escrita en B20 (P-2 cerrado); ADR-026, arrastre y deslizamiento: el deslizamiento de la ventana de 3 días está construido en B20 (adenda B20: reparto y gestos disjuntos) y el arrastre es de B21; ADR-024: eje y bloques construidos en B17, con una adenda A-1..A-4 que se aplica en B18: grilla vacía, tope de 16,5 rem del alto de la hora, configuración en error y carriles); DEC-42..45 y DEC-50 (con propuesta A) no mueven ningún bolt.
+- **ADR-023 a ADR-026 (ciclo `calendario-profesor`, propuestas):** RPC `agenda_profesor_dias` (ADR-023: construida en B16), grilla del eje, diálogo de respuesta del Panel y arrastre con Pointer Events; ver `calendario-profesor-b16-b23.md`. G1 aprobada: siguen como propuestas hasta que cada bolt las construya (ADR-025, diálogo de respuesta del Panel: construida en B19 con DEC-42 A y DEC-43 A firmadas el 03/11/2026, con su adenda B19 escrita en B20 (P-2 cerrado); ADR-026, arrastre y deslizamiento: el deslizamiento de la ventana de 3 días está construido en B20 (adenda B20: reparto y gestos disjuntos) y el arrastre está construido en B21 (adenda B21: B-1 un destino más corto que la clase lo rechaza la base con el mensaje de «Mover»; B-2 reparto de la conexión entre `arrastre.ts` y `conexionArrastre.ts`); ADR-024: eje y bloques construidos en B17, con una adenda A-1..A-4 que se aplica en B18: grilla vacía, tope de 16,5 rem del alto de la hora, configuración en error y carriles); DEC-42..45 y DEC-50 (con propuesta A) no mueven ningún bolt.
 
 ## Bitácora de versiones
 
@@ -69,3 +69,4 @@ Detalle operativo: `tecnica/configuracion-y-despliegue.md`.
 | 0.10 | 2026-10-31 | B18 (calendario-profesor) | ADR-024, H-472..H-475 | ADR-024 con la adenda A-2..A-4 aplicada en B18 (tope 16,5 rem, configuración sin cargar, elementos lado a lado); ADR-025 y ADR-026 siguen como propuestas |
 | 0.11 | 2026-11-04 | B19 (calendario-profesor) | ADR-025, DEC-42, DEC-43 | ADR-025 construida en B19 (responder solicitudes desde el calendario con textos y reglas de la Lista); DEC-42 y DEC-43 cerradas con A; ADR-026 sigue como propuesta |
 | 0.12 | 2026-11-06 | B20 (calendario-profesor) | ADR-025, ADR-026, DEC-45, DEC-46 | ADR-025 con su adenda B19 (P-2 cerrado); ADR-026 con la adenda B20 y el deslizamiento construido; el arrastre sigue en B21 |
+| 0.13 | 2026-11-06 | B21 (calendario-profesor) | ADR-026, CAL-13, CAL-14, CA-87 | ADR-026 con la adenda B21 y el arrastre construido |
