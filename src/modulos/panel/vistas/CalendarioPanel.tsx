@@ -16,6 +16,8 @@
 // llama a `onSoltarClase` (la vista pide confirmar). El contenedor de la grilla lleva `data-calendario` para ubicar las
 // columnas; el arrastre no le pone manejadores (empieza en el bloque y sigue en `window`), así que no pisa los del
 // deslizamiento: gestos disjuntos, touch en la ventana de 3 días y mouse en escritorio (ADR-026 A-2).
+// B22 (A11Y-35, A11Y-37; NFR-11): la grilla es un solo tope de Tab (`useTecladoGrilla`: ítem activo con `tabIndex=0`, el
+// resto `-1`) y las flechas, Inicio y Fin mueven el foco entre los ítems tocables; Tab sale de la grilla (sin trampas).
 import { useEffect, useId, useRef, type Ref } from 'react';
 import { Cargando, ErrorCarga } from '../../../ui';
 import type { Dia } from '../../../lib/fechas';
@@ -35,6 +37,7 @@ import { EjeHoras } from './EjeHoras';
 import { EncabezadoDia } from './EncabezadoDia';
 import { TEXTOS_CALENDARIO, TEXTOS_PANEL } from './formato';
 import { LeyendaCalendario } from './LeyendaCalendario';
+import { itemsNavegables, useTecladoGrilla } from './tecladoGrilla';
 import { useArrastreClase } from './useArrastreClase';
 import { useDeslizamiento } from './useDeslizamiento';
 import estilos from './Calendario.module.css';
@@ -114,6 +117,14 @@ export function CalendarioPanel({
       }
     : undefined;
 
+  // A11Y-37: los ítems tocables de las columnas en rango, en el orden del DOM; un solo tope de Tab para todos.
+  const items = itemsNavegables(
+    estado.estado === 'listo' ? estado.columnas : [],
+    (dia) => dias?.find((d) => d.dia === dia)?.enRango ?? true,
+    { hueco: onAbrirHueco !== undefined, clase: onAbrirClase !== undefined, bloqueo: onAbrirBloqueo !== undefined },
+  );
+  const teclado = useTecladoGrilla(items);
+
   useEffect(() => {
     if (hayError && enfocarReintentar) errorRef.current?.querySelector('button')?.focus();
   }, [hayError, enfocarReintentar]);
@@ -190,6 +201,7 @@ export function CalendarioPanel({
                 enRango={visibles[i]?.enRango ?? true}
                 lineaAhora={lineas[i] ?? null}
                 arrastre={enColumna}
+                navegacionDe={(clave) => teclado.navegacionDe(columna.dia, clave)}
               />
             ))}
           </div>

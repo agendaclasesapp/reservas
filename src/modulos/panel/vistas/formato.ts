@@ -138,6 +138,8 @@ export const TEXTOS_CALENDARIO = {
   leyenda: 'Leyenda del calendario',
   /** CC-11 · Ayuda: literal de WEB-14. */
   ayuda: 'Toque un horario libre para crear una clase; con el teclado, use las acciones del hueco',
+  /** B22 · P-2 (DEC-48), A11Y-37: línea extra solo para el lector de pantalla; el literal de la spec no se toca. */
+  ayudaTeclado: 'Con el teclado, Tab entra en la grilla y las flechas cambian de horario',
   /** CAL-18 (día). */
   sinClasesDia: 'No hay clases este día',
   /** B20 · CAL-18 (Semana, también con la ventana de 3 días). */

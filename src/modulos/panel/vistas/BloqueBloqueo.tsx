@@ -7,6 +7,7 @@ import { formatearHora } from '../../../lib/fechas';
 import type { ElementoBloqueo } from '../logica';
 import { diaCorto, variablesDeElemento } from './calendario';
 import { TEXTOS_CALENDARIO } from './formato';
+import type { NavegacionDeItem } from './tecladoGrilla';
 import estilos from './BloqueBloqueo.module.css';
 
 export type BloqueBloqueoProps = {
@@ -16,6 +17,8 @@ export type BloqueBloqueoProps = {
   zona: string;
   /** Abre «Desbloquear»; solo se usa si `bloqueo.tocable`. */
   onAbrir?: (bloqueo: ElementoBloqueo) => void;
+  /** B22 (A11Y-37): `data-nav` y `tabIndex` del teclado de la grilla (un solo tope de Tab). */
+  navegacion?: NavegacionDeItem;
 };
 
 function cuando(bloqueo: ElementoBloqueo, zona: string): string {
@@ -28,7 +31,7 @@ export function nombreDelBloqueo(bloqueo: ElementoBloqueo, zona: string): string
   return bloqueo.motivo ? `${base}, ${bloqueo.motivo}` : base;
 }
 
-export function BloqueBloqueo({ bloqueo, zona, onAbrir }: BloqueBloqueoProps) {
+export function BloqueBloqueo({ bloqueo, zona, onAbrir, navegacion }: BloqueBloqueoProps) {
   const posicion = variablesDeElemento(bloqueo.posicion, bloqueo);
   const contenido = (
     <>
@@ -36,7 +39,12 @@ export function BloqueBloqueo({ bloqueo, zona, onAbrir }: BloqueBloqueoProps) {
         <Icono nombre="prohibido" />
         <span className={estilos.texto}>{TEXTOS_CALENDARIO.bloqueado}</span>
       </span>
-      {bloqueo.motivo ? <span className={estilos.motivo}>{bloqueo.motivo}</span> : null}
+      {bloqueo.motivo ? (
+        <>
+          {' '}
+          <span className={estilos.motivo}>{bloqueo.motivo}</span>
+        </>
+      ) : null}
     </>
   );
   return (
@@ -47,6 +55,7 @@ export function BloqueBloqueo({ bloqueo, zona, onAbrir }: BloqueBloqueoProps) {
           className={`${estilos.bloque} ${estilos.bloqueado}`}
           aria-label={nombreDelBloqueo(bloqueo, zona)}
           data-inicio={bloqueo.inicio}
+          {...navegacion}
           onClick={() => onAbrir(bloqueo)}
         >
           {contenido}

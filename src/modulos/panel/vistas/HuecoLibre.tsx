@@ -10,6 +10,7 @@ import { formatearHora } from '../../../lib/fechas';
 import type { ElementoHueco } from '../logica';
 import { diaCorto, variablesDeElemento } from './calendario';
 import { TEXTOS_CALENDARIO } from './formato';
+import type { NavegacionDeItem } from './tecladoGrilla';
 import estilos from './HuecoLibre.module.css';
 
 export type HuecoLibreProps = {
@@ -23,6 +24,8 @@ export type HuecoLibreProps = {
   esDestino?: boolean;
   /** B21: el destino que está bajo el puntero ahora. */
   destinoActivo?: boolean;
+  /** B22 (A11Y-37): `data-nav` y `tabIndex` del teclado de la grilla (un solo tope de Tab). */
+  navegacion?: NavegacionDeItem;
 };
 
 /** «Lun 26/10, 10:00 a 11:00, Libre» (A11Y-36). */
@@ -30,7 +33,7 @@ export function nombreDelHueco(hueco: ElementoHueco, zona: string): string {
   return `${diaCorto(hueco.dia)}, ${formatearHora(hueco.inicio, zona)} a ${formatearHora(hueco.fin, zona)}, ${TEXTOS_CALENDARIO.libre}`;
 }
 
-export function HuecoLibre({ hueco, zona, onAbrir, esDestino = false, destinoActivo = false }: HuecoLibreProps) {
+export function HuecoLibre({ hueco, zona, onAbrir, esDestino = false, destinoActivo = false, navegacion }: HuecoLibreProps) {
   const posicion = variablesDeElemento(hueco.posicion, hueco);
   if (!hueco.tocable || !onAbrir) {
     return <li aria-hidden="true" className={`${estilos.item} ${estilos.pasado}`} style={posicion} />;
@@ -43,6 +46,7 @@ export function HuecoLibre({ hueco, zona, onAbrir, esDestino = false, destinoAct
         aria-label={esDestino ? `${nombreDelHueco(hueco, zona)}, ${TEXTOS_CALENDARIO.soltarAca}` : nombreDelHueco(hueco, zona)}
         data-inicio={hueco.inicio}
         data-destino={esDestino || undefined}
+        {...navegacion}
         onClick={() => onAbrir(hueco)}
       >
         <span className={estilos.estado}>

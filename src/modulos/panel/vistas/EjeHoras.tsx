@@ -21,7 +21,7 @@ export function EjeHoras({ eje, ahora = null }: EjeHorasProps) {
         .map((marca) => {
           const posicion: VariablesCss = { '--cal-hora': (marca.minutos - eje.desdeMin) / 60 };
           return (
-            <time key={marca.minutos} className={estilos.hora} style={posicion}>
+            <time key={marca.minutos} dateTime={marca.minutos < 1440 ? marca.etiqueta : undefined} className={estilos.hora} style={posicion}>
               {marca.etiqueta}
             </time>
           );

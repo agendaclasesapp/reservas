@@ -16,6 +16,7 @@ import {
   type ElementoHueco,
 } from '../logica';
 import type { ArrastreEnColumna } from './arrastre';
+import type { NavegacionDeItem } from './tecladoGrilla';
 import { nombreDelDia, variablesDeElemento, type LineaAhoraDia } from './calendario';
 import { BloqueBloqueo } from './BloqueBloqueo';
 import { BloqueClase } from './BloqueClase';
@@ -41,6 +42,8 @@ export type ColumnaDiaProps = {
   lineaAhora?: LineaAhoraDia | null;
   /** B21: el arrastre de clases (escritorio con mouse); sin él nada se arrastra. */
   arrastre?: ArrastreEnColumna;
+  /** B22 (A11Y-37): atributos del teclado de la grilla de un ítem de esta columna (por su `clave`); sin él, cada botón es un tope de Tab. */
+  navegacionDe?: (clave: string) => NavegacionDeItem;
 };
 
 export function ColumnaDia({
@@ -54,6 +57,7 @@ export function ColumnaDia({
   enRango = true,
   lineaAhora = null,
   arrastre,
+  navegacionDe,
 }: ColumnaDiaProps) {
   const { dia, elementos, zonasFueraDeTramo } = columna;
   if (!enRango) return <div aria-hidden="true" className={`${estilos.columna} ${estilos.fueraDeRango}`} />;
@@ -82,13 +86,20 @@ export function ColumnaDia({
                   hueco={elemento}
                   zona={zona}
                   onAbrir={onAbrirHueco}
+                  navegacion={navegacionDe?.(elemento.clave)}
                   esDestino={arrastre?.esDestino(elemento) ?? false}
                   destinoActivo={arrastre?.estado.activo === true && arrastre.estado.destino?.inicio === elemento.inicio}
                 />
               );
             case 'bloqueo':
               return (
-                <BloqueBloqueo key={elemento.clave} bloqueo={elemento} zona={zona} onAbrir={onAbrirBloqueo} />
+                <BloqueBloqueo
+                  key={elemento.clave}
+                  bloqueo={elemento}
+                  zona={zona}
+                  onAbrir={onAbrirBloqueo}
+                  navegacion={navegacionDe?.(elemento.clave)}
+                />
               );
             case 'clase':
               return (
@@ -105,6 +116,7 @@ export function ColumnaDia({
                   arrastrando={arrastre?.estado.activo === true && arrastre.estado.origen.claseId === elemento.clase.fila.clase_id}
                   desplazamiento={arrastre?.estado.activo ? { dx: arrastre.estado.dx, dy: arrastre.estado.dy } : undefined}
                   onIniciarArrastre={(evento) => arrastre?.iniciar(evento, elemento.clase, dia)}
+                  navegacion={navegacionDe?.(elemento.clave)}
                 />
               );
           }

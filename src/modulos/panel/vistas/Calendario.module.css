@@ -102,6 +102,19 @@
   font-size: var(--t-xs);
 }
 
+/* Solo para el lector de pantalla (P-2): sin espacio ni lugar en la página. */
+.soloLectores {
+  position: absolute;
+  inline-size: var(--medida-minima);
+  block-size: var(--medida-minima);
+  margin: calc(-1 * var(--medida-minima));
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .leyenda {
   display: flex;
   flex-wrap: wrap;

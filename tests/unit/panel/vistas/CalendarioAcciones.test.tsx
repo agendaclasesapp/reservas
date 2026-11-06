@@ -173,7 +173,10 @@ describe('CC-10 LeyendaCalendario y CC-11 AyudaCalendario (CAL-17, CA-82, WEB-14
     const grupo = screen.getByRole('group', { name: 'Calendario, 12/11/2026' });
     expect(grupo.getAttribute('aria-describedby')).toBeTruthy();
     expect(grupo.getAttribute('tabindex')).toBe('-1');
-    expect(document.getElementById(grupo.getAttribute('aria-describedby') ?? '')?.textContent).toBe(AYUDA);
+    // B22 · P-2 (DEC-48): el literal de la spec más una línea solo para el lector con el teclado de la grilla (A11Y-37).
+    expect(document.getElementById(grupo.getAttribute('aria-describedby') ?? '')?.textContent).toBe(
+      `${AYUDA}. Con el teclado, Tab entra en la grilla y las flechas cambian de horario`,
+    );
     expect(screen.getByRole('list', { name: 'Leyenda del calendario' })).toBeTruthy();
   });
 });

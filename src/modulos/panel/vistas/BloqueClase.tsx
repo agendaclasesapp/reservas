@@ -15,6 +15,7 @@ import { formatearHora, type Dia } from '../../../lib/fechas';
 import { posicionEnEje, type BloqueClase as DatosBloque, type EjeCalendario } from '../logica';
 import { diaCorto, variablesDeElemento, type VariablesCss } from './calendario';
 import { TEXTOS_CALENDARIO } from './formato';
+import type { NavegacionDeItem } from './tecladoGrilla';
 import estilos from './BloqueClase.module.css';
 
 export type BloqueClaseProps = {
@@ -37,6 +38,8 @@ export type BloqueClaseProps = {
   desplazamiento?: { dx: number; dy: number };
   /** B21: `onPointerDown` del botón; el hook decide si es el inicio de un arrastre (solo mouse y escritorio). */
   onIniciarArrastre?: (evento: EventoPuntero<HTMLElement>) => void;
+  /** B22 (A11Y-37): `data-nav` y `tabIndex` del teclado de la grilla (un solo tope de Tab). */
+  navegacion?: NavegacionDeItem;
 };
 
 /** «Lun 26/10, 10:00 a 11:00». */
@@ -62,6 +65,7 @@ export function BloqueClase({
   arrastrando = false,
   desplazamiento,
   onIniciarArrastre,
+  navegacion,
 }: BloqueClaseProps) {
   const base = variablesDeElemento(posicionEnEje(clase.inicioMin, clase.finMin, eje), { carril, carriles });
   const posicion: VariablesCss =
@@ -77,11 +81,15 @@ export function BloqueClase({
         <Icono nombre={clase.estado === 'confirmada' ? 'tilde' : 'reloj'} />
         <span className={estilos.texto}>{TEXTOS_CALENDARIO[clase.estado]}</span>
       </span>
+      {/* Los textos visibles van separados por un espacio: axe los lee en seguida y así quedan contenidos en el nombre (2.5.3). */}
+      {' '}
       {clase.cancelacionPendiente ? (
-        <span className={estilos.cancelacion}>
-          <Icono nombre="reloj" />
-          <span>{TEXTOS_CALENDARIO.cancelacionPendiente}</span>
-        </span>
+        <>
+          <span className={estilos.cancelacion}>
+            <Icono nombre="reloj" />
+            <span>{TEXTOS_CALENDARIO.cancelacionPendiente}</span>
+          </span>{' '}
+        </>
       ) : null}
       <span className={estilos.nombre}>{nombreVisible(clase.quien)}</span>
     </>
@@ -97,6 +105,7 @@ export function BloqueClase({
           data-clase-id={clase.fila.clase_id ?? undefined}
           data-tipo="clase"
           data-arrastrando={arrastrando || undefined}
+          {...navegacion}
           onPointerDown={puedeArrastrar ? onIniciarArrastre : undefined}
           onClick={() => onAbrir(clase)}
         >

@@ -26,7 +26,12 @@ export function EncabezadoDia({ dia, esHoy, enRango, onAbrir }: EncabezadoDiaPro
   const contenido = (
     <>
       <span className={estilos.diaCorto}>{diaCorto(dia)}</span>
-      {esHoy ? <span className={estilos.marcaHoy}>{TEXTOS_CALENDARIO.hoy}</span> : null}
+      {esHoy ? (
+        <>
+          {' '}
+          <span className={estilos.marcaHoy}>{TEXTOS_CALENDARIO.hoy}</span>
+        </>
+      ) : null}
     </>
   );
   const clase = `${estilos.encabezado}${esHoy ? ` ${estilos.encabezadoHoy}` : ''}`;

@@ -23,7 +23,7 @@ import { esperarMail, contarMails } from '../soporte/correo';
 import { entorno, RAIZ } from '../soporte/entorno';
 import { MAIL_ADMIN, MAIL_PROFESOR, SLUG_A, SLUG_B } from '../soporte/usuarios';
 import { crearClase } from '../integracion/cuentas/ayuda';
-import { crearAlumnoCel, limpiarCel, mailCel } from './celular-datos';
+import { GRILLA_PANEL, TZ_PANEL, crearAlumnoCel, datosCalendarioCel, leerGrillaPanel, limpiarCalendarioCel, limpiarCel, mailCel, miercolesFuturo, ponerGrillaPanel } from './celular-datos';
 
 const BASE = process.env.RTC_BASE ?? '/reservas/';
 const ORIGEN = process.env.BASE_URL ?? `http://127.0.0.1:${process.env.RTC_PREVIEW_PORT || '4173'}`;
@@ -756,6 +756,87 @@ test.describe('celular · visitante · ingreso por pasos', () => {
     await sumar('error de código');
     expect(falla, `visitante · ingreso por pasos\n${falla.join('\n')}`).toEqual([]);
   });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Calendario del Panel a 360 px (B22, T22.2): CA-90 · NFR-12 · A11Y-43 · A11Y-44 · DEC-50 A. Día y Semana (ventana de 3 días), con y sin
+// detalle abierto: sin desplazamiento horizontal y cada hueco, clase y botón de al menos 44 x 44 px. Excepción H-472 (ADR-024 A-2):
+// un hueco de menos de 10 min puede medir menos; la prueba la anota (alternativa: «Ver como lista», CA-83). Datos `CEL Cal …`.
+// ---------------------------------------------------------------------------------------------------------------------
+test.describe('celular · calendario del Panel (CA-90)', () => {
+  test.use({ locale: 'es-UY', timezoneId: TZ_PANEL, viewport: { width: 360, height: 740 }, storageState: estadoDe('profesor') });
+  test.setTimeout(180_000);
+  let grillaPrevia: Awaited<ReturnType<typeof leerGrillaPanel>> = [];
+  let dia = '';
+  test.beforeAll(async () => {
+    grillaPrevia = await leerGrillaPanel();
+  });
+  test.beforeEach(async () => {
+    dia = miercolesFuturo();
+    await ponerGrillaPanel(GRILLA_PANEL);
+    await datosCalendarioCel(dia);
+  });
+  test.afterEach(async () => {
+    await limpiarCalendarioCel();
+    if (grillaPrevia.length > 0) await ponerGrillaPanel(grillaPrevia);
+  });
+
+  const calendario = (page: Page) => page.getByRole('group', { name: /^Calendario, / });
+  async function abrirPanel(page: Page, vista: 'dia' | 'semana') {
+    await page.goto('about:blank');
+    await page.goto(`${ORIGEN}${BASE}#/panel?v=${vista}&d=${dia}`);
+    await encabezado(page);
+    await expect(calendario(page)).toBeVisible({ timeout: 30_000 });
+    await expect(calendario(page).getByRole('button', { name: /10:00 a 11:00, Confirmada, CEL Cal Ana Pérez/ })).toBeVisible({ timeout: 30_000 });
+    await page.waitForTimeout(500);
+  }
+  const minutosDe = (nombre: string) => {
+    const m = /(\d\d):(\d\d) a (\d\d):(\d\d)/.exec(nombre);
+    return m ? Number(m[3]) * 60 + Number(m[4]) - (Number(m[1]) * 60 + Number(m[2])) : 60;
+  };
+  /** Sin desplazamiento horizontal y todo control >= 44 x 44 px; los huecos libres de menos de 10 min son la excepción H-472 y se anotan. */
+  async function verificar(page: Page, estado: string) {
+    const m = await medir(page);
+    const cortos = m.chicos.filter((c) => /, Libre$/.test(c.texto) && minutosDe(c.texto) < 10);
+    const resto = { ...m, chicos: m.chicos.filter((c) => !cortos.includes(c)) };
+    test.info().annotations.push({ type: 'controles medidos', description: `${estado}: ${m.total}` });
+    if (cortos.length > 0) {
+      test.info().annotations.push({ type: 'H-472', description: `${estado}: excepción ADR-024 A-2, ${cortos.length} hueco(s) de menos de 10 min por debajo de 44 px: ${JSON.stringify(cortos.map((c) => `${c.texto} ${c.ancho}x${c.alto}`))}` });
+    }
+    const falla = informe(resto);
+    expect(falla, `${estado} (${m.total} controles medidos)\n${falla.join('\n')}`).toEqual([]);
+    return m;
+  }
+
+  for (const vista of ['dia', 'semana'] as const) {
+    const titulo = vista === 'dia' ? 'Día' : 'Semana';
+    test(`T-CA-90-01 CA-90 NFR-12 A11Y-43 A11Y-44 DEC-50 [360 px] ${titulo}: sin desplazamiento horizontal; hueco, clase (también de 30 min), bloqueo y botones de al menos 44 x 44 px (excepción H-472)`, async ({ page }) => {
+      await abrirPanel(page, vista);
+      const m = await verificar(page, `${titulo} sin detalle`);
+      expect(m.total, 'se midieron huecos, clases y botones').toBeGreaterThan(8);
+      // La clase de 30 min (DEC-50 A) y la pendiente se miden como cualquier clase: 44 px de alto como mínimo.
+      for (const nombre of [/11:00 a 12:00, Pendiente, CEL Cal Beto Gómez/, /12:00 a 12:30, Confirmada, CEL Cal Cora Díaz/, /Bloqueado, .*Torneo/]) {
+        const caja = await calendario(page).getByRole('button', { name: nombre }).boundingBox();
+        expect(caja, `se mide ${nombre}`).toBeTruthy();
+        expect(caja!.height, `${nombre} alto`).toBeGreaterThanOrEqual(43.5);
+        expect(caja!.width, `${nombre} ancho`).toBeGreaterThanOrEqual(43.5);
+      }
+      // A11Y-44: también a 320 px (zoom 400 %).
+      await page.setViewportSize({ width: 320, height: 568 });
+      await page.waitForTimeout(300);
+      const ancho = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth }));
+      expect(ancho.sw, `320 px: scrollWidth ${ancho.sw} <= clientWidth ${ancho.cw}`).toBeLessThanOrEqual(ancho.cw);
+    });
+
+    test(`T-CA-90-02 CA-90 NFR-12 A11Y-44 [360 px] ${titulo} con el detalle de una clase abierto: sin desplazamiento horizontal y botones de al menos 44 x 44 px`, async ({ page }) => {
+      await abrirPanel(page, vista);
+      await calendario(page).getByRole('button', { name: /10:00 a 11:00, Confirmada, CEL Cal Ana Pérez/ }).click();
+      await expect(page.getByRole('dialog')).toBeVisible({ timeout: 15_000 });
+      await expect(page.getByRole('dialog').getByRole('button', { name: 'Mover', exact: true })).toBeVisible();
+      await page.waitForTimeout(400);
+      await verificar(page, `${titulo} con detalle`);
+    });
+  }
 });
 
 // ---------------------------------------------------------------------------------------------------------------------

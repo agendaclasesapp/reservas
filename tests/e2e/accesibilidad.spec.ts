@@ -20,6 +20,7 @@ import { esperarMail, contarMails } from '../soporte/correo';
 import { entorno, RAIZ } from '../soporte/entorno';
 import { MAIL_ADMIN, MAIL_PROFESOR, SLUG_A, SLUG_B } from '../soporte/usuarios';
 import { crearAlumno, crearClase, limpiarT05, mailT05 } from '../integracion/cuentas/ayuda';
+import { GRILLA_PANEL, TZ_PANEL, datosCalendarioCel, leerGrillaPanel, limpiarCalendarioCel, miercolesFuturo, ponerGrillaPanel } from './celular-datos';
 
 const BASE = process.env.RTC_BASE ?? '/reservas/';
 const ORIGEN = process.env.BASE_URL ?? `http://127.0.0.1:${process.env.RTC_PREVIEW_PORT || '4173'}`;
@@ -843,6 +844,103 @@ test.describe('solicitud y lista (estados restantes)', () => {
       await h1(page, 'Lista');
       await expect(page.getByText('Ficha no editable').first()).toBeVisible({ timeout: 20_000 });
       await auditar(page, 'profesor', '#/lista', 'con una ficha no editable');
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------
+// Calendario del Panel (B22, T22.2): CA-89 · NFR-11 · A11Y-35..54. axe WCAG 2.1 AA en Día, Semana, detalle, diálogo de respuesta
+// y confirmación de arrastre (T-CA-89-01). Datos sintéticos `CEL Cal …` (celular-datos.ts); la grilla del profesor A se guarda y se
+// restaura. Los nombres accesibles son los de ux/web/accesibilidad.md A11Y-36: «<día>, <hora> a <hora>, <estado>, <nombre>».
+// ---------------------------------------------------------------------------------------------------------------
+test.describe('calendario del Panel · axe (CA-89)', () => {
+  test.setTimeout(180_000);
+  let grillaPrevia: Awaited<ReturnType<typeof leerGrillaPanel>> = [];
+  let dia = '';
+  test.beforeAll(async () => {
+    grillaPrevia = await leerGrillaPanel();
+  });
+  test.beforeEach(async () => {
+    dia = miercolesFuturo();
+    await ponerGrillaPanel(GRILLA_PANEL);
+    await datosCalendarioCel(dia);
+  });
+  test.afterEach(async () => {
+    await limpiarCalendarioCel();
+    if (grillaPrevia.length > 0) await ponerGrillaPanel(grillaPrevia);
+  });
+
+  async function conPanel(browser: Browser, viewport: { width: number; height: number }, cuerpo: (page: Page) => Promise<void>) {
+    const ctx = await browser.newContext({ locale: 'es-UY', timezoneId: TZ_PANEL, viewport, storageState: SES('profesor') });
+    const page = await ctx.newPage();
+    try {
+      await cuerpo(page);
+    } finally {
+      await ctx.close();
+    }
+  }
+  const calendario = (page: Page) => page.getByRole('group', { name: /^Calendario, / });
+  const clase = (page: Page, rango: string, nombre: string) => calendario(page).getByRole('button', { name: new RegExp(`${rango}, (Confirmada|Pendiente), ${nombre}`) });
+  async function abrirPanel(page: Page, vista: 'dia' | 'semana') {
+    await page.goto('about:blank');
+    await page.goto(RUTA(`#/panel?v=${vista}&d=${dia}`));
+    await h1(page, 'Panel');
+    await expect(calendario(page)).toBeVisible({ timeout: 30_000 });
+    await expect(clase(page, '10:00 a 11:00', 'CEL Cal Ana Pérez')).toBeVisible({ timeout: 30_000 });
+    await page.waitForTimeout(600); // asienta el render (sin animaciones) antes de medir contraste
+  }
+
+  for (const [nombre, viewport] of [['1280 px', { width: 1280, height: 900 }], ['360 px', { width: 360, height: 740 }]] as const) {
+    for (const vista of ['dia', 'semana'] as const) {
+      test(`T-CA-89-01 CA-89 NFR-11 A11Y-42 A11Y-50 [${nombre}] calendario ${vista === 'dia' ? 'Día' : 'Semana'} con clase, pendiente, clase corta y bloqueo: axe sin errores WCAG 2.1 AA`, async ({ browser }) => {
+        await conPanel(browser, viewport, async (page) => {
+          await abrirPanel(page, vista);
+          await expect(calendario(page).getByRole('button', { name: /Bloqueado, .*Torneo/ })).toBeVisible();
+          await auditar(page, `profesor (${nombre})`, `#/panel?v=${vista}`, `calendario ${vista === 'dia' ? 'Día' : 'Semana'} con clases, pendiente y bloqueo`);
+        });
+      });
+    }
+  }
+
+  for (const [nombre, viewport] of [['1280 px', { width: 1280, height: 900 }], ['360 px', { width: 360, height: 740 }]] as const) {
+    test(`T-CA-89-01 CA-89 A11Y-38 [${nombre}] detalle de una clase abierto: axe sin errores`, async ({ browser }) => {
+      await conPanel(browser, viewport, async (page) => {
+        await abrirPanel(page, 'dia');
+        await clase(page, '10:00 a 11:00', 'CEL Cal Ana Pérez').click();
+        const detalle = page.getByRole('dialog').or(page.getByRole('complementary'));
+        await expect(detalle.getByRole('button', { name: 'Mover', exact: true })).toBeVisible({ timeout: 15_000 });
+        await page.waitForTimeout(600);
+        await auditar(page, `profesor (${nombre})`, '#/panel?v=dia', 'detalle de una clase abierto');
+      });
+    });
+
+    test(`T-CA-89-01 CA-89 A11Y-54 [${nombre}] diálogo de respuesta («Rechazar la solicitud») abierto: axe sin errores`, async ({ browser }) => {
+      await conPanel(browser, viewport, async (page) => {
+        await abrirPanel(page, 'dia');
+        await clase(page, '11:00 a 12:00', 'CEL Cal Beto Gómez').click();
+        const detalle = page.getByRole('dialog').or(page.getByRole('complementary'));
+        await detalle.getByRole('button', { name: 'Rechazar', exact: true }).click();
+        await expect(page.getByRole('dialog', { name: /^Rechazar la solicitud de CEL Cal Beto Gómez/ })).toBeVisible({ timeout: 15_000 });
+        await page.waitForTimeout(600);
+        await auditar(page, `profesor (${nombre})`, '#/panel?v=dia', 'diálogo de respuesta «Rechazar la solicitud»');
+      });
+    });
+  }
+
+  test('T-CA-89-01 CA-89 A11Y-40 [1280 px] diálogo «Mover clase» de confirmación de arrastre abierto: axe sin errores', async ({ browser }) => {
+    await conPanel(browser, { width: 1280, height: 900 }, async (page) => {
+      await abrirPanel(page, 'dia');
+      const origen = await clase(page, '10:00 a 11:00', 'CEL Cal Ana Pérez').boundingBox();
+      const destino = await calendario(page).getByRole('button', { name: /(14:00 a 15:00|16:00 a 17:00), Libre/ }).first().boundingBox();
+      expect(origen && destino, 'se miden el origen y un hueco libre').toBeTruthy();
+      await page.mouse.move(origen!.x + origen!.width / 2, origen!.y + origen!.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(origen!.x + origen!.width / 2 + 8, origen!.y + origen!.height / 2 + 8, { steps: 4 });
+      await page.mouse.move(destino!.x + destino!.width / 2, destino!.y + destino!.height / 2, { steps: 25 });
+      await page.mouse.up();
+      await expect(page.getByRole('dialog', { name: 'Mover clase' })).toBeVisible({ timeout: 15_000 });
+      await page.waitForTimeout(600);
+      await auditar(page, 'profesor (1280 px)', '#/panel?v=dia', 'confirmación de arrastre «Mover clase»');
     });
   });
 });
