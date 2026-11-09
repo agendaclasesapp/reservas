@@ -69,7 +69,7 @@ El administrador inicial es un ajuste del despliegue (`${ADMIN_EMAIL}`); ver `op
 5. Lanzar `supabase-deploy` a mano; el revisor del environment lo aprueba. Revisar en el resumen del job las
    migraciones del dry-run y el diff de configuración antes de aprobar.
 6. Humo: abrir `${PROD_SITIO_URL}#/p/<slug>`, ingresar y probar el envío de un mail.
-7. Con migraciones de varios tramos, seguir [`tramos-prod.md`](tramos-prod.md): el orden y las etiquetas no se alteran.
+7. Con migraciones de varios tramos (el último es `prod-calendario`), seguir [`tramos-prod.md`](tramos-prod.md): el orden y las etiquetas no se alteran.
 
 ## Orden de arranque y espera
 

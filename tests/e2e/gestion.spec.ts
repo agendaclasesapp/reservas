@@ -65,6 +65,8 @@ test.afterAll(cerrar);
 async function abrirPanel(page: Page, dia: string) {
   await page.goto(`${ORIGEN}${BASE}#/panel?d=${dia}`);
   await expect(page.getByRole('heading', { name: 'Panel', level: 1 })).toBeVisible({ timeout: 30_000 });
+  // B17 (CA-83): el Panel abre en el calendario; la lista de huecos, con las acciones de siempre, está en «Ver como lista».
+  await page.getByRole('button', { name: 'Ver como lista' }).click();
   await expect(page.getByRole('list', { name: 'Huecos del día' })).toBeVisible({ timeout: 30_000 });
 }
 const hueco = (page: Page, prefijo: string) => page.getByRole('button', { name: new RegExp(`^${prefijo}`) });

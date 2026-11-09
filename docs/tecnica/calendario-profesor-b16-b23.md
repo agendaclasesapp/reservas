@@ -1,0 +1,188 @@
+---
+titulo: Técnica · Calendario del profesor (RPC y decisiones ADR-023..026)
+version: 0.12
+fecha: 2026-11-09
+publico: equipo técnico
+---
+# Calendario del profesor: contrato y decisiones
+
+> **En construcción.** Ciclo `calendario-profesor` (bolts B16 a B23). **Construido y aprobado (G2): B16** (la RPC `agenda_profesor_dias` y el lector `leerAgendaDias`) **B17** (el Panel abre en el calendario del día), **B18** (acciones del calendario Día), **B19** (responder solicitudes y copiar el enlace del día) **B20** (vista Semana, hoy y lista agrupada por día; revisión del Arquitecto: conforme) **B21** (arrastre en escritorio) **y B22** (teclado, lector y celular). **B23** (rendimiento: precarga del Panel; cierre aprobado con una excepción en CA-88). Los ADR figuran como «propuesta» salvo ADR-023 (B16), ADR-024 (B17 y B18), ADR-025 (B19) y ADR-026 (construida: deslizamiento en B20 y arrastre en B21). El resto de los contratos (`agenda_profesor(p_dia)`, `agenda_publica`, `contadores`, `crear_clase`, `mover_clase`, `cancelar_clase`, `bloquear`, `desbloquear`, `responder_solicitud`) no cambia (INV-01, INV-03).
+
+## Componentes afectados
+- `bd-agenda`: RPC nueva y función interna, en la migración aditiva `supabase/migrations/202611001601_agenda_profesor_dias.sql` (B16, construida). Debe estar aplicada en producción antes de publicar la web de B17 (expandir primero).
+- `web-panel`: pasa de la lista de un día a un calendario Día/Semana (`src/modulos/panel`). `src/modulos/lista` y `src/ui` no se tocan.
+
+## RPC `public.agenda_profesor_dias(p_desde date, p_hasta date)` (ADR-023, construida en B16)
+Devuelve la agenda del profesor de la sesión para cada día de `p_desde` a `p_hasta`, con el mismo cálculo que `agenda_profesor(p_dia)`: `privado.agenda_profesor_dias(p_profesor, p_desde, p_hasta)` recorre `generate_series` con un `lateral` sobre `privado.agenda_profesor`, sin copiarla.
+
+- **Límites (SEC-09):** `p_desde` entre hoy − 366 y hoy + 366; `p_desde <= p_hasta <= p_desde + 6` (1 a 7 días) y `p_hasta <= hoy + 366`, en el huso del profesor con `app_ahora()`. La web pide solo los días visibles dentro del rango (1, 3 o 7) y recorta en el borde (DEC-45 A).
+- **Salida (17 columnas, ni una más, SEC-34):** las 13 columnas de `agenda_profesor` más `dia` (date), `clase_inicio` y `clase_fin` (`timestamptz`, inicio y fin reales de la clase; nulos sin clase) y `solicitud_tipo` (`reserva`, `movimiento`, `cancelacion`; nulo sin solicitud). Orden por `dia`, `inicio`, `clase_id`.
+- **Cómo lee la web:** una clase que cubre varios huecos llega en varias filas con el mismo `clase_id` y se dibuja una vez; un bloqueo largo llega repetido por hueco. `clase_estado = pendiente` con `solicitud_tipo` reserva o movimiento es PENDIENTE respondible; `confirmada` con `cancelacion` es CONFIRMADA con «Cancelación pendiente»; `confirmada` con `movimiento` es el origen, sin acciones (H-371). Canceladas y rechazadas no salen.
+- **Errores:** 401 `NO_AUTENTICADO` o `42501` (sin sesión), 403 `PROHIBIDO` (no es profesor), 422 `DATOS_INVALIDOS` con `campo` `p_desde` o `p_hasta`. No exige profesor activo (INV-05).
+- **Seguridad (INV-02, SEC-04):** la pública es `security definer`, `set search_path = ''`, y toma el profesor de `privado.profesor_de_lectura()`, nunca de un parámetro; la interna filtra todo por `p_profesor`; `revoke` a `public` y `anon`, `grant` a `authenticated`. Pruebas: `lista_rpc/16.txt` y `matriz/16.ts`.
+
+### Lector `leerAgendaDias(desde, hasta)` (web-panel, B16)
+En `src/modulos/panel/logica/agendaDias.ts`, exportado por `index.ts` con `ErrorAgendaDias`, `esquemaFilaAgendaDias`, `FilaAgendaDias`, `TIPOS_SOLICITUD` y `MAX_DIAS_AGENDA = 7`. Es la base de lectura del calendario Día y Semana de B17 y B20.
+- Un rango inválido (día mal formado, `hasta < desde`, más de 7 días) no sale a la red.
+- Valida cada fila con zod; una columna extra se descarta. Ante forma inválida o error desconocido da el mensaje genérico (H-464, SEC-35).
+- Todo fallo se lanza como `ErrorAgendaDias` con `codigo` y `mensaje` del catálogo `src/lib/errores.ts`, sin `details`, filas ni `console` (SEC-17); `mensajeDeError(e)` da el mismo texto.
+
+### Verificación de B16
+pgTAP `16_agenda_profesor_dias.test.sql` (62 casos), integración `agenda-dias.test.ts` (12) y matriz `16.ts` (343 casos de la matriz de roles en total), más 21 pruebas unitarias del lector; todo en verde. `00_catalogo.test.sql` sincronizado con `lista_rpc/16.txt` (SEC-04). Rendimiento en local de la llamada de 7 días: mediana 28 ms (umbral 500 ms); la medición con carga queda para B23. Fuentes: handoffs de B16 (developer T16.1, tester T16.2).
+
+## Decisiones (resumen; detalle en `.aidlc/calendario-profesor/arquitectura/adr/`)
+| ADR | Decisión | Estado |
+| --- | --- | --- |
+| ADR-023 | Una RPC de 1 a 7 días en lugar de siete llamadas; el calendario y «Ver como lista» usan esta lectura, y tras una acción se relee el rango visible | construida en B16 (propuesta hasta su aceptación formal) |
+| ADR-024 | **B17 construyó el eje y los bloques; la adenda A-1..A-4 se aplica en B18.** La grilla del eje sale de `leerConfiguracionAgenda()`, leída una vez al montar el Panel. La geometría vive en `panel/logica/eje.ts` en el huso del profesor; el eje se amplía para cubrir clases fuera de la grilla (DEC-44 A) y el alto de la hora se adapta con duraciones menores de 30 min (DEC-50 A). Lo tocable lo decide la agenda (hueco `libre` y no `pasada`), no la grilla | construida en parte (B17); adenda A-1..A-4 vigente, a aplicar en B18 |
+| ADR-025 | El Panel tiene su propio diálogo de respuesta de solicitudes, con textos y reglas importados de `lista/logica` (mismo RPC `responder_solicitud`, mismo mail). Se responde el PENDIENTE de una reserva o del destino de un movimiento y la CONFIRMADA con cancelación pendiente (DEC-42 A, DEC-43 A, firmadas el 03/11/2026) | construida en B19; adenda B19 escrita en la revisión de B20 (P-2 cerrado) |
+| ADR-026 | Arrastre con Pointer Events, solo mouse y desde 60 rem, con umbral de unos 4 px; las reglas viven en `panel/logica/arrastre.ts` y mueven con la misma RPC `mover_clase`. Deslizamiento de la ventana de 3 días con táctil (al menos 48 px y el doble que el vertical, `touch-action: pan-y`). Sin librería nueva. **Adenda B20:** el deslizamiento ya está construido; la clasificación del gesto vive en `panel/vistas/useDeslizamiento.ts` y su destino sale de `navegacionCalendario`; gestos disjuntos (táctil con la ventana de 3 días; mouse desde 60 rem) | construida (deslizamiento, B20; arrastre, B21) |
+
+## B17: el Panel abre en el calendario del día (construido y aprobado)
+- **Dirección** (`panel/logica/vistaCalendario.ts`, CAL-02): `#/panel?v=dia|semana&d=AAAA-MM-DD`. Sin parámetros abre Día de hoy; `?d=` solo abre Día de ese día; un `v` o `d` inválido, o un día fuera de hoy ± 366, abre Día de hoy. `v=semana` abría Día hasta B20; desde B20 abre la Semana (ver B20). «Ver como lista» es estado local y no va en la dirección (DEC-47).
+- **Eje** (`panel/logica/eje.ts`, CAL-04, DEC-44 A, DEC-50 A): de la hora en punto anterior al primer tramo de la grilla a la posterior al último (08:00 a 18:00 con la grilla inicial), ampliado si una clase o solicitud queda fuera. Con duraciones menores de 30 min el alto de la hora crece para que un hueco mida al menos 44 px.
+- **Vistas** (`panel/vistas`): `CalendarioPanel`, `BarraCalendario` (Día anterior / Hoy / Día siguiente, título `dd/mm/aaaa` en un `h2`, flecha fuera de rango deshabilitada con nombre accesible terminado en «, no disponible»), `EjeHoras`, `ColumnaDia`, `BloqueClase` (CONFIRMADA borde sólido, PENDIENTE borde punteado; canceladas y rechazadas no se dibujan) y `AccionesVista` («Ver como lista» / «Ver como calendario»). Se eliminó `SelectorDiaPanel`: **«Elegir día» se perdió en B17 y vuelve en B18** (H-B17-03); no está disponible.
+- **Adenda de ADR-024 (A-1..A-4, se aplica en B18):** A-1 sin tramos el eje es 08:00 a 18:00 ampliado por lo visible, y solo se agranda; A-2 el alto de la hora es `min(16,5 rem, max(5,5 rem, 2,75 rem × 60 / duración))`: tope de 16,5 rem (H-472, aceptado el 30/10), con huecos de al menos 44 px hasta 10 min y, debajo, «Ver como lista» como alternativa accesible (excepción a NFR-12/CA-90); A-3 con la configuración en error el eje usa 08:00 a 18:00 ampliado por clases y huecos, sin zonas fuera de tramo, y la duración se infiere del menor hueco libre; A-4 los bloques que se pisan se dibujan en carriles lado a lado. Fuente: `.aidlc/calendario-profesor/arquitectura/adr/ADR-024-grilla-para-el-eje.md`.
+- **Flecha de Semana (H-475, firmada el 30/10, aplicada en B20):** ver la sección de B20.
+- **Verificación de B17:** confirmada en el navegador (tester T17.3, T17.4) con capturas en `.aidlc/calendario-profesor/calidad/evidencias/ui/WEB-14-dia-*/` y `WEB-16-dia-*/`. Fuentes: handoffs de developer, ux-web, tester, arquitecto y funcional de `bolts/B17-calendario-dia/`.
+
+## B18: acciones del calendario Día (construido; revisión del Arquitecto conforme con observaciones)
+- **Lógica** (`panel/logica`): `elementosCalendario.ts` arma los elementos del día (clases, bloqueos, huecos libres, zonas fuera de la grilla) y `eje.ts` calcula la geometría. Adenda de ADR-024 aplicada: **A-2** el alto de la hora no pasa de 16,5 rem y con duraciones menores de 10 min un hueco puede medir menos de 44 px (alternativa «Ver como lista», H-472, CA-83); **A-3** con la configuración en error o sin cargar no se sombrea nada fuera de la grilla, el eje va de 08:00 a 18:00 ampliado por lo leído y los huecos futuros siguen tocables (H-474); **A-4** los elementos que se pisan por el alto mínimo de 44 px van lado a lado en la columna, en orden horario (H-473).
+- **Vistas** (`panel/vistas`): `HuecoLibre`, `BloqueBloqueo`, `DetalleCalendario` (diálogo por debajo de 60 rem, columna en escritorio), `LeyendaCalendario`, `AyudaCalendario`, `AccionesVista`; fuera de la grilla y huecos pasados no se tocan. Las acciones (crear, mover, cancelar, desbloquear) usan las mismas RPC y reglas que la lista (INV-01, INV-05: con la agenda inactiva se deshabilitan crear y mover y cancelar sigue).
+- **«Elegir día»** (H-B17-03): vuelve a `BarraCalendario`; cambia `d=` en la dirección y rechaza lo que sale de hoy ± 366.
+- **Flecha de Semana (DEC-45 A, H-475):** aplicada en B20 (ver abajo).
+- **Verificación:** E2E en chromium (escritorio y 360 px) con capturas en `.aidlc/calendario-profesor/calidad/evidencias/ui/WEB-14-acciones-*`; H-B18-T01 (E2E de B17 desactualizadas) corregido. H-B18-T02 abierto por entorno (sin `docker`, dos pruebas de integración de mails no corren).
+- **Revisión del Arquitecto:** conforme con observaciones, sin bloqueos; abiertos H-490 (geometría por dos caminos, B20), H-491 (`motivoSinGestion` compartida con la lista, B19) y H-492 (`panel/logica/index.ts`). Fuente: handoffs de B18 en `bolts/B18-calendario-acciones/` e `informe-arquitecto.md`.
+
+## B19: responder solicitudes y copiar el enlace del día (construido; revisión del Arquitecto conforme)
+- **Respuesta** (`panel/logica/respuesta.ts`, ADR-025, CAL-08, CAL-12): adaptador fino sobre `responderSolicitud`, `accionesSolicitud`, `esquemaMotivo`, `LARGO_MAX_MOTIVO` y `MENSAJES_RESPUESTA`, importados de `lista/logica/index.ts` sin cambiarlos (INV-04). Mismo RPC `responder_solicitud` y mismo mail que la Lista. No lanza y los errores pasan por `traducirError` (SEC-17).
+  - `solicitudDeBloque(bloque)` y `solicitudDeFila(fila)` devuelven `{ id, tipo, claseId }` o `null`. Hay solicitud para el PENDIENTE de una reserva, para el destino PENDIENTE de un movimiento (DEC-42 A) y para la CONFIRMADA con cancelación pendiente (DEC-43 A); el origen CONFIRMADO de un movimiento da `null` (H-371). Se decide por `estado` y `solicitud_tipo` de `agenda_profesor_dias` (ADR-023); `cancelacionPendiente` es solo presentación (N-2).
+  - `accionesRespuesta(activo)` y `puedeConfirmar(activo)` equivalen a `accionesSolicitud({ vencida: false }, activo)`: la agenda solo trae solicitudes no vencidas y, si vence con la pantalla abierta, la base responde 409 `SOLICITUD_VENCIDA` (H-B19-03, aceptado).
+  - `confirmarSolicitud` y `rechazarSolicitud(s, motivo, { releer })` devuelven `{ ok: true, estado, mensaje }` o el fallo de la Lista más `desactualizada`. Se relee (`agenda.recargar(); contadores.recargar()`) tras un ok y tras `SOLICITUD_YA_RESPONDIDA`, `SOLICITUD_VENCIDA` o `NO_ENCONTRADO` (`CODIGOS_RESPUESTA_DESACTUALIZADA`, que repite a propósito el conjunto de `lista/vistas/SolicitudesPendientes.tsx`: H-B19-02, atar ambos en B22). El motivo es opcional, de hasta 500 caracteres; vacío va como `null`.
+- **Enlace del día** (`panel/logica/enlaceDia.ts`, CAL-20, SEC-16, SEC-36): `enlaceDia(slug, dia)` devuelve `enlaceDeProfesor(slug)` (el mismo que copia Configuración) seguido de `?d=<encodeURIComponent(dia)>`, o `null` si el slug no cumple ADM-02 tal cual (`normalizarSlug(slug) === slug`, de `src/estado`, sin corregirlo) o el día no pasa `esDia`. `useEnlaceDia(dia)` usa el slug de la sesión; `copiarEnlaceDia(enlace)` devuelve `'ok'` o `'fallo'` y por defecto usa `copiarTexto` de Configuración.
+- **Vistas** (`panel/vistas`): `ResponderSolicitud`, `RechazoSolicitud` y `solicitud.ts`; `AccionesVista` suma «Copiar enlace de este día» y `AccionesPanel.responder?` llega por props desde `PaginaPanel` (sin `responder`, todo queda como antes de B19). Las vistas usan `FilaAgendaDias` para no perder `solicitud_tipo` (H-B19-01, corregido: si el campo se pierde, falla `tsc`). Sin cambios en `lista`, `agenda`, `mis-clases`, `src/ui`, `src/lib` ni `supabase` (diff vacío; CA-86 rama Lista).
+- **Observaciones abiertas del Arquitecto (bajas):** H-B19-A03 (el filtro `estado !== 'ocupado' || pasada` vive en `vistas/solicitud.ts` y debería pasar a `solicitudDeFila`), H-B19-A04 (la marca «Cancelación pendiente» se deriva dos veces, en `ListaAgendaProfesor` y en `BloqueClase`), H-B19-A05 (`hayEnlace` y `enlace` de `AccionesVista` pueden contradecirse) y H-B19-A06 (`solicitudDeBloque` no tiene consumidor hasta B20). Pendientes del Arquitecto: P-1 (actualizar la ficha `web-panel`) y P-2 (anexo de consecuencias en ADR-025).
+- **Verificación:** unitarias `respuesta.test.ts` (17), `enlaceDia.test.ts` (12) y `Solicitudes.test.tsx`; suite del Panel 410 en verde. E2E `calendario-solicitudes.spec.ts` 7 de 7 en chromium (escritorio) y la E2E completa de chromium en verde (212 y 1 omitida); integración de mails con Docker 13 de 13. Para la E2E se subió `email_sent` de 30 a 1000 en `supabase/config.toml` (solo base local; PREG-001 aprobada por el humano). No medido: contraste de «Cancelación pendiente», teclado y lector, rechazo a 360 px (B22). Fuentes: handoffs de developer, tester, QA y arquitecto de `bolts/B19-solicitudes-enlace/` e `informe-arquitecto.md`.
+
+## B20: vista Semana, hoy y lista agrupada (construido; revisión del Arquitecto conforme)
+- **Lógica** (`panel/logica/semana.ts` y `vistaCalendario.ts`, CAL-15, CAL-16): la Semana va de lunes a domingo (`lunesDe`, `diaSemanaIso`, `fechaNumerica` pasaron a `semana.ts` y se reexportan). `navegacionCalendario(…, { ventana })` da los días del bloque (7, o 3 bajo 60 rem) y las flechas `anterior`/`siguiente` (de a 7 o de a 3); la dirección sigue siendo `#/panel?v=semana&d=AAAA-MM-DD`. `agruparPorDia` agrupa por día las filas de la misma lectura para «Ver como lista» (DEC-46). Hay una sola lectura (`leerAgendaDias`, ADR-023) por semana o ventana.
+- **Bordes del rango (DEC-45 A, H-475):** en el borde de hoy ± 366 una flecha de Semana o de la ventana se habilita si algún día del bloque nuevo queda dentro y lleva al primero de esos días, también la flecha anterior. Los días fuera se ven deshabilitados («Jue 04/11, no disponible»), vacíos y sin huecos tocables, y **no se piden a la base**.
+- **Vistas** (`panel/vistas`): `VistaPanel`, `BarraCalendario` y `CalendarioPanel` reciben la navegación por props desde `PaginaPanel` (**H-471 cerrado**); encabezado «Lun 26/10» que abre el Día, columna de hoy con tinte y línea «Ahora» (solo hoy, CA-74), «No hay clases esta semana», botones «3 días anteriores/siguientes» y `useDeslizamiento.ts` (`sentidoDeslizamiento`: solo `pointerType === 'touch'`, al menos 48 px y el doble que en vertical; `touch-action: pan-y` solo con la clase `deslizable`). `useEscritorio` fija el corte de 60 rem. En la Semana `AccionesVista` no ofrece «Copiar enlace de este día» (CAL-20 es del Día). La lista agrupada pone un `h3` por día. Sin cambios en `lista`, `agenda`, `mis-clases` (CA-86).
+- **Seguridad:** nada del calendario se guarda en el navegador (SEC-37; el paso E2E con dos sesiones y la búsqueda en `src/modulos/panel` están en el informe de QA); pruebas con texto hostil en Semana y lista agrupada (SEC-16, SEC-35); la lectura sigue sin columnas extra (SEC-34). Visto de SecDevOps: sin hallazgos críticos, altos ni medios; mejoras bajas S02 y S03 aceptadas.
+- **Adendas de los ADR:** ADR-025 adenda B19 (cierra P-2: códigos de relectura repetidos a propósito, dónde vive la condición de «fila respondible» y DEC-42/43 A aplicadas) y ADR-026 adenda B20 (A-1 reparto del deslizamiento, A-2 gestos disjuntos; B21 compone sus manejadores con los de `useDeslizamiento`).
+- **Verificación:** 493 pruebas del Panel y 14 E2E de Semana en verde (chromium, escritorio y 360 px); capturas en `.aidlc/calendario-profesor/calidad/evidencias/ui/WEB-15-semana-*` y `WEB-16-semana-ca83-*`, con el borde en `WEB-15-semana-ca68-borde-esc/caso.md`.
+- **Abiertos:** H-B20-01 (4 errores de formato, variables sin usar, en una prueba vieja de B16: el Tester los corrige **antes de G3**); H-B20-03 (medir contraste de «Ahora» y del tinte de hoy y probar huecos de menos de 10 min en 360 px: B22); H-B20-T02 (una prueba de la lista falló una vez en corrida completa; en vigilancia); bajas del Arquitecto H-B20-A01..A05 (cálculo de días en la vista, ventana deducida de `dias.length`, corte de 60 rem en dos fuentes, tipo `LineaAhora` repetido, comentario que nombra las API de almacenamiento y hace que la búsqueda SEC-37 devuelva un resultado que no es un uso) y S02 y S03 de SecDevOps. P-1 (ficha `web-panel`) sigue abierto hasta el cierre de la funcionalidad. Fuentes: handoffs de developer, ux-web, tester y arquitecto de `bolts/B20-semana-lista/`; `g2/checklist-aprobacion.md` (aprobada el 06/11/2026).
+
+## Bolts
+B16 lectura de varios días (hecho); B17 Día (hecho) (dirección, navegación, eje, bloques); B18 Día (huecos, bloqueos, detalle, acciones) (hecho); B19 responder solicitudes y copiar enlace (hecho); B20 Semana, hoy y lista agrupada (hecho); B21 arrastre (hecho); B22 accesibilidad y celular (hecho); B23 rendimiento. Fuente: `.aidlc/calendario-profesor/arquitectura/plan-bolts.md`.
+
+## B21: arrastre en escritorio (construido)
+
+- **Lógica** (`panel/logica/arrastre.ts`, CAL-13, CAL-14): decide qué se arrastra (las mismas clases que ofrece «Mover»: confirmadas, futuras, sin pedido pendiente; con el profesor inactivo, ninguna) y dónde se suelta (hueco libre y futuro de `destinosLibres`, dentro de tramo, de los días visibles). El movimiento es el de «Mover»: la misma RPC `mover_clase`, el mismo alcance en una serie y los mismos mensajes de error (SEC-36).
+- **Vistas** (`panel/vistas`): `useArrastreClase.ts` (Pointer Events, solo mouse, umbral de unos 4 px, desde 60 rem), `ConfirmarMovimiento.tsx` («Mover clase», con «Solo esta clase» / «De acá en adelante» solo si la clase tomada es de una serie) y `PiezasMover.tsx` (piezas compartidas con `MoverClaseForm`). `vistas/arrastre.ts` tiene los tipos de frontera y el umbral; `vistas/conexionArrastre.ts` (lo usa `PaginaPanel`) liga `logica/arrastre.ts` a las columnas visibles, el eje, el reloj y `profesorActivo`, y pasa de la caja de la columna a px por rem (adenda B21, B-2). Los gestos son disjuntos de los de `useDeslizamiento` (táctil con la ventana de 3 días; mouse desde 60 rem).
+- **Destino más corto que la clase (adenda B21, B-1):** no se filtra por duración, porque «Mover» tampoco lo hace; la RPC lo rechaza con el mensaje de «Mover» (INV-01, CA-87) y la vista relee el rango. Filtrar por duración iría en `destinosLibres` para los dos caminos y con un CR.
+- **Sin librería nueva:** `package.json` no cambia.
+- **Verificación:** el arrastre con mouse en Día y Semana quedó probado en el navegador (CA-77, CA-78, CA-79, CA-87), con evidencia en `.aidlc/calendario-profesor/calidad/evidencias/ui/CA-77-*`, `CA-78-*`, `CA-79-inactivo` y `CA-87-arrastre`; pruebas unitarias (`tests/unit/panel/logica/arrastre.test.ts`, `tests/unit/panel/vistas/Arrastre.test.tsx`), de integración (`tests/integracion/gestion/agenda-dias.test.ts`) y E2E (`tests/e2e/calendario-arrastre.spec.ts`). Una corrección posterior hizo que, con dos clases a la misma hora, se mueva y se enfoque la clase tomada.
+- **Abiertos:** P-1 (ficha `web-panel`) sigue abierto hasta el cierre de la funcionalidad. Fuentes: handoffs de developer, ux-web, tester y arquitecto de `bolts/B21-arrastre/`; adenda B21 de ADR-026.
+
+## B22: accesibilidad y celular (construido)
+
+- **Contrato `panel/vistas/tecladoGrilla.ts` (A11Y-37, CA-89):** presentación pura, sin tocar `logica/`. Un solo tope de Tab: el ítem activo lleva `tabIndex=0` y el resto `-1`; el activo es derivado (si ya no existe, vale el primero) y sigue al foco, también cuando A11Y-38/A11Y-52 lo devuelven por programa. `destinoDeTecla` (función pura): flecha abajo/arriba entre ítems del día sin dar la vuelta; Inicio/Fin al primero/último; flecha derecha/izquierda (Semana y ventana de 3 días) al ítem del día contiguo con el horario igual o más cercano (a igual distancia, el más temprano), saltando columnas sin ítems. Shift/Ctrl/Alt/Meta no se interceptan; Enter y Espacio son los del botón; Tab no tiene trampas. Solo son ítems los elementos `tocable` con acción conectada; lo decorativo (pasado, fuera de grilla, bloqueo ajeno, día fuera de rango) no entra. Los manejadores van en cada botón y no en el `role=group` (`jsx-a11y`).
+- **Cambios de componentes (`ux/web/componentes.md` §3):** CC-05 `ColumnaDia` suma `navegacionDe?(clave)`; CC-06 (`BloqueClase`), CC-07 (`HuecoLibre`) y CC-08 (`BloqueBloqueo`) suman `navegacion?: NavegacionDeItem` (`data-nav`, `tabIndex`, `onKeyDown`, `onFocus`); CC-11 (`AyudaCalendario`) suma la línea solo para lector «Con el teclado, Tab entra en la grilla y las flechas cambian de horario» (clase `.soloLectores`, parte de la descripción del grupo; P-2, DEC-48, H-478). El literal visible de WEB-14 no cambia. El eje de horas lleva `<time datetime>` (A11Y-51; la marca 24:00 no).
+- **Corrección H-T22-01 (WCAG 2.5.3):** `BloqueClase`, `BloqueBloqueo` y `EncabezadoDia` separan con un espacio los textos visibles, para que queden contenidos en el nombre accesible (`aria-label`, que no cambió).
+- **Celular (CA-90, ADR-024 A-2, H-472):** `altoHoraRem` da 44 px naturales hasta 10 min por hueco; debajo de 10 min la hora se topa en 16,5 rem, pero `.item` lleva `min-block-size: var(--tactil-min)` y el elemento dibujado mide 44 px (carriles, A-4). Ventana de 3 días: (360-48)/3 = 104 px por columna; dos ítems en carriles quedan justos en 44 px de ancho.
+- **Verificación:** unitarias `tests/unit/panel/vistas/TecladoGrilla.test.tsx`, `AccesibilidadCalendario.test.tsx` y `CalendarioAcciones.test.tsx`; E2E `tests/e2e/accesibilidad.spec.ts` (47 de 47 en chromium, axe WCAG 2.1 AA sin errores), `celular.spec.ts` y `calendario-teclado.spec.ts` (100 de 100 junto con celular); evidencias en `.aidlc/calendario-profesor/calidad/evidencias/ui/CA-89-*` y `WEB-A11Y-B12`. CA-86 (regresión de la Lista) por suites, sin pantalla.
+- **Abiertos para G3:** H-B22-Q02 revisión manual con NVDA/VoiceOver (no hecha; incluye confirmar que no se espera una sola parada para encabezados de día e ítems); H-B22-Q01 sin Playwright de zoom 200 %, espaciado WCAG, escala de grises y movimiento reducido; H-B22-Q03 44 px con ítems en carril sin medir; H-T22-02 (foco tras «Mover» del detalle: bloque o grilla) y H-T22-03 (prueba de mail inestable, no es de B22). Pregunta de UX: ¿`<time>` también en los textos de fecha del detalle y de «Mover clase»? Hoy son texto plano.
+
+## B23: rendimiento y precarga del Panel (construido; NFR-10, CA-88)
+Objetivo: el calendario carga completo en menos de 2 s (p95, Fast 4G, escritorio). No cambia la RPC, el SQL ni las vistas.
+
+**Precarga** (`src/modulos/panel/logica/precarga.ts`, invocada desde `src/main.tsx` con `adelantarPanel(hash)`, en paralelo a `adelantarAgenda`):
+- Si la dirección inicial empieza con `#/panel`, baja ya el chunk de la ruta y pide `agenda_profesor_dias` para el rango que supone desde `v=` y `d=` (misma lógica que `PaginaPanel`; huso del navegador; ventana de 3 días si `matchMedia(min-width: 60rem)`). No espera `iniciarSesion`, `sesion_actual`, `config_publica` ni el router.
+- Solo pide si hay una sesión guardada de supabase-js (ADR-017: sin sesión no se carga supabase-js) y guarda el id de usuario de esa sesión.
+- `useAgendaDias` toma la precarga solo si coinciden **rango, lector, vigencia y usuario**. Se descarta, sin mostrarla, cuando: cambia la persona (usuario distinto, INV-02), cambia el rango (otra vista, otro día o huso distinto cerca de medianoche) o pasan **30 s** desde que se pidió. Descartada, la vista queda en «cargando» y lee su propio rango, como antes.
+- Una precarga se usa una vez: la primera búsqueda la olvida, de modo que un cambio de rango o `recargar()` vuelven a leer. Si falló, el error se muestra como el de una lectura propia (`ErrorAgendaDias`, catálogo de `errores.ts`), sin nada en la consola.
+- La RPC sigue filtrando por `auth.uid()` (INV-02, SEC-34); la precarga solo adelanta la lectura.
+- Abierto (H-B23-S01, bajo, seguridad): las filas precargadas quedan en memoria hasta recargar si nadie las usa; se recomienda borrarlas al vencer y al cerrar sesión. Va a G3.
+
+**Resultado de la medición** (n = 40, Fast 4G, escritorio; fuente `verificacion/rendimiento-B23.md`):
+
+| Vista | Antes (p95) | Después (p95) | Resultado |
+| --- | --- | --- | --- |
+| Día | 2046 ms | 1985 ms | Cumple (15 ms de margen) |
+| Semana | 2094 ms | 2043 ms | 43 ms por encima del umbral de 2000 ms |
+
+- CA-88 con la Semana en 2043 ms queda como **excepción aceptada** (PREG-002, opción b, firmada en G2 de B23); va a G3 como riesgo aceptado. 0 errores en las 80 cargas.
+- Dónde se va el tiempo: unas 8 idas y vueltas en cascada de ~200 ms (88 %); la RPC tarda 10 a 15 ms y el dibujo 24 ms. Sin limitar la red, la Semana carga en 238 ms. La palanca restante estimada (~1,6 s) es adelantar la configuración del profesor y la grilla (`profesor`, `grilla_tramo`), que está en `src/modulos/configuracion/logica/` y no se hizo.
+- La RPC de 7 días: p95 14,7 ms frente a un `statement_timeout` de 8 s del rol authenticated.
+- El chunk de `#/panel` creció 12,5 kB gzip frente a `main`.
+- **Pendiente (H-B23-02):** la Semana en celular (ventana de 3 días) no se midió.
+- Cómo repetir: `perf/preparar.mjs` y `perf/medir-agenda.mjs --ruta panel --vista semana|dia --viewport escritorio --perfil fast4g --n 40` (ver `tecnica/plataforma.md` §10).
+
+## Orden, numeración y despliegue (B16 a B23 hechos)
+- Los bolts se numeran B16 a B23 y no B01: con B01 la migración `2026110001*` quedaría antes de la última aplicada (`202611001150`) y `supabase db push` la rechazaría, y `lista_rpc/01.txt` y `matriz/01.ts` ya existen. Si el tablero exige B01 se renumeran los IDs; las rutas `16_*` se quedan.
+- Los bolts van en serie: todos los funcionales escriben en `src/modulos/panel/`. B16 es aditivo (no toca tablas, vistas ni RLS) y se aplica en producción antes de publicar la web de B17 (la migración aún no consta como aplicada en producción).
+- **Paso de publicación (antes del merge a `main`):** la migración `202611001601_agenda_profesor_dias.sql` (B16) debe aplicarse en producción con el flujo manual `supabase-deploy` **antes** de fusionar la rama a `main`, porque `web.yml` publica la web en cuanto entra a `main` y la web de B17 a B20 lee `agenda_profesor_dias`: sin la migración el calendario fallaría. Orden: (1) `supabase-deploy` con la migración, (2) comprobar que la RPC existe, (3) merge a `main`. Hoy consta como no aplicada en producción.
+- Cambiar el contrato de la RPC después de B16 pide otra migración y rehacer la lectura de B17 y B20 (ADR-023).
+- `src/modulos/lista/` no cambia (CA-86); el diálogo propio del Panel evita tocarlo (ADR-025). `package.json` no cambia: B21 lo comprueba (ADR-026).
+- Las opciones de DEC-42..45 y DEC-50 caen en `eje.ts` (B17, B20), el diálogo de respuesta (B19) y la regla de la flecha (B20, construida); ver el funcional.
+
+## Seguridad en el plan (H-461..H-465, SEC-16, SEC-17, SEC-34..37)
+El plan de bolts incorpora los hallazgos de SecDevOps, ya corregidos, sin sumar tareas:
+- **B16:** `leerAgendaDias` usa el catálogo de `errores.ts` y ante una respuesta de forma inválida o un error desconocido muestra el mensaje genérico, sin `details`, filas ni `console` (T16.1, H-464). pgTAP `16_*` y `agenda-dias.test.ts` comprueban la lista exacta de columnas de la RPC (T16.2, H-462, SEC-34).
+- **B17 a B20:** pruebas de vista con texto hostil (`<img src=x onerror=alert(1)>`, `x"><script>`) en `BloqueClase`, `BloqueBloqueo`, `DetalleCalendario`, `ResponderSolicitud`, Semana y lista agrupada: todo texto se ve literal (T17.2, T18.2, T19.2, T20.2, H-461, SEC-16, SEC-35).
+- **B19:** el enlace del día valida el slug con la regla de ADM-02 (sin enlace si no la cumple), lo codifica con `encodeURIComponent` y se prueba con slugs hostiles en `enlaceDia.test.ts` (T19.1, H-463, SEC-36).
+- **B20:** paso E2E con sesión de A, cierre y sesión de B en la misma pestaña, y búsqueda de `localStorage`/`sessionStorage` en `src/modulos/panel`, con la salida en el informe de QA; es evidencia, no prueba automatizada (T20.3, H-465, SEC-37).
+- Las reglas de negocio siguen en la base: arrastre, responder y cancelar llaman a las RPC existentes (SEC-36).
+
+## Plan de pruebas (planificado)
+71 casos en `.aidlc/calendario-profesor/calidad/casos/` (`CA.md`, 52 casos T-CA-67-01..T-CA-90-01; `INV.md`, 19 casos). Rendimiento (T-CA-88-01) solo en B23. Riesgo conocido: NFR-10 (Semana en menos de 2 s p95 con 4G) se mide recién en B23; en B16 una llamada de 7 días por encima de 500 ms en local es un hallazgo (ADR-023).
+
+## Operación: despliegue, verificación y qué vigilar (tramo 5 `prod-calendario`)
+
+Fuentes: `.aidlc/calendario-profesor/operacion/runbook.md` e `informe-despliegue.md`; plantilla del cliente `despliegue/otro/tramos-prod.md` (tramo 5) y paso 7 de `despliegue/otro/README.md`. Lo que no cambió (arranque, respaldos, secretos, tramos 1 a 4) sigue en el runbook de reservatuclase. El despliegue a producción lo ejecuta el humano después de G4; hasta hoy solo se desplegó en local.
+
+**Qué cambia.** Una migración más (53 en total): `202611001601_agenda_profesor_dias.sql`, solo funciones (`privado.agenda_profesor_dias(uuid, date, date)` sin acceso para `public`, `anon` ni `authenticated`, y `public.agenda_profesor_dias(date, date)` con `execute` solo para `authenticated`). Sin tablas, vistas, RLS ni datos. Sin variables, secretos, Edge Functions, Auth ni cron nuevos. La web no agrega rutas (`#/panel?v=dia|semana&d=AAAA-MM-DD`) y la precarga vive en memoria.
+
+**Orden: base primero, web después.**
+1. Respaldo previo fuera del repositorio.
+2. Etiquetar el commit del tramo (`prod-calendario`, el árbol final de B23 `4a51053` o posterior; lo crea el equipo del proyecto).
+3. Dry-run: debe listar exactamente `202611001601`; si lista más o menos, no lanzar.
+4. `supabase-deploy` lanzado desde la etiqueta, con aprobación del revisor del environment.
+5. Solo con la migración aplicada y verificada (SQL de abajo), publicar la web: integrar el PR a `main` es lo que la publica (`web.yml`), por eso no se integra antes. Si la web sale antes, el calendario muestra el error con «Reintentar» hasta aplicar la migración.
+6. Con `qa` configurado, el tramo va primero a `qa` y después a `prod`.
+
+**Vuelta atrás.** Primero la web (`web.yml` sobre el commit anterior, que no usa la RPC); después, si hace falta, `drop function public.agenda_profesor_dias(date, date); drop function privado.agenda_profesor_dias(uuid, date, date);` y `supabase migration repair --status reverted 202611001601`. No hay datos que perder; el dump previo es el último recurso. En local, `npx supabase db reset`.
+
+**Verificación posterior.**
+- SQL: 53 migraciones y máxima `202611001601`; `has_function_privilege('anon', 'public.agenda_profesor_dias(date,date)', 'execute')` da `false` y para `authenticated` da `true`.
+- Sin sesión, `POST /rest/v1/rpc/agenda_profesor_dias` responde 401 `42501` (esperado).
+- Con sesión de profesor: `#/panel` abre el calendario Día de hoy; `#/panel?v=semana` abre Semana (siete columnas en escritorio, tres días en 360 px); las clases coinciden con la Lista; una solicitud pendiente se confirma o rechaza desde el calendario y el alumno recibe el mismo mail que desde la Lista; cada profesor ve solo su agenda (INV-02).
+- Resultado local (informe de despliegue, 2026-11-09): migraciones desde cero, `npm run build` y `escanear-dist` limpios, y dos E2E de humo (T-CA-67-01, T-CA-76-01) pasan.
+
+**Qué vigilar.**
+- p95 de Semana (NFR-10, CA-88): 2043 ms contra 2000 ms en local con 4G estrangulado (Día 1985 ms); excepción aceptada (PREG-002, opción b). En producción medir contra Supabase Free con `perf/medir-agenda.mjs`; si pasa de ~2,5 s o sube la tasa de errores, avisar al equipo (salida prevista: adelantar las lecturas de `profesor` y `grilla_tramo`). La RPC de 7 días tarda ~15 ms: el costo es de red.
+- Plan Free: pausa por inactividad y límites de llamadas; Semana hace una lectura por semana.
+- Deuda aceptada: Semana en celular sin medir (H-V-01), filas precargadas en memoria hasta recargar (H-B23-S01), H-UX-A01..A03.
+- Pendientes de G4: H-B22-S02 (`rate_limit_email_sent` real), H-481 (gitleaks y CodeQL), H-482 (build con la clave del proyecto).
+
+**Fallos frecuentes.** Calendario en error con «Reintentar»: falta aplicar el tramo 5 o la API está caída (buscar la función en `pg_proc`). 401 `42501` con sesión de profesor: falta el `grant`; reaplicar la migración desde su etiqueta, no editar a mano.
+
+**Línea base.** La ficha `web-panel` (`.aidlc/_linea-base/componentes/web-panel.md`) ya describe el Panel como calendario Día/Semana con lista, respuesta de solicitudes, arrastre, deslizamiento, enlace del día y precarga (ADR-023..026), y `bd-agenda` suma la RPC `agenda_profesor_dias(p_desde, p_hasta)` de 1 a 7 días (migración `202611001601`); `agenda_profesor(p_dia)` sigue para el día destino de «Mover».
+
+## Bitácora de versiones
+
+| Versión | Fecha | Bolt | IDs | Cambio |
+| --- | --- | --- | --- | --- |
+| 0.1 | 2026-10-30 | inception | ADR-023..026, CAL-07..09, CAL-12..16, DEC-42..45, DEC-50, INV-02 | Contrato de `agenda_profesor_dias` y resumen de los ADR, en construcción |
+| 0.2 | 2026-10-30 | G1 aprobada | ADR-023..026, H-461..H-465, SEC-16, SEC-17, SEC-34..37 | Orden y numeración de bolts, seguridad incorporada al plan y plan de pruebas; todo planificado, nada construido |
+| 0.3 | 2026-10-30 | B16 (G2 aprobada) | CAL-07..09, INV-02, INV-03, INV-05, SEC-04, SEC-17, SEC-34, SEC-35, ADR-023 | RPC `agenda_profesor_dias` y lector `leerAgendaDias` pasan a construidos; 17 columnas; verificación de B16; B17 a B23 siguen planificados |
+| 0.4 | 2026-10-30 | B17 (G2 aprobada) | CAL-02, CAL-04, CAL-19, ADR-024, DEC-44, DEC-45, DEC-50, H-472, H-475 | Dirección del Panel, eje, bloques, barra y «Ver como lista» construidos; adenda A-1..A-4 de ADR-024 y tope de 16,5 rem (B18); flecha de Semana (B20); «Elegir día» vuelve en B18 |
+| 0.5 | 2026-10-31 | B18 (calendario-profesor) | ADR-024, H-472..H-475, H-B17-03, H-490..H-492 | Acciones del calendario Día, «Elegir día», adenda A-2..A-4 aplicada y revisión del Arquitecto; B19 a B23 siguen planificados |
+| 0.6 | 2026-11-04 | B19 (calendario-profesor) | CAL-08, CAL-12, CAL-20, ADR-025, DEC-42, DEC-43, SEC-36, H-B19-01..A06 | Respuesta de solicitudes desde el calendario y enlace del día construidos; ADR-025 construida; revisión del Arquitecto conforme |
+| 0.7 | 2026-11-06 | B20 (calendario-profesor) | CAL-15, CAL-16, CAL-19, DEC-45, DEC-46, H-471, H-475, ADR-025, ADR-026, SEC-34, SEC-37, H-B20-01, H-B20-03, H-B20-A01..A05 | Vista Semana, ventana de 3 días, hoy y lista agrupada construidas; H-471 cerrado; adendas de ADR-025 (P-2 cerrado) y ADR-026; paso de publicación de la migración 202611001601 con `supabase-deploy` antes del merge |
+| 0.8 | 2026-11-06 | B21 (calendario-profesor) | CAL-13, CAL-14, CA-77, CA-78, CA-79, CA-87, ADR-026, INV-01, SEC-36 | Sección del arrastre en escritorio, adenda B21 de ADR-026 (B-1, B-2) y reparto de módulos |
+| 0.9 | 2026-11-06 | B22 (calendario-profesor) | NFR-11, NFR-12, CA-86, CA-89, CA-90, A11Y-37, H-T22-01, H-B22-Q01..Q03 | Sección B22: contrato de `tecladoGrilla.ts`, cambios de CC-05..CC-08 y CC-11, celular y abiertos para G3 |
+| 0.10 | 2026-11-09 | B23 (calendario-profesor) | NFR-10, CA-88, INV-02, PREG-002, H-B23-01, H-B23-02, H-B23-S01 | Sección B23: precarga del Panel y cuándo se descarta, resultado de rendimiento (Día cumple, Semana 43 ms por encima con excepción aceptada) y abiertos para G3 |
+| 0.11 | 2026-11-09 | operación (calendario-profesor) | CAL-07..09, NFR-10, CA-88, INV-02, PREG-002, H-V-01, H-B23-S01 | Sección de operación: tramo 5, orden base y web, vuelta atrás, verificación posterior, qué vigilar y línea base |
+| 0.12 | 2026-11-09 | operación (calendario-profesor) | H-OP-01 | Integrar el PR a `main` publica la web: no se integra hasta aplicar y verificar el tramo 5 |

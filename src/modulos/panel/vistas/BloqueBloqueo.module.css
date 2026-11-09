@@ -1,0 +1,35 @@
+/* CC-08 · bloqueo: rayado (patrón de tokens), texto BLOQUEADO y el motivo; botón solo si es propio (CAL-06, CA-71). */
+.item {
+  composes: item from './BloqueClase.module.css';
+}
+
+.bloque {
+  composes: bloque from './BloqueClase.module.css';
+}
+
+/* Solo el aspecto: la leyenda (CC-10) usa esta misma clase para su muestra. */
+.bloqueado {
+  color: var(--c-bloqueado-texto);
+  background: var(--patron-bloqueado), var(--c-bloqueado-fondo);
+  border-style: solid;
+  border-color: var(--c-bloqueado-borde);
+}
+
+.estado {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-1);
+  font-weight: var(--peso-fuerte);
+}
+
+.texto {
+  text-transform: uppercase;
+}
+
+.motivo {
+  min-inline-size: 0;
+}
+
+.soloLectores {
+  composes: soloLectores from './BloqueClase.module.css';
+}

@@ -1,7 +1,8 @@
 // Textos y formatos de las vistas del panel del profesor (WEB-06, PRF-01..05, PRF-08, AVI-01; F-07 y F-08).
 // Todo lo que viene de la base (nombres, observaciones) se muestra como texto (SEC-16).
 import { diaDeInstante, formatearFecha, formatearHora, type Instante } from '../../../lib/fechas';
-import type { FilaAgendaProfesor } from '../logica';
+import type { Alcance, FilaAgendaProfesor } from '../logica';
+import type { ResultadoPanel } from './contrato';
 
 export const TEXTOS_PANEL = {
   titulo: 'Panel',
@@ -12,6 +13,8 @@ export const TEXTOS_PANEL = {
   errorContadores: 'No se pudieron cargar los pendientes.',
   errorAgenda: 'No se pudo cargar la agenda.',
   cargandoAgenda: 'Cargando los huecos del día…',
+  /** B20 (CAL-19, WEB-16): la lista de la vista Semana. */
+  cargandoAgendaSemana: 'Cargando los huecos de la semana…',
   sinHuecos: 'No hay huecos este día',
   sinHuecosAyuda: 'Elegí otro día para ver sus horarios.',
   tocarHueco: 'Tocá un horario para gestionarlo.',
@@ -110,3 +113,87 @@ export const TEXTOS_BLOQUEO = {
   motivoDe: 'Motivo',
   horarioDe: 'Horario',
 } as const;
+
+/** Textos del calendario del Panel (CAL-01, CAL-03, CAL-07, CAL-08, CAL-19; flujos F-CAL-01..03 y F-CAL-09). */
+export const TEXTOS_CALENDARIO = {
+  navegacion: 'Navegación del calendario',
+  calendario: 'Calendario',
+  dia: 'Día',
+  semana: 'Semana',
+  hoy: 'Hoy',
+  diaAnterior: 'Día anterior',
+  diaSiguiente: 'Día siguiente',
+  /** Sufijo del nombre accesible de una flecha deshabilitada por el rango de la agenda (CAL-03, A11Y-49). */
+  noDisponible: ', no disponible',
+  verComoLista: 'Ver como lista',
+  verComoCalendario: 'Ver como calendario',
+  cargando: 'Cargando la agenda…',
+  /** Texto visible de los bloques; se muestra en mayúsculas con CSS (CAL-07, CAL-08). */
+  confirmada: 'Confirmada',
+  pendiente: 'Pendiente',
+  /** CC-07, CC-08, CC-10: el texto de cada estado (el color nunca es lo único, A11Y-41). */
+  libre: 'Libre',
+  bloqueado: 'Bloqueado',
+  /** CC-10 · Leyenda (CAL-17). */
+  leyenda: 'Leyenda del calendario',
+  /** CC-11 · Ayuda: literal de WEB-14. */
+  ayuda: 'Toque un horario libre para crear una clase; con el teclado, use las acciones del hueco',
+  /** B22 · P-2 (DEC-48), A11Y-37: línea extra solo para el lector de pantalla; el literal de la spec no se toca. */
+  ayudaTeclado: 'Con el teclado, Tab entra en la grilla y las flechas cambian de horario',
+  /** CAL-18 (día). */
+  sinClasesDia: 'No hay clases este día',
+  /** B20 · CAL-18 (Semana, también con la ventana de 3 días). */
+  sinClasesSemana: 'No hay clases esta semana',
+  /** B20 · A11Y-49: la flecha anterior y siguiente de la vista Semana en escritorio y de su ventana de 3 días (CAL-16). */
+  semanaAnterior: 'Semana anterior',
+  semanaSiguiente: 'Semana siguiente',
+  tresDiasAnteriores: '3 días anteriores',
+  tresDiasSiguientes: '3 días siguientes',
+  /** B20 · CC-09 (CAL-10): el texto visible junto al eje; la línea es decorativa. */
+  ahora: 'Ahora',
+  /** B20 · CC-16 (DEC-45 A, P-3): un día de la lista fuera de hoy ± 366 no se pide ni tiene huecos. */
+  diaFueraDelRango: 'Fuera del rango',
+  /** H-B17-03 · nombre accesible del campo de fecha de la barra (CAL-03). */
+  elegirDia: 'Elegir día',
+  /** CC-06 · DEC-43 A: clase confirmada con una cancelación pedida y sin responder (texto, no solo color: NFR-11). */
+  cancelacionPendiente: 'Cancelación pendiente',
+  /** CC-14 · F-CAL-06 (A11Y-47): se anuncian en el `role=status` del Panel. */
+  claseConfirmada: 'Clase confirmada',
+  claseRechazada: 'Clase rechazada',
+  /** CC-15 · F-CAL-10 (CAL-20, A11Y-47): «Copiar enlace de este día» y su resultado en `role=status`. */
+  copiarEnlaceDia: 'Copiar enlace de este día',
+  enlaceCopiado: 'Enlace copiado',
+  enlaceNoCopiado: 'No se pudo copiar el enlace. Copialo a mano:',
+  /** B21 · CC-07 (CAL-13, F-CAL-08): el texto de un hueco que es destino válido mientras se arrastra una clase. */
+  soltarAca: 'Soltar acá',
+} as const;
+
+/**
+ * Textos de «Mover» que comparten el formulario de «Mover» y la confirmación del arrastre (CAL-13, CA-87): un mismo
+ * mensaje de error y un mismo anuncio de éxito sea cual sea el camino.
+ */
+export const TEXTOS_MOVER = {
+  titulo: 'Mover clase',
+  mover: 'Mover',
+  cancelar: 'Cancelar',
+  moviendo: 'Moviendo…',
+  queMovemos: '¿Qué movemos?',
+  errorTitulo: 'No se pudo mover; no se cambió nada',
+  irALaLista: 'Ir a la lista',
+  avisoMail: 'Si el titular tiene mail, le avisamos.',
+} as const;
+
+/** El anuncio de una clase movida (F-08): «Clase movida al 12/11 10:00» o, en una serie, «Serie movida: …». */
+export function resultadoDeMovimiento(
+  alcance: Alcance,
+  destino: Instante,
+  zona: string,
+  salteadas: readonly string[],
+): ResultadoPanel {
+  const cuando = fechaCorta(destino, zona);
+  return {
+    mensaje: alcance === 'desde_aca' ? `Serie movida: la próxima clase pasa al ${cuando}` : `Clase movida al ${cuando}`,
+    detalle: TEXTOS_MOVER.avisoMail,
+    salteadas,
+  };
+}

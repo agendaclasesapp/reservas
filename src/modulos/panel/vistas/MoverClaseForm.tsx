@@ -7,16 +7,10 @@ import { Alerta, Boton, CampoFecha, Cargando, ErrorCarga, GrupoOpciones } from '
 import { formatearDia, type Dia } from '../../../lib/fechas';
 import { mensajeDeError } from '../../../lib/errores';
 import { diaEnLimites, type LimitesAgenda } from '../../agenda/logica';
-import {
-  ALCANCES,
-  destinosLibres,
-  MENSAJES_PANEL,
-  type Alcance,
-  type FalloPanel,
-  type FilaAgendaProfesor,
-} from '../logica';
+import { destinosLibres, type Alcance, type FalloPanel, type FilaAgendaProfesor } from '../logica';
 import { CODIGOS_DESACTUALIZADA, type AccionesPanel, type ResultadoPanel } from './contrato';
-import { fechaCorta, textoRango, TEXTOS_PANEL } from './formato';
+import { resultadoDeMovimiento, textoRango, TEXTOS_PANEL } from './formato';
+import { AlcanceMover, AlertaMover } from './PiezasMover';
 import estilos from './Acciones.module.css';
 
 export type MoverClaseFormProps = {
@@ -37,12 +31,6 @@ export type MoverClaseFormProps = {
 };
 
 type Lectura = { dia: Dia; intento: number; estado: 'listo' | 'error'; filas: readonly FilaAgendaProfesor[]; error: string };
-
-const OPCIONES_ALCANCE = ALCANCES.map((a) => ({ valor: a, etiqueta: MENSAJES_PANEL.alcance[a] }));
-
-function esAlcance(valor: string): valor is Alcance {
-  return ALCANCES.some((a) => a === valor);
-}
 
 export function MoverClaseForm({
   fila,
@@ -134,12 +122,7 @@ export function MoverClaseForm({
       if (CODIGOS_DESACTUALIZADA.has(r.codigo)) onDesactualizada();
       return;
     }
-    const cuando = fechaCorta(destino, zona);
-    onHecho({
-      mensaje: alcanceEfectivo === 'desde_aca' ? `Serie movida: la próxima clase pasa al ${cuando}` : `Clase movida al ${cuando}`,
-      detalle: 'Si el titular tiene mail, le avisamos.',
-      salteadas: r.salteadas,
-    });
+    onHecho(resultadoDeMovimiento(alcanceEfectivo, destino, zona, r.salteadas));
   };
 
   // El error de un campo va en el campo; si el campo no se muestra (no hay horarios) o el fallo es general, va en el aviso.
@@ -194,32 +177,10 @@ export function MoverClaseForm({
       )}
 
       {elegirAlcance ? (
-        <GrupoOpciones
-          legend="¿Qué movemos?"
-          opciones={OPCIONES_ALCANCE}
-          valor={alcance}
-          onCambio={(v) => {
-            if (esAlcance(v)) setAlcance(v);
-          }}
-          error={errorAlcance}
-        />
+        <AlcanceMover valor={alcance} onCambio={setAlcance} error={errorAlcance} />
       ) : null}
 
-      {errorGeneral ? (
-        <Alerta
-          tipo="error"
-          titulo="No se pudo mover; no se cambió nada"
-          accion={
-            errorGeneral.codigo === 'SOLICITUD_EN_CURSO' ? (
-              <a href="#/lista" className={estilos.enlace}>
-                Ir a la lista
-              </a>
-            ) : undefined
-          }
-        >
-          {errorGeneral.mensaje}
-        </Alerta>
-      ) : null}
+      {errorGeneral ? <AlertaMover fallo={errorGeneral} /> : null}
 
       <div className={estilos.botones}>
         <Boton type="submit" cargando={enviando} textoCargando="Moviendo…">

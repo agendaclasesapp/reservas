@@ -1,7 +1,7 @@
 ---
 titulo: Onboarding · Agenda Clases App
-version: 0.12
-fecha: 2026-10-28
+version: 0.14
+fecha: 2026-11-09
 publico: equipo nuevo
 ---
 # Onboarding · Agenda Clases App
@@ -72,7 +72,7 @@ Los mails salen al buzón de prueba local (Mailpit); ahí se ve el código de in
 - **Evidencia de UI.** Para que el E2E deje capturas y `caso.md`, exportá `AIDLC_EVIDENCIAS` apuntando a la carpeta `calidad/evidencias/ui` del workspace (no a su carpeta padre) y, si hace falta, `AIDLC_NAVEGADOR=chromium`. Ejemplo: `AIDLC_EVIDENCIAS=.aidlc/reservatuclase/calidad/evidencias/ui npx playwright test tests/e2e/cuentas.spec.ts --project=chromium`.
 - Si `supabase status` falla mientras un contenedor se reinicia, las pruebas aceptan `RTC_ANON_KEY` explícita.
 
-**Producción:** proyecto Supabase Free, Gmail 465 desde la cuenta dedicada `agendaclasesapp@gmail.com` (`GMAIL_USER`, `GMAIL_APP_PASSWORD` como secretos, la contraseña sin espacios; DEC-15), web en `https://agendaclasesapp.github.io/reservas/` (DEC-14). El despliegue de la función va sin Docker (`--use-api`), la conexión a la base por el pooler de sesión `aws-1-sa-east-1` y `config push` detrás del guardia de `config diff` (ADR-012). Operación y secretos en `ops/` (ADR-012). Guías de producción: `ops/puesta-en-marcha.md`, `ops/auth.md`, `ops/mails.md`, `ops/rotacion.md`, `ops/incidentes.md` y `ops/verificar-repo.md`; política de seguridad en `SECURITY.md`.
+**Producción:** proyecto Supabase Free, Gmail 465 desde la cuenta dedicada `agendaclasesapp@gmail.com` (`GMAIL_USER`, `GMAIL_APP_PASSWORD` como secretos, la contraseña sin espacios; DEC-15), web en `https://agendaclasesapp.github.io/reservas/` (DEC-14). El despliegue de la función va sin Docker (`--use-api`), la conexión a la base por el pooler de sesión `aws-1-sa-east-1` y `config push` detrás del guardia de `config diff` (ADR-012). Operación y secretos en `ops/` (ADR-012). El calendario del profesor sale en el tramo 5 (`prod-calendario`): primero la migración `202611001601`, después la web (`tecnica/calendario-profesor-b16-b23.md`, sección Operación). Guías de producción: `ops/puesta-en-marcha.md`, `ops/auth.md`, `ops/mails.md`, `ops/rotacion.md`, `ops/incidentes.md` y `ops/verificar-repo.md`; política de seguridad en `SECURITY.md`.
 
 **Puesta en marcha en producción:** el repositorio es público y no lleva datos personales: antes del primer ingreso el operador corre a mano `privado.configurar_administrador('<mail>')`; los profesores se dan de alta desde `#/admin` (B15) y `privado.configurar_profesor('<mail>', '<nombre>', '<slug>')` queda como herramienta del operador. Opcional: el secreto de Vault `url_sitio` para que el mail de alta lleve el enlace completo. Pasos en `ops/puesta-en-marcha.md`. Para pasar una instalación de un solo profesor a varios, seguir `ops/migracion-multiprofesor.md` (migración en dos fases, desplegada por tramos `prod-b14` → `prod-b15a` → `prod-b15b` → `prod-b06`, con vuelta atrás ensayada hasta la contracción). Revisar cada semana `privado.ejecucion_proceso`.
 
@@ -107,10 +107,11 @@ Los mails salen al buzón de prueba local (Mailpit); ahí se ve el código de in
 
 - **Accesibilidad y celular (B12).** Todo control táctil mide al menos 44 px (`--tactil-min`); un enlace que va solo en su renglón usa `EnlaceAccion` de `src/ui/`, no un `<a>` suelto. Las pruebas `accesibilidad.spec.ts` y `celular.spec.ts` fallan si una pantalla nueva rompe axe, desborda a 360 px o tiene controles chicos. Detalle y verificación manual pendiente en `tecnica/plataforma.md` §9.
 - **Rendimiento (B13).** La agenda debe verse en menos de 2 s (p95) con Fast 4G; «4G» es Fast 4G por DEC-41, no Slow 4G. `#/p/<slug>` pide la configuración y los huecos del día a la vez y `src/main.tsx` adelanta esa carga desde la entrada (`src/modulos/agenda/logica/precarga.ts`): no la vuelvas a poner en serie. Para medir, `perf/` (ver `tecnica/plataforma.md` §10). Los scripts de `perf/` y de pruebas solo aceptan un stack local (`esLocal`).
+- **Panel como calendario y su precarga (B16 a B23).** `#/panel` abre en un calendario Día/Semana que lee una sola RPC, `agenda_profesor_dias`; «Ver como lista» muestra la vista de antes. `src/main.tsx` adelanta el chunk del Panel y esa lectura (`src/modulos/panel/logica/precarga.ts`) cuando la dirección es `#/panel`; la descarta si cambia la persona, el rango o pasan 30 s: no la quites ni la pongas en serie, y no muestres nunca datos precargados de otra sesión (INV-02). Medición: Día p95 1985 ms (cumple); Semana 2043 ms, 43 ms sobre los 2 s, excepción aceptada de CA-88 (la Semana en celular no está medida). Detalle en `tecnica/calendario-profesor-b16-b23.md`.
 
 ## 7. Glosario
 
-Enlace del profesor, vínculo, serie (clases que se repiten cada semana o cada quince días), solicitud pendiente (pedido de clase que espera respuesta), profesor inactivo (pausa), Administrador, Agenda Clases App, grilla semanal (tramos horarios por día), tramo, hueco (espacio de una clase), libre/ocupado/bloqueado, bloqueo, anticipación mínima, titular, persona a cargo, alumno sin cuenta, alumno pendiente, ficha, reserva, serie, solicitud, alcance («solo esta clase» / «de acá en adelante»), unión de alumnos, teléfono normalizado, RLS, registro de mails fallidos. Definiciones completas: `.aidlc/reservatuclase/analisis/glosario.md`. Perfil 4G (el preset «Fast 4G» de Chrome DevTools: 9 Mbit/s y 165 ms; DEC-41).
+Enlace del profesor, vínculo, serie (clases que se repiten cada semana o cada quince días), solicitud pendiente (pedido de clase que espera respuesta), profesor inactivo (pausa), Administrador, Agenda Clases App, grilla semanal (tramos horarios por día), tramo, hueco (espacio de una clase), libre/ocupado/bloqueado, bloqueo, anticipación mínima, titular, persona a cargo, alumno sin cuenta, alumno pendiente, ficha, reserva, serie, solicitud, alcance («solo esta clase» / «de acá en adelante»), unión de alumnos, teléfono normalizado, RLS, registro de mails fallidos. Definiciones completas: `.aidlc/reservatuclase/analisis/glosario.md`. Calendario (vista Día/Semana del Panel del profesor), «Ver como lista» (vuelta a la lista agrupada), precarga (lectura adelantada del Panel). Perfil 4G (el preset «Fast 4G» de Chrome DevTools: 9 Mbit/s y 165 ms; DEC-41).
 
 ## 8. A quién preguntar
 
@@ -132,3 +133,5 @@ Por área, según los perfiles del ciclo: requisitos (funcional), diseño técni
 | 0.10 | 2026-10-28 | B12 | NFR-05, NFR-06, CA-37, CA-38 | Regla de accesibilidad y uso en celular |
 | 0.11 | 2026-10-28 | B13 | NFR-04, CA-36, DEC-41 | Regla de rendimiento, Fast 4G y cómo medir con `perf/` |
 | 0.12 | 2026-10-28 | verificación | NFR-02, H-421, H-442 | Prueba opt-in de dependencias y cómo rearmar el entorno limpio |
+| 0.13 | 2026-11-09 | B23 (calendario-profesor) | NFR-10, CA-88, CAL-02, CAL-19, INV-02 | Panel como calendario, precarga y su descarte, resultado de rendimiento y glosario («calendario», «Ver como lista», precarga) |
+| 0.14 | 2026-11-09 | operación (calendario-profesor) | CAL-07..09 | Tramo 5 de producción y orden migración y web |

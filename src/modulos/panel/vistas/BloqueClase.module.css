@@ -1,0 +1,117 @@
+/* Ítem de la columna (también lo componen HuecoLibre y BloqueBloqueo): arriba y alto en horas por `--cal-alto-hora`;
+   los que se solapan se reparten el ancho en carriles (`--cal-carril` de `--cal-carriles`, ADR-024 A-4). */
+.item {
+  --cal-carril: 0;
+  --cal-carriles: 1;
+
+  position: absolute;
+  box-sizing: border-box;
+  inset-inline-start: calc(var(--cal-carril) * 100% / var(--cal-carriles) + var(--e-1));
+  inline-size: calc(100% / var(--cal-carriles) - 2 * var(--e-1));
+  inset-block-start: calc(var(--cal-arriba) * var(--cal-alto-hora));
+  block-size: calc(var(--cal-alto) * var(--cal-alto-hora));
+  min-block-size: var(--tactil-min);
+  min-inline-size: 0;
+  list-style: none;
+}
+
+.bloque {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: center;
+  gap: 0 var(--e-2);
+  box-sizing: border-box;
+  inline-size: 100%;
+  block-size: 100%;
+  padding: var(--e-1) var(--e-2);
+  border-width: var(--borde-ancho);
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: var(--t-xs);
+  line-height: var(--interlineado-titulo);
+  text-align: start;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+button.bloque {
+  cursor: pointer;
+}
+
+button.bloque:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: calc(-1 * var(--foco-ancho));
+}
+
+.confirmada {
+  color: var(--c-ocupado-texto);
+  background: var(--c-ocupado-fondo);
+  border-style: solid;
+  border-color: var(--c-ocupado-borde);
+}
+
+.pendiente {
+  color: var(--c-info-texto);
+  background: var(--c-info-fondo);
+  border-style: dotted;
+  border-color: var(--c-info-texto);
+}
+
+.estado {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-1);
+  font-weight: var(--peso-fuerte);
+}
+
+/* La caja natural va en el DOM («Confirmada»); se muestra en mayúsculas (CAL-07, CAL-08). */
+.texto {
+  text-transform: uppercase;
+}
+
+/* DEC-43 A: «Cancelación pendiente» en la clase confirmada; hereda el color del bloque y se subraya (no solo color). */
+.cancelacion {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-1);
+  font-weight: var(--peso-fuerte);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.nombre {
+  min-inline-size: 0;
+}
+
+.soloLectores {
+  position: absolute;
+  inline-size: var(--medida-minima);
+  block-size: var(--medida-minima);
+  margin: calc(-1 * var(--medida-minima));
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* B21 · Arrastre con el mouse (CAL-13, ADR-026): solo lo arrastrable lleva el cursor de arrastre (sin cursor, no se
+   arrastra: pendientes, pasadas, profesor inactivo). Mientras se arrastra el bloque sigue al puntero, sobre la línea de
+   la hora actual y sin transiciones (nada se anima, `prefers-reduced-motion` no tiene qué recortar). */
+button.arrastrable {
+  cursor: grab;
+  user-select: none;
+}
+
+.arrastrando {
+  z-index: 3;
+  translate: var(--cal-dx, 0) var(--cal-dy, 0);
+  opacity: 0.85;
+}
+
+.arrastrando button.arrastrable {
+  cursor: grabbing;
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: calc(-1 * var(--foco-ancho));
+}

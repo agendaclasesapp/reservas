@@ -186,6 +186,7 @@ test.describe('profesor', () => {
       'Abrir el panel del día y tocar el hueco libre de las 10:00',
       async () => {
         await page.goto(`${ORIGEN}${BASE}#/panel?d=${dia}`);
+        await page.getByRole('button', { name: 'Ver como lista' }).click(); // B17 (CA-83): el Panel abre en el calendario
         await expect(page.getByRole('list', { name: 'Huecos del día' })).toBeVisible({ timeout: 30_000 });
         await hueco('10:00 a 11:00 Libre').click();
         await expect(page.getByRole('button', { name: 'Bloquear este horario' })).toBeVisible();

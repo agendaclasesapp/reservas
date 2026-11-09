@@ -1,0 +1,27 @@
+/* CC-16 · Lista por día (CAL-19, WEB-16): un bloque por día con su título `h3`. */
+.dias {
+  display: grid;
+  gap: var(--e-6);
+  min-inline-size: 0;
+}
+
+.dia {
+  display: grid;
+  gap: var(--e-2);
+  min-inline-size: 0;
+}
+
+.titulo {
+  margin: 0;
+  font-size: var(--t-md);
+  line-height: var(--interlineado-titulo);
+}
+
+.hoy {
+  color: var(--c-primario);
+}
+
+.vacio {
+  margin: 0;
+  color: var(--c-texto-suave);
+}

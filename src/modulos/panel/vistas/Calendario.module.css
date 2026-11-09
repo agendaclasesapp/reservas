@@ -1,0 +1,247 @@
+/* Medidas de la grilla (no son colores, no se tocan los tokens): 5,5 rem por hora hacen que 30 min midan
+   `--tactil-min` (NFR-12); la lógica pisa `--cal-alto-hora` si la duración del profesor lo pide (DEC-50 A). */
+.calendario {
+  --cal-alto-hora: 5.5rem;
+  --cal-ancho-eje: 3rem;
+
+  min-inline-size: 0;
+}
+
+.releyendo {
+  opacity: 0.6;
+}
+
+.cuerpo {
+  display: grid;
+  grid-template-columns: var(--cal-ancho-eje) minmax(0, 1fr);
+  padding-block: var(--e-2);
+}
+
+.eje {
+  position: relative;
+  block-size: calc(var(--cal-horas) * var(--cal-alto-hora));
+}
+
+.hora {
+  position: absolute;
+  inset-block-start: calc(var(--cal-hora) * var(--cal-alto-hora));
+  inset-inline-start: 0;
+  translate: 0 -50%;
+  color: var(--c-texto-suave);
+  font-size: var(--t-xs);
+  line-height: 1;
+}
+
+/* Las columnas de días (y la fila de encabezados de la vista Semana) comparten el reparto del ancho. */
+.columnas {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+/* Una línea por hora y otra, más tenue, por media hora (CAL-04). */
+.cuerpoColumnas {
+  block-size: calc(var(--cal-horas) * var(--cal-alto-hora));
+  border-block-end: var(--borde-fino) solid var(--c-borde);
+  background-image:
+    linear-gradient(to bottom, var(--c-borde) var(--borde-fino), transparent var(--borde-fino)),
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--c-borde) 40%, transparent) var(--borde-fino),
+      transparent var(--borde-fino)
+    );
+  background-size:
+    100% var(--cal-alto-hora),
+    100% calc(var(--cal-alto-hora) / 2);
+}
+
+.columna {
+  position: relative;
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Columna de un día: capa decorativa de zonas sombreadas y lista de elementos encima (CAL-05). */
+.zonas,
+.elementos {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.elementos {
+  list-style: none;
+}
+
+.fueraDeTramo {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: calc(var(--cal-arriba) * var(--cal-alto-hora));
+  block-size: calc(var(--cal-alto) * var(--cal-alto-hora));
+  background: color-mix(in srgb, var(--c-texto-suave) 14%, transparent);
+}
+
+.vacio {
+  margin: 0;
+  color: var(--c-texto-suave);
+}
+
+/* El contenedor de la grilla recibe el foco al volver de una acción cuando su bloque ya no existe (A11Y-38). */
+.calendario:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+.ayuda {
+  margin: 0;
+  color: var(--c-texto-suave);
+  font-size: var(--t-xs);
+}
+
+/* Solo para el lector de pantalla (P-2): sin espacio ni lugar en la página. */
+.soloLectores {
+  position: absolute;
+  inline-size: var(--medida-minima);
+  block-size: var(--medida-minima);
+  margin: calc(-1 * var(--medida-minima));
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.leyenda {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2) var(--e-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--t-xs);
+}
+
+.leyendaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-2);
+}
+
+.muestra {
+  display: inline-block;
+  box-sizing: border-box;
+  inline-size: 1.5rem;
+  block-size: 1rem;
+  border-width: var(--borde-ancho);
+  border-radius: var(--r-sm);
+}
+
+/* B20 · Vista Semana (CAL-10, CAL-15, CAL-16; A11Y-44, A11Y-46). Sin transiciones ni animaciones: la línea de la hora
+   actual se mueve a saltos de un minuto. */
+.encabezados {
+  display: grid;
+  grid-template-columns: var(--cal-ancho-eje) minmax(0, 1fr);
+  min-inline-size: 0;
+}
+
+.encabezado {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-block-size: var(--tactil-min);
+  min-inline-size: 0;
+  margin: 0;
+  padding: var(--e-1);
+  border: 0;
+  border-inline-start: var(--borde-fino) solid var(--c-borde);
+  border-block-end: var(--borde-fino) solid var(--c-borde);
+  color: var(--c-texto);
+  background: var(--c-fondo);
+  font: inherit;
+  font-size: var(--t-xs);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+button.encabezado {
+  cursor: pointer;
+}
+
+button.encabezado:disabled {
+  color: var(--c-texto-suave);
+  background: var(--c-superficie);
+  cursor: not-allowed;
+}
+
+.encabezado:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: calc(var(--foco-offset) * -1);
+}
+
+.encabezadoHoy {
+  background: color-mix(in srgb, var(--c-primario) 8%, var(--c-fondo));
+  font-weight: var(--peso-fuerte);
+}
+
+.diaCorto {
+  white-space: nowrap;
+}
+
+.marcaHoy {
+  color: var(--c-primario);
+  font-weight: var(--peso-fuerte);
+}
+
+/* La columna de hoy, resaltada (CAL-10): el texto «Hoy» del encabezado dice lo mismo, el color no es lo único. */
+.columnaHoy {
+  background: color-mix(in srgb, var(--c-primario) 8%, transparent);
+}
+
+/* Un día fuera de hoy ± 366 (DEC-45 A): columna vacía y sombreada, sin huecos tocables. */
+.fueraDeRango {
+  background: color-mix(in srgb, var(--c-texto-suave) 14%, transparent);
+}
+
+/* CC-09: la línea de la hora actual en la columna de hoy y su texto junto al eje; ni una ni otra reciben el puntero. */
+.lineaAhora {
+  position: absolute;
+  inset-inline: 0;
+  inset-block-start: calc(var(--cal-arriba) * var(--cal-alto-hora));
+  z-index: 2;
+  block-size: 0;
+  border-block-start: var(--borde-ancho) solid var(--c-error);
+  pointer-events: none;
+}
+
+.etiquetaAhora {
+  position: absolute;
+  inset-block-start: calc(var(--cal-arriba) * var(--cal-alto-hora));
+  inset-inline-start: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  translate: 0 -50%;
+  color: var(--c-error);
+  background: var(--c-fondo);
+  font-size: var(--t-xs);
+  font-weight: var(--peso-fuerte);
+  line-height: 1.1;
+  pointer-events: none;
+}
+
+/* ADR-026: el desplazamiento vertical sigue siendo del navegador; el horizontal lo toma el deslizamiento. */
+.deslizable {
+  touch-action: pan-y;
+}
+
+/* B21 · ADR-026: mientras se arrastra una clase no se selecciona texto y el cursor lo dice. */
+.calendario[data-arrastrando] {
+  cursor: grabbing;
+  user-select: none;
+}

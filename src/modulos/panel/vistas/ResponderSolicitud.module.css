@@ -1,0 +1,23 @@
+.responder {
+  display: grid;
+  gap: var(--e-2);
+  min-inline-size: 0;
+}
+
+.botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--e-2);
+}
+
+.nota {
+  margin: 0;
+  color: var(--c-texto-suave);
+  font-size: var(--t-xs);
+}
+
+.formulario {
+  display: grid;
+  gap: var(--e-4);
+  min-inline-size: 0;
+}

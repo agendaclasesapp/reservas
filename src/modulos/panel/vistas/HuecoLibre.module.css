@@ -1,0 +1,45 @@
+/* CC-07 · hueco libre futuro (botón con borde, fondo y texto «Libre») y hueco pasado (decorativo, sin marca de libre). */
+.item {
+  composes: item from './BloqueClase.module.css';
+}
+
+.bloque {
+  composes: bloque from './BloqueClase.module.css';
+}
+
+.libre {
+  color: var(--c-libre-texto);
+  background: var(--c-libre-fondo);
+  border-style: solid;
+  border-color: var(--c-libre-borde);
+}
+
+.libre:hover {
+  background: color-mix(in srgb, var(--c-libre-fondo) 85%, var(--c-libre-borde));
+}
+
+.estado {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--e-1);
+  font-weight: var(--peso-fuerte);
+}
+
+.texto {
+  text-transform: uppercase;
+}
+
+.pasado {
+  pointer-events: none;
+}
+
+/* B21 · destino de un arrastre (CAL-13): borde discontinuo y el texto «Soltar acá»; el activo, además, relleno. */
+.destino {
+  border-style: dashed;
+  outline: var(--borde-ancho) solid var(--c-libre-borde);
+  outline-offset: calc(-1 * var(--borde-ancho));
+}
+
+.destinoActivo {
+  background: color-mix(in srgb, var(--c-libre-fondo) 60%, var(--c-libre-borde));
+}

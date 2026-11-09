@@ -1,7 +1,7 @@
 ---
 titulo: Manual de usuario · Agenda Clases App · Profesor
-version: 0.7
-fecha: 2026-10-28
+version: 0.14
+fecha: 2026-11-09
 publico: profesor
 ---
 # Manual de usuario · Agenda Clases App · Profesor
@@ -48,7 +48,9 @@ En `#/lista` las secciones van en este orden: **Solicitudes pendientes**, **Clas
 El alumno recibe un mail con tu nombre como remitente y tu mail en «Responder a», con la fecha y hora en tu huso. Fuente: handoffs de B07 y B08, `tests/integracion/respuestas`, E2E de respuestas (SOL-04..08, PRF-06, WEB-07, AVI-03).
 
 ## Panel: la agenda del día y la gestión directa
-El **panel** muestra el día elegido con cada hueco: hora, estado y, si está ocupado, quién toma la clase, el titular, la observación y si está **confirmada** o **pendiente de respuesta** (un hueco bloqueado muestra su motivo). Tiene el mismo selector de día que la agenda pública (de un año atrás a un año adelante). Arriba, los avisos «N solicitudes pendientes» y «N cuentas pendientes» con enlace a la lista; solo cuentan las solicitudes que todavía se pueden responder y los accesos pendientes de personas no borradas, y cada profesor ve solo los suyos.
+> **Calendario del Panel (B17 a B23, verificado el 09/11/2026).** El Panel ahora abre en un **calendario del día**: una grilla con eje de horas donde cada clase es un bloque (CONFIRMADA con borde sólido, PENDIENTE con borde punteado) de alto proporcional a su duración. Arriba tenés **Día anterior**, **Hoy** y **Día siguiente** y la fecha como título; **Ver como lista** muestra la lista de huecos de abajo, con las mismas acciones, y **Ver como calendario** vuelve a la grilla. Con **Elegir día** (en la misma barra) vas a cualquier día entre un año antes y un año después de hoy; fuera de ese rango dice «Ese día no está disponible…». **Desde B18 podés actuar en el calendario:** tocá un hueco libre futuro para **Crear clase**; tocá una clase para ver quién la toma, el titular y la observación, y **Mover** o **Cancelar**; tocá un bloqueo tuyo para **Desbloquear**. El detalle es un diálogo en pantallas angostas y una columna en escritorio. El fondo sombreado (fuera de tus horarios) y los huecos pasados no se tocan. Arriba de la grilla hay una leyenda (Confirmada, Pendiente, Bloqueado, Libre) y una ayuda; si el día no tiene clases dice «No hay clases este día». Con la agenda inactiva «Crear clase» y «Mover» están deshabilitados con su explicación y «Cancelar» funciona. Si tus clases duran menos de 10 minutos, un hueco puede quedar chico para tocar: usá «Ver como lista». **Desde B19 también podés responder solicitudes desde el calendario del día:** tocá un bloque PENDIENTE (una reserva, o el destino de un cambio de horario que pidió el alumno) o una clase que dice «Cancelación pendiente» y elegí **Confirmar** o **Rechazar**; al rechazar podés escribir un motivo (opcional, hasta 500 caracteres), que le llega al alumno en el mail. El resultado es el mismo que al responder desde la lista. El horario de origen de un cambio sigue confirmado y sin botones: esa solicitud se responde desde el destino o desde la lista. Si la solicitud ya no se puede responder (venció o ya la respondiste) aparece el aviso y la agenda se actualiza. Con **Copiar enlace de este día** (en la vista Día) copiás tu enlace público con ese día, para compartirlo; quien lo abre ve la agenda de ese día sin iniciar sesión. **Desde B20 tenés la vista Semana** (ver «Ver tu semana»). Para arrastrar clases con el mouse, ver «Mover una clase arrastrándola (computadora)». Fuente: verificación de B17 a B20 (CAL-02, CAL-04, CAL-12, CAL-15, CAL-16, CAL-19, CAL-20, WEB-14..16, CA-76, CA-84).
+
+El **panel** muestra el día elegido con cada hueco: hora, estado y, si está ocupado, quién toma la clase, el titular, la observación y si está **confirmada** o **pendiente de respuesta** (un hueco bloqueado muestra su motivo). Tiene el mismo selector de día que la agenda pública (de un año atrás a un año adelante; en el calendario las flechas y el campo «Elegir día» llegan hasta un año antes o después de hoy). Arriba, los avisos «N solicitudes pendientes» y «N cuentas pendientes» con enlace a la lista; solo cuentan las solicitudes que todavía se pueden responder y los accesos pendientes de personas no borradas, y cada profesor ve solo los suyos.
 
 **Crear una clase.** Tocá un hueco libre: se abre «Crear clase».
 1. Buscá un alumno aprobado o sin cuenta; si tiene personas a cargo, elegí quién toma la clase.
@@ -67,6 +69,49 @@ Después de cada acción el resultado se anuncia en una región de estado y el f
 Con la **agenda inactiva**, Crear y Mover quedan deshabilitados con su explicación y **Cancelar** sigue; el panel sigue funcionando.
 
 Fuente: handoffs de B09 (PRF-01..05, PRF-08, AVI-01, AVI-04, WEB-06, CA-52, CA-55). Para bloquear horarios, ver «Bloquear horarios».
+
+## Ver tu semana
+Arriba del calendario están los botones **Día** y **Semana**; el que está activo queda marcado.
+1. **En una pantalla ancha** (desde 60 rem) tocá **Semana**: ves siete columnas, de lunes a domingo, con tus clases, bloqueos y huecos libres. Cada columna lleva un encabezado como «Lun 26/10»; tocalo para abrir ese día en la vista Día. Las flechas mueven de a una semana y **Hoy** vuelve a la semana actual. El título muestra el rango, por ejemplo `26/10/2026 - 01/11/2026`.
+2. **En el celular** (menos de 60 rem) la Semana muestra **3 días** a la vez, sin desplazar de costado. Las flechas se llaman «3 días anteriores» y «3 días siguientes» y mueven de a 3; también podés **deslizar el dedo** hacia un lado sobre el calendario.
+3. **Hoy** se reconoce porque su columna va resaltada y tiene una línea «Ahora» a la altura de la hora actual; ningún otro día la lleva.
+4. Si en la semana no tenés clases, arriba aparece «No hay clases esta semana» y los huecos libres siguen ahí.
+5. **Ver como lista** muestra los mismos días como lista, con un título por día y las acciones de siempre; **Ver como calendario** vuelve a la grilla.
+6. Podés recorrer hasta un año antes o después de hoy. En el borde, la flecha sigue habilitada mientras algún día del bloque nuevo esté dentro del año; los días de afuera aparecen deshabilitados («no disponible») y vacíos.
+7. En la Semana no hay «Copiar enlace de este día»: para copiar el enlace de un día, abrilo con su encabezado y usá el botón en la vista Día.
+
+Podés tocar una clase o un hueco de la Semana como en el Día. Si ves algo difícil de leer (por ejemplo la línea «Ahora» o el color de hoy), avisalo: la verificación comprobó la accesibilidad con la herramienta axe (nivel AA), no con una medición de contraste manual. Fuente: verificación de B20 (CAL-15, CAL-16, CAL-19, WEB-15, WEB-16, CA-67, CA-68, CA-74, CA-81, CA-83, CA-85); capturas en `calidad/evidencias/ui/WEB-15-semana-*` y `WEB-16-semana-ca83-*`.
+
+### Mover una clase arrastrándola (computadora)
+Solo con el mouse y en pantallas anchas (desde 60 rem), en la vista Día o Semana:
+1. Tomá con el mouse una clase **confirmada y futura** (sin pedido pendiente) y arrastrala. Los huecos libres futuros donde podés soltarla se resaltan con «Soltar acá».
+2. Soltala sobre uno de esos huecos. Se abre **Mover clase** con el texto del movimiento. Si la clase es de una serie, elegí **Solo esta clase** o **De acá en adelante** (la serie se rehace hacia adelante a la hora nueva).
+3. Tocá **Mover** para confirmar. Hace lo mismo que el botón **Mover** del detalle de la clase, con los mismos mensajes si no se puede. Después, el foco queda en la clase en su lugar nuevo.
+4. Para desistir, apretá `Esc` o **Cancelar**: nada cambia y la clase vuelve a su lugar. Lo mismo pasa si soltás sobre un hueco ocupado, bloqueado, pasado o fuera de la grilla.
+
+Los pedidos pendientes, las clases pasadas y, con tu perfil inactivo, ninguna clase se arrastran. Con el dedo o el teclado, tocá la clase y usá **Mover** en el detalle. Si soltás en un hueco más corto que la clase, la aplicación lo intenta igual y te avisa que no alcanza, sin cambiar nada. Fuente: verificación de B21 (CAL-13, CAL-14, CA-77, CA-78, CA-79, CA-87).
+
+## Usar el calendario con teclado, lector de pantalla y celular
+**Con el teclado (Panel, vistas Día y Semana).**
+1. Con **Tab** entrás a la grilla en un solo punto (el horario activo); no hace falta pasar por cada clase. **Tab** de nuevo te saca de la grilla.
+2. **Flecha abajo / arriba** van de un horario al siguiente o al anterior del mismo día, sin dar la vuelta. **Inicio** y **Fin** van al primero y al último del día.
+3. En la vista Semana, **flecha derecha / izquierda** pasan al día contiguo, al horario igual o más cercano (también en la ventana de 3 días). Los días sin horarios se saltan. Los encabezados de día («Abrir el Lun 26/10, vista Día») son botones con su propio Tab, antes de la grilla.
+4. **Enter** o **Espacio** abren el detalle del horario. **Escape** o **Cerrar** lo cierran y el foco vuelve al horario.
+5. **Mover una clase sin arrastrar:** abrí el detalle de la clase, andá con Tab hasta **Mover**, elegí el horario con Espacio o las flechas y confirmá con **Mover clase** (Enter). Se oye «Clase movida al dd/mm 14:00». Es la misma operación que el arrastre, con las mismas reglas y el mismo alcance en una serie.
+
+**Con lector de pantalla.** Cada horario se lee con día, hora, estado y nombre, por ejemplo «Mié 18/11, 10:00 a 11:00, Confirmada, nombre del alumno». Además de la ayuda visible, el lector oye «Con el teclado, Tab entra en la grilla y las flechas cambian de horario» (el texto visible de la ayuda no cambió). Los avisos (clase movida, enlace copiado) se anuncian solos. **Pendiente:** la revisión manual con NVDA y VoiceOver todavía no se hizo (H-B22-Q02); hasta entonces lo dicho vale para lo probado con axe y con el teclado en Chromium.
+
+**En el celular (360 px).** El calendario no se desplaza de costado en Día ni en Semana (tampoco con el detalle abierto) y los horarios, clases, bloqueos y botones miden al menos 44 x 44 px. **Excepción:** un hueco libre de menos de 10 minutos se dibuja más bajo que 44 px, pero el elemento tocable conserva 44 px de alto y, si se pisa con otro, se reparten en carriles. En la ventana de 3 días dos clases en carriles quedan justas, en 44 px de ancho (sin medir en el navegador, H-B22-Q03). Fuente: handoffs de UX, Tester y QA de B22 (NFR-11, NFR-12, CA-89, CA-90).
+
+## Velocidad del calendario y qué quedó pendiente
+Lo verificado en la última ronda de pruebas (09/11/2026) y lo que no:
+- **Vista Día:** abre dentro del objetivo de menos de 2 segundos con conexión 4G (NFR-10).
+- **Vista Semana en computadora:** tarda 2,04 segundos en el percentil 95, 43 milésimas por encima del objetivo. Es una excepción aceptada por el responsable del producto (CA-88, PREG-002 opción b); no se volvió a medir.
+- **Vista Semana en el celular:** **no se midió** la velocidad (la herramienta de medición no sirve a 390 px, H-V-01). Se comprobó que funciona y se ve bien, no cuánto tarda.
+- **Días cercanos precargados:** el Panel puede dejar leídos en el navegador los días vecinos para abrirlos más rápido. Esas filas se quedan en la memoria de la página hasta que la recargás, aunque nadie las use; limpiarlas al cerrar sesión está pendiente de decisión (H-B23-S01).
+- **Eje de horas ampliado:** si una clase cae fuera de tu grilla, el eje se extiende para mostrarla (DEC-44, opción A). Está construido y probado, pero la firma de esa decisión queda para el cierre de la revisión (G3).
+
+Fuente: informe de pruebas y UAT de la verificación (NFR-10, CA-88, CAL-04, CA-69, DEC-44).
 
 ## Bloquear horarios
 En `#/panel`, **Bloquear horarios** abre un diálogo para bloquear un rango de horas de un día o días completos. Un hueco libre ofrece además **Bloquear este horario**. En ambos casos podés poner un motivo (opcional, hasta 500 caracteres) que solo ves vos: el calendario público no lo muestra.
@@ -115,3 +160,10 @@ Todas las pantallas, también el panel, la lista, la configuración y los bloque
 | 0.5 | 2026-10-26 | B10 | AGE-03, AGE-05, AGE-06, AGE-08, WEB-08, ADR-022 | Bloquear horarios y configurar la agenda (grilla, duración, anticipación, huso) |
 | 0.6 | 2026-10-28 | B12 | NFR-05, NFR-06, CA-37, CA-38 | Uso en celular y con teclado; navegadores verificados |
 | 0.7 | 2026-10-28 | verificación | AVI-01, NFR-07, CA-34, CA-52, DEC-10 | Qué ve el profesor cuando el correo cae; remitente real pendiente |
+| 0.8 | 2026-10-30 | B17 (calendario-profesor) | CAL-02, CAL-04, CAL-19, WEB-14, WEB-16 | Aviso: el Panel abre en el calendario del día con Día anterior / Hoy / Día siguiente y «Ver como lista»; «Elegir día» ausente hasta B18 |
+| 0.9 | 2026-10-31 | B18 (calendario-profesor) | CAL-03, CAL-05, CAL-06, CAL-11, CAL-14, CAL-17, CAL-18, H-472, H-B17-03 | «Elegir día» vuelve a la barra; crear, mover, cancelar y desbloquear desde el calendario; leyenda y ayuda; corregido el aviso de B17 |
+| 0.10 | 2026-11-04 | B19 (calendario-profesor) | CAL-12, CAL-20, CA-76, CA-84 | Aviso del calendario: responder solicitudes (reserva, movimiento, cancelación pendiente) y copiar el enlace del día |
+| 0.11 | 2026-11-06 | B20 (calendario-profesor) | CAL-15, CAL-16, CAL-19, WEB-15, WEB-16, CA-67, CA-68, CA-74, CA-81, CA-83, CA-85 | Nueva sección «Ver tu semana»: 7 columnas, ventana de 3 días con flechas y deslizamiento, hoy y «Ahora», lista agrupada por día |
+| 0.12 | 2026-11-06 | B21 (calendario-profesor) | CAL-13, CAL-14, CA-77, CA-78, CA-79, CA-87 | Nueva sección «Mover una clase arrastrándola (computadora)» |
+| 0.13 | 2026-11-06 | B22 (calendario-profesor) | NFR-11, NFR-12, CA-89, CA-90 | Nueva sección del calendario con teclado, lector de pantalla y celular de 360 px; revisión con NVDA/VoiceOver pendiente |
+| 0.14 | 2026-11-09 | verificación (calendario-profesor) | CAL-01..20, WEB-14..16, NFR-10..12, CA-67..90, DEC-44, H-V-01, H-B23-S01 | Calendario del Panel marcado como verificado (CA-67..90 pasan; UAT sin rechazos); quitados los avisos de «en curso» y «todavía no»; nueva sección con velocidad (Día cumple, Semana en escritorio con excepción aceptada, Semana en celular sin medir), precarga y DEC-44 pendiente de firma |

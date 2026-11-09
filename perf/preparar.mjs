@@ -11,8 +11,8 @@ const q = async (t, p = []) => (await c.query(t, p)).rows;
 
 async function limpiar() {
   const ids = `select id from public.alumno where nombre like '${PREFIJO}%'`;
-  await q(`delete from public.clase where alumno_id in (${ids})`);
   await q(`delete from public.solicitud where alumno_id in (${ids})`);
+  await q(`delete from public.clase where alumno_id in (${ids})`);
   await q(`delete from public.reserva where alumno_id in (${ids})`);
   await q(`delete from public.mail_salida where alumno_id in (${ids})`);
   await q(`delete from public.inscripcion where alumno_id in (${ids})`);
@@ -60,26 +60,34 @@ for (let i = 1; i <= N_ALUMNOS; i++) {
 }
 
 // Próximo miércoles y jueves a 3 días o más de hoy (dentro del horizonte de 26 semanas y con la anticipación de 24 h).
+// B23: D1 es el primer miércoles (desde hoy + 3 días, hasta hoy + 10 semanas) cuya semana (lunes a domingo) no tiene clases ni bloqueos
+// ajenos a la medición en el profesor A (otras pruebas dejan datos en la base local y el solape de clases rompería la carga); D2 = D1 + 1.
 const [{ d1, d2 }] = await q(
-  `select to_char(x1, 'YYYY-MM-DD') d1, to_char(x2, 'YYYY-MM-DD') d2 from (
-     select (select g::date from generate_series($1::date + 3, $1::date + 12, interval '1 day') g where extract(isodow from g) = 3 limit 1) x1,
-            (select g::date from generate_series($1::date + 3, $1::date + 12, interval '1 day') g where extract(isodow from g) = 4 limit 1) x2) t`,
-  [hoy],
+  `select to_char(x, 'YYYY-MM-DD') d1, to_char(x + 1, 'YYYY-MM-DD') d2 from (
+     select g::date x from generate_series($1::date + 3, $1::date + 70, interval '1 day') g
+      where extract(isodow from g) = 3
+        and not exists (select 1 from public.clase c where c.profesor_id = $2 and c.inicio >= (g::date - 2) at time zone 'America/Montevideo' and c.inicio < (g::date + 5) at time zone 'America/Montevideo')
+        and not exists (select 1 from public.bloqueo b where b.profesor_id = $2 and b.periodo && tstzrange((g::date - 2) at time zone 'America/Montevideo', (g::date + 5) at time zone 'America/Montevideo'))
+      order by g limit 1) t`,
+  [hoy, profes[SLUGS[0]]],
 );
 
 const [{ d3 }] = await q(`select to_char($1::date + 1, 'YYYY-MM-DD') d3`, [d2]);
 
 async function clase(prof, alumnoId, dia, hora, estado) {
+  let ids;
   const [r] = await q(
     `insert into public.reserva (profesor_id, alumno_id, tipo, hora_local, dia_semana, duracion_min, estado, desde, hasta, origen)
      values ($1,$2,'suelta',$4::time, extract(isodow from $3::date), 60, $5, $3::date, $3::date, 'profesor') returning id`,
     [prof, alumnoId, dia, hora, estado],
   );
-  await q(
+  await c.query(
     `insert into public.clase (profesor_id, reserva_id, alumno_id, inicio, fin, estado)
-     values ($1,$2,$3, ($4::date + $5::time) at time zone 'America/Montevideo', ($4::date + $5::time + interval '1 hour') at time zone 'America/Montevideo', $6)`,
+     values ($1,$2,$3, ($4::date + $5::time) at time zone 'America/Montevideo', ($4::date + $5::time + interval '1 hour') at time zone 'America/Montevideo', $6)
+     returning id`,
     [prof, r.id, alumnoId, dia, hora, estado],
-  );
+  ).then((x) => (ids = x.rows[0].id));
+  return { reservaId: r.id, claseId: ids };
 }
 async function bloqueo(prof, dia, desde, hasta) {
   await q(
@@ -89,6 +97,7 @@ async function bloqueo(prof, dia, desde, hasta) {
   );
 }
 
+const [{ lunes, domingo }] = await q(`select to_char($1::date - 2, 'YYYY-MM-DD') lunes, to_char($1::date + 4, 'YYYY-MM-DD') domingo`, [d1]);
 // D1: 9 huecos de la grilla (08..12 y 14..17): 4 ocupados (pendiente/confirmada), 2 bloqueados, 3 libres.
 for (const [k, s] of SLUGS.entries()) {
   const p = profes[s];
@@ -103,12 +112,38 @@ for (const [k, s] of SLUGS.entries()) {
   let n = 0;
   for (let dd = -42; dd <= 84 && n < 120; dd++) {
     const [{ dia, iso }] = await q(`select to_char(($1::date + $2::int),'YYYY-MM-DD') dia, extract(isodow from ($1::date + $2::int))::int iso`, [hoy, dd]);
-    if (iso > 5 || dia === d1 || dia === d2 || dia === d3) continue;
+    if (iso > 5 || dia === d1 || dia === d2 || dia === d3 || (k === 0 && dia >= lunes && dia <= domingo)) continue; // la semana de D1 del profesor A se arma aparte
     for (const hora of ['08:00', '11:00', '14:00', '17:00']) {
       if ((dd + hora.charCodeAt(1) + k + 100) % 3 !== 0) continue;
       await clase(p, al(n % N_ALUMNOS), dia, hora, dd < 0 ? 'confirmada' : n % 5 === 0 ? 'pendiente' : 'confirmada');
       n++;
     }
+  }
+}
+// B23 (CA-88, NFR-10): la semana de D1 (lunes a domingo) cargada de forma realista para el profesor A (profesor-prueba): clases confirmadas,
+// pendientes con su solicitud (reserva, movimiento y cancelación) y bloqueos. D2 y D3 (jueves y viernes) quedan libres: son de CA-17.
+const sumar = async (d, n) => (await q(`select to_char($1::date + $2::int, 'YYYY-MM-DD') x`, [d, n]))[0].x;
+{
+  const p = profes[SLUGS[0]];
+  const al = (i) => alumnos[i % N_ALUMNOS].alumno_id;
+  const lun = lunes, mar = await sumar(lunes, 1), sab = await sumar(lunes, 5);
+  let k = 4;
+  for (const dia of [lun, mar]) for (const hora of ['09:00', '10:00', '12:00', '15:00', '16:00']) await clase(p, al(k++), dia, hora, 'confirmada');
+  for (const hora of ['09:00', '10:00']) await clase(p, al(k++), sab, hora, 'confirmada');
+  await clase(p, al(k++), d1, '11:00', 'confirmada');
+  await clase(p, al(k++), d1, '17:00', 'confirmada');
+  await bloqueo(p, lun, '17:00', '18:00');
+  await bloqueo(p, mar, '17:00', '18:00');
+  // Solicitudes pendientes de la semana: una reserva sobre una clase pendiente, un movimiento y una cancelación sobre confirmadas.
+  const pend = await clase(p, al(k++), lun, '08:00', 'pendiente');
+  const instante = (dia, h) => `${dia}T${h}:00-03:00`;
+  await q(`insert into public.solicitud (profesor_id, alumno_id, tipo, reserva_id, clase_id, fecha_clase, estado) select $1, c.alumno_id, 'reserva', c.reserva_id, c.id, c.inicio, 'pendiente' from public.clase c where c.id = $2`, [p, pend.claseId]);
+  for (const [tipo, dia, hora] of [['movimiento', mar, '09:00'], ['cancelacion', sab, '10:00']]) {
+    await q(
+      `insert into public.solicitud (profesor_id, alumno_id, tipo, alcance, clase_id, fecha_clase, estado)
+       select $1, c.alumno_id, $2, 'solo_esta', c.id, c.inicio, 'pendiente' from public.clase c where c.profesor_id = $1 and c.inicio = $3::timestamptz and c.estado = 'confirmada'`,
+      [p, tipo, instante(dia, hora)],
+    );
   }
 }
 // D2 (jueves): todo libre en el profesor A para CA-17 (T-RES-04): se usan 6 huecos.
@@ -118,6 +153,7 @@ const estado = {
   d1,
   d2,
   d3,
+  lunes,
   profesores: profes,
   huecosCA17: ['08:00', '09:00', '10:00', '11:00', '14:00', '15:00'],
   alumnos: alumnos.map(({ n, mail, alumno_id, user_id }) => ({ n, mail, alumno_id, user_id })),
@@ -125,6 +161,7 @@ const estado = {
 mkdirSync('perf/.estado', { recursive: true });
 writeFileSync('perf/.estado/datos.json', JSON.stringify(estado, null, 1));
 writeFileSync('perf/.estado/jwt.json', JSON.stringify(Object.fromEntries(alumnos.map((a) => [a.alumno_id, a.jwt]))));
+const [{ sol }] = await q(`select count(*)::int sol from public.solicitud where alumno_id in (select id from public.alumno where nombre like '${PREFIJO}%')`);
 const [{ cl }] = await q(`select count(*)::int cl from public.clase where alumno_id in (select id from public.alumno where nombre like '${PREFIJO}%')`);
-console.log(JSON.stringify({ hoy, d1, d2, alumnos: alumnos.length, clases: cl }));
+console.log(JSON.stringify({ hoy, d1, d2, alumnos: alumnos.length, clases: cl, solicitudes: sol, semana_d1_desde: lunes }));
 await c.end();

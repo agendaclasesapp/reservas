@@ -1,0 +1,45 @@
+/* Columna de detalle en escritorio (CAL-11): al lado de la agenda, con su título y «Cerrar». */
+.columna {
+  display: grid;
+  align-content: start;
+  gap: var(--e-4);
+  min-inline-size: 0;
+  padding: var(--e-4);
+  border: var(--borde-ancho) solid var(--c-borde);
+  border-radius: var(--r-lg);
+  background: var(--c-fondo);
+}
+
+.cabecera {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--e-2);
+}
+
+.titulo {
+  flex: 1 1 12rem;
+  margin: 0;
+  font-size: var(--t-lg);
+  line-height: var(--interlineado-titulo);
+  text-transform: none;
+}
+
+.titulo:focus-visible {
+  outline: var(--foco-ancho) solid var(--c-primario);
+  outline-offset: var(--foco-offset);
+}
+
+@media (width >= 60rem) {
+  .columna {
+    position: sticky;
+    inset-block-start: var(--e-4);
+  }
+}
+
+.nota {
+  margin: 0;
+  color: var(--c-texto-suave);
+  font-size: var(--t-xs);
+}
