@@ -9,6 +9,7 @@ import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Browser, Page } from '@playwright/test';
 import { expect, test } from '../soporte/evidencia';
+import { LECTURAS_PANEL, retener } from '../soporte/retener';
 import { cerrar, sql } from '../soporte/bd';
 import { SITEKEY_PRUEBA } from '../soporte/captcha';
 import { esperarMail, contarMails } from '../soporte/correo';
@@ -548,8 +549,10 @@ test.describe('calendario Día, acciones · comparación con la lista · escrito
         await page.getByRole('searchbox', { name: 'Buscar alumno' }).fill('Alumna Crea Acc');
         await page.getByRole('radio', { name: /Alumna Crea Acc/ }).check();
         await crearClaseDe(ocupante, dia, '10:00', 60, 'confirmada'); // se ocupa mientras el formulario está abierto
+        const liberar = await retener(page, LECTURAS_PANEL); // la relectura posterior al rechazo puede cerrar el formulario: se retiene hasta leer el mensaje
         await page.getByRole('button', { name: 'Crear clase' }).click();
         const mensaje = await mensajeDe(page, /ya no está libre/i);
+        await liberar();
         const clases = (await sql<{ n: string }>(`select a.nombre n from public.clase c join public.alumno a on a.id = c.alumno_id where a.nombre like 'T05 %' order by 1`)).map((r) => r.n);
         expect(clases, 'solo queda la clase de quien ocupó el hueco').toEqual(['T05 Alumna Ocupante Acc']);
         resultados.push({ mensaje, clases });

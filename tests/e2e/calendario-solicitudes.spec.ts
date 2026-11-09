@@ -9,6 +9,7 @@ import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Browser, Page } from '@playwright/test';
 import { expect, test } from '../soporte/evidencia';
+import { LECTURA_SOLICITUDES, retener } from '../soporte/retener';
 import { cerrar, sql } from '../soporte/bd';
 import { SITEKEY_PRUEBA } from '../soporte/captcha';
 import { esperarMail, contarMails, vaciarBuzon } from '../soporte/correo';
@@ -417,8 +418,10 @@ test.describe('calendario Día, solicitudes y enlace · escritorio', () => {
       await abrirLista(page);
       await expect(botonLista(page, 'Confirmar', 'Alumna Vencida Lis')).toBeEnabled();
       await vencer(s.solicitudId);
+      const liberar = await retener(page, LECTURA_SOLICITUDES); // al releer, la tarjeta pasa a «Pendientes sin respuesta» y el mensaje se va: se retiene hasta verlo
       await botonLista(page, 'Confirmar', 'Alumna Vencida Lis').click();
       await expect(page.getByText(MENSAJE_VENCIDA).first()).toBeVisible({ timeout: 20_000 });
+      await liberar();
       test.info().annotations.push({ type: 'vencida (lista)', description: MENSAJE_VENCIDA });
       expect(resultados[0]).toContain(MENSAJE_VENCIDA);
     }, { esperado: 'La Lista muestra el mismo texto «Esa solicitud venció: su horario ya pasó.»' });
