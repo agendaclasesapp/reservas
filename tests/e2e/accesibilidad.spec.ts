@@ -468,7 +468,7 @@ test.describe('alumna', () => {
     await con(browser, 'alumna', async (page) => {
       await page.goto(RUTA('#/mis-clases'));
       await h1(page);
-      await expect(page.getByRole('status').first().or(page.getByRole('heading', { level: 2 }).first())).toBeVisible({ timeout: 20_000 });
+      await expect(page.getByRole('status').or(page.getByRole('heading', { level: 2 })).first()).toBeVisible({ timeout: 20_000 });
       await auditar(page, 'alumna aprobada (un profesor)', '#/mis-clases', 'vacío');
       const inicio = new Date(Date.now() + 5 * 24 * 3600 * 1000);
       inicio.setUTCHours(13, 0, 0, 0);
