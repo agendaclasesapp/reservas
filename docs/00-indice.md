@@ -1,7 +1,7 @@
 ---
 titulo: Índice de la documentación · Agenda Clases App
-version: 0.21
-fecha: 2026-11-06
+version: 0.23
+fecha: 2026-11-09
 publico: todos
 ---
 # Índice de la documentación
@@ -13,7 +13,7 @@ Estado: B01 a B05 (plataforma, agenda pública, mails, ingreso y cuentas), B14 (
 | [onboarding.md](onboarding.md) | Qué es el sistema, piezas, cómo se levanta, dónde está cada cosa, glosario | Equipo nuevo |
 | [funcional/alumnos-y-cuentas.md](funcional/alumnos-y-cuentas.md) | Ingreso, ficha, aprobación, unión, retención | Negocio, equipo |
 | [funcional/agenda-reservas-solicitudes.md](funcional/agenda-reservas-solicitudes.md) | Agenda, reservas y solicitudes | Negocio, equipo |
-| [funcional/calendario-del-panel.md](funcional/calendario-del-panel.md) | Calendario Día/Semana del Panel del profesor (en construcción; Día con acciones y respuesta de solicitudes en B19; Semana, hoy y lista agrupada en B20; arrastre en B21; teclado, lector y celular en B22) | Negocio, equipo |
+| [funcional/calendario-del-panel.md](funcional/calendario-del-panel.md) | Calendario Día/Semana del Panel del profesor (construido y verificado el 09/11/2026: Día, Semana, acciones, arrastre, teclado y celular; con la excepción de rendimiento de Semana y Semana en celular sin medir) | Negocio, equipo |
 | [funcional/varios-profesores.md](funcional/varios-profesores.md) | Enlace por profesor, vínculos, selector, Administrador, pausa, mails y topes, nombre del producto | Negocio, equipo |
 | [funcional/profesor-y-avisos.md](funcional/profesor-y-avisos.md) | Gestión directa, vista lista, avisos y mails | Negocio, equipo |
 | [tecnica/configuracion-y-despliegue.md](tecnica/configuracion-y-despliegue.md) | Entornos, correo local, secretos, despliegue, ingreso, carga de la agenda (medido en spikes) | Equipo técnico, operación |
@@ -22,11 +22,11 @@ Estado: B01 a B05 (plataforma, agenda pública, mails, ingreso y cuentas), B14 (
 | [tecnica/varios-profesores-b14.md](tecnica/varios-profesores-b14.md) | Modelo multiprofesor, contratos, rutas, mails y topes, nombre visible, migración y vuelta atrás | Equipo técnico, operación |
 | [tecnica/configuracion-y-bloqueos-b10.md](tecnica/configuracion-y-bloqueos-b10.md) | `bloquear`, `desbloquear`, configuración de la agenda y huso por reserva (ADR-022) | Equipo técnico |
 | [tecnica/solicitudes-gestion-y-retencion-b07-b11.md](tecnica/solicitudes-gestion-y-retencion-b07-b11.md) | Migraciones, RPC, errores, procesos programados y mails de B07, B08, B09 y B11; DEC-39 cerrada | Equipo técnico, operación |
-| [tecnica/calendario-profesor-b16-b23.md](tecnica/calendario-profesor-b16-b23.md) | RPC `agenda_profesor_dias` (B16), calendario Día (B17 a B19), Semana (B20), ADR-023..026, orden de bolts, seguridad y plan de pruebas (en construcción) | Equipo técnico |
+| [tecnica/calendario-profesor-b16-b23.md](tecnica/calendario-profesor-b16-b23.md) | RPC `agenda_profesor_dias` (B16), calendario Día (B17 a B19), Semana (B20), ADR-023..026, orden de bolts, seguridad y plan de pruebas, precarga y rendimiento (B23) (en construcción) | Equipo técnico |
 | [secuencias/solicitar-reserva.md](secuencias/solicitar-reserva.md) | Diagrama de secuencia de pedir una reserva, con sus fallos | Equipo técnico |
 | [tecnica/decisiones.md](tecnica/decisiones.md) | Resumen de los ADR 001..021 y lo que cambiaron los spikes | Equipo técnico |
 | [manuales/alumno.md](manuales/alumno.md) | Ver la agenda, ingresar, ficha, pedir una clase suelta o una serie, Mis clases, mover y avisar que no voy, personas a cargo, estado de la cuenta, borrado de datos | Alumnos, visitantes |
-| [manuales/profesor.md](manuales/profesor.md) | Cuentas pendientes, unión, alumnos, responder solicitudes, panel y gestión de clases, vista Semana, borrar alumno, mails fallidos | Profesor |
+| [manuales/profesor.md](manuales/profesor.md) | Cuentas pendientes, unión, alumnos, responder solicitudes, panel y gestión de clases, vista Semana, arrastre, teclado y celular, velocidad y pendientes del calendario, borrar alumno, mails fallidos | Profesor |
 | [manuales/administrador.md](manuales/administrador.md) | Lista de profesores, alta, pausa y reactivación | Administrador |
 | `specs/` | Especificación original (no se modifica desde la documentación) | Equipo |
 
@@ -57,3 +57,5 @@ Pendientes de escribir: resto de la documentación técnica (arquitectura, model
 | 0.19 | 2026-11-06 | B20 (calendario-profesor) | CAL-15, CAL-16, CAL-19, DEC-45, ADR-025, ADR-026 | Funcional, técnica, decisiones y manual con la vista Semana, la lista agrupada y los bordes del rango; paso de publicación de la migración B16 |
 | 0.20 | 2026-11-06 | B21 (calendario-profesor) | CAL-13, CAL-14, ADR-026 | Funcional, técnica, decisiones y manual con el arrastre en escritorio |
 | 0.21 | 2026-11-06 | B22 (calendario-profesor) | NFR-11, NFR-12, CA-89, CA-90 | Funcional, técnica y manual con teclado, lector de pantalla y celular; NVDA/VoiceOver pendiente |
+| 0.22 | 2026-11-09 | B23 (calendario-profesor) | NFR-10, CA-88 | Técnica del calendario con la precarga del Panel y el resultado de rendimiento; onboarding 0.13 con el Panel como calendario y el glosario; manual del profesor espera a la verificación |
+| 0.23 | 2026-11-09 | verificación (calendario-profesor) | CAL-01..20, WEB-14..16, NFR-10..12, CA-67..90 | Funcional 0.9 marcado como verificado y manual del profesor 0.14 con lo verificado; pendientes: Semana en celular sin medir, precarga en memoria hasta recargar, DEC-44 sin firma |

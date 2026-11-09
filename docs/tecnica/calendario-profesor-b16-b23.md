@@ -1,12 +1,12 @@
 ---
 titulo: Técnica · Calendario del profesor (RPC y decisiones ADR-023..026)
-version: 0.9
-fecha: 2026-11-06
+version: 0.10
+fecha: 2026-11-09
 publico: equipo técnico
 ---
 # Calendario del profesor: contrato y decisiones
 
-> **En construcción.** Ciclo `calendario-profesor` (bolts B16 a B23). **Construido y aprobado (G2): B16** (la RPC `agenda_profesor_dias` y el lector `leerAgendaDias`) **B17** (el Panel abre en el calendario del día), **B18** (acciones del calendario Día), **B19** (responder solicitudes y copiar el enlace del día) **B20** (vista Semana, hoy y lista agrupada por día; revisión del Arquitecto: conforme) **B21** (arrastre en escritorio) **y B22** (teclado, lector y celular). B23 sigue planificados. Los ADR figuran como «propuesta» salvo ADR-023 (B16), ADR-024 (B17 y B18), ADR-025 (B19) y ADR-026 (construida: deslizamiento en B20 y arrastre en B21). El resto de los contratos (`agenda_profesor(p_dia)`, `agenda_publica`, `contadores`, `crear_clase`, `mover_clase`, `cancelar_clase`, `bloquear`, `desbloquear`, `responder_solicitud`) no cambia (INV-01, INV-03).
+> **En construcción.** Ciclo `calendario-profesor` (bolts B16 a B23). **Construido y aprobado (G2): B16** (la RPC `agenda_profesor_dias` y el lector `leerAgendaDias`) **B17** (el Panel abre en el calendario del día), **B18** (acciones del calendario Día), **B19** (responder solicitudes y copiar el enlace del día) **B20** (vista Semana, hoy y lista agrupada por día; revisión del Arquitecto: conforme) **B21** (arrastre en escritorio) **y B22** (teclado, lector y celular). **B23** (rendimiento: precarga del Panel; cierre aprobado con una excepción en CA-88). Los ADR figuran como «propuesta» salvo ADR-023 (B16), ADR-024 (B17 y B18), ADR-025 (B19) y ADR-026 (construida: deslizamiento en B20 y arrastre en B21). El resto de los contratos (`agenda_profesor(p_dia)`, `agenda_publica`, `contadores`, `crear_clase`, `mover_clase`, `cancelar_clase`, `bloquear`, `desbloquear`, `responder_solicitud`) no cambia (INV-01, INV-03).
 
 ## Componentes afectados
 - `bd-agenda`: RPC nueva y función interna, en la migración aditiva `supabase/migrations/202611001601_agenda_profesor_dias.sql` (B16, construida). Debe estar aplicada en producción antes de publicar la web de B17 (expandir primero).
@@ -94,7 +94,32 @@ B16 lectura de varios días (hecho); B17 Día (hecho) (dirección, navegación, 
 - **Verificación:** unitarias `tests/unit/panel/vistas/TecladoGrilla.test.tsx`, `AccesibilidadCalendario.test.tsx` y `CalendarioAcciones.test.tsx`; E2E `tests/e2e/accesibilidad.spec.ts` (47 de 47 en chromium, axe WCAG 2.1 AA sin errores), `celular.spec.ts` y `calendario-teclado.spec.ts` (100 de 100 junto con celular); evidencias en `.aidlc/calendario-profesor/calidad/evidencias/ui/CA-89-*` y `WEB-A11Y-B12`. CA-86 (regresión de la Lista) por suites, sin pantalla.
 - **Abiertos para G3:** H-B22-Q02 revisión manual con NVDA/VoiceOver (no hecha; incluye confirmar que no se espera una sola parada para encabezados de día e ítems); H-B22-Q01 sin Playwright de zoom 200 %, espaciado WCAG, escala de grises y movimiento reducido; H-B22-Q03 44 px con ítems en carril sin medir; H-T22-02 (foco tras «Mover» del detalle: bloque o grilla) y H-T22-03 (prueba de mail inestable, no es de B22). Pregunta de UX: ¿`<time>` también en los textos de fecha del detalle y de «Mover clase»? Hoy son texto plano.
 
-## Orden, numeración y despliegue (B16 a B22 hechos; B23 planificado)
+## B23: rendimiento y precarga del Panel (construido; NFR-10, CA-88)
+Objetivo: el calendario carga completo en menos de 2 s (p95, Fast 4G, escritorio). No cambia la RPC, el SQL ni las vistas.
+
+**Precarga** (`src/modulos/panel/logica/precarga.ts`, invocada desde `src/main.tsx` con `adelantarPanel(hash)`, en paralelo a `adelantarAgenda`):
+- Si la dirección inicial empieza con `#/panel`, baja ya el chunk de la ruta y pide `agenda_profesor_dias` para el rango que supone desde `v=` y `d=` (misma lógica que `PaginaPanel`; huso del navegador; ventana de 3 días si `matchMedia(min-width: 60rem)`). No espera `iniciarSesion`, `sesion_actual`, `config_publica` ni el router.
+- Solo pide si hay una sesión guardada de supabase-js (ADR-017: sin sesión no se carga supabase-js) y guarda el id de usuario de esa sesión.
+- `useAgendaDias` toma la precarga solo si coinciden **rango, lector, vigencia y usuario**. Se descarta, sin mostrarla, cuando: cambia la persona (usuario distinto, INV-02), cambia el rango (otra vista, otro día o huso distinto cerca de medianoche) o pasan **30 s** desde que se pidió. Descartada, la vista queda en «cargando» y lee su propio rango, como antes.
+- Una precarga se usa una vez: la primera búsqueda la olvida, de modo que un cambio de rango o `recargar()` vuelven a leer. Si falló, el error se muestra como el de una lectura propia (`ErrorAgendaDias`, catálogo de `errores.ts`), sin nada en la consola.
+- La RPC sigue filtrando por `auth.uid()` (INV-02, SEC-34); la precarga solo adelanta la lectura.
+- Abierto (H-B23-S01, bajo, seguridad): las filas precargadas quedan en memoria hasta recargar si nadie las usa; se recomienda borrarlas al vencer y al cerrar sesión. Va a G3.
+
+**Resultado de la medición** (n = 40, Fast 4G, escritorio; fuente `verificacion/rendimiento-B23.md`):
+
+| Vista | Antes (p95) | Después (p95) | Resultado |
+| --- | --- | --- | --- |
+| Día | 2046 ms | 1985 ms | Cumple (15 ms de margen) |
+| Semana | 2094 ms | 2043 ms | 43 ms por encima del umbral de 2000 ms |
+
+- CA-88 con la Semana en 2043 ms queda como **excepción aceptada** (PREG-002, opción b, firmada en G2 de B23); va a G3 como riesgo aceptado. 0 errores en las 80 cargas.
+- Dónde se va el tiempo: unas 8 idas y vueltas en cascada de ~200 ms (88 %); la RPC tarda 10 a 15 ms y el dibujo 24 ms. Sin limitar la red, la Semana carga en 238 ms. La palanca restante estimada (~1,6 s) es adelantar la configuración del profesor y la grilla (`profesor`, `grilla_tramo`), que está en `src/modulos/configuracion/logica/` y no se hizo.
+- La RPC de 7 días: p95 14,7 ms frente a un `statement_timeout` de 8 s del rol authenticated.
+- El chunk de `#/panel` creció 12,5 kB gzip frente a `main`.
+- **Pendiente (H-B23-02):** la Semana en celular (ventana de 3 días) no se midió.
+- Cómo repetir: `perf/preparar.mjs` y `perf/medir-agenda.mjs --ruta panel --vista semana|dia --viewport escritorio --perfil fast4g --n 40` (ver `tecnica/plataforma.md` §10).
+
+## Orden, numeración y despliegue (B16 a B23 hechos)
 - Los bolts se numeran B16 a B23 y no B01: con B01 la migración `2026110001*` quedaría antes de la última aplicada (`202611001150`) y `supabase db push` la rechazaría, y `lista_rpc/01.txt` y `matriz/01.ts` ya existen. Si el tablero exige B01 se renumeran los IDs; las rutas `16_*` se quedan.
 - Los bolts van en serie: todos los funcionales escriben en `src/modulos/panel/`. B16 es aditivo (no toca tablas, vistas ni RLS) y se aplica en producción antes de publicar la web de B17 (la migración aún no consta como aplicada en producción).
 - **Paso de publicación (antes del merge a `main`):** la migración `202611001601_agenda_profesor_dias.sql` (B16) debe aplicarse en producción con el flujo manual `supabase-deploy` **antes** de fusionar la rama a `main`, porque `web.yml` publica la web en cuanto entra a `main` y la web de B17 a B20 lee `agenda_profesor_dias`: sin la migración el calendario fallaría. Orden: (1) `supabase-deploy` con la migración, (2) comprobar que la RPC existe, (3) merge a `main`. Hoy consta como no aplicada en producción.
@@ -126,3 +151,4 @@ El plan de bolts incorpora los hallazgos de SecDevOps, ya corregidos, sin sumar 
 | 0.7 | 2026-11-06 | B20 (calendario-profesor) | CAL-15, CAL-16, CAL-19, DEC-45, DEC-46, H-471, H-475, ADR-025, ADR-026, SEC-34, SEC-37, H-B20-01, H-B20-03, H-B20-A01..A05 | Vista Semana, ventana de 3 días, hoy y lista agrupada construidas; H-471 cerrado; adendas de ADR-025 (P-2 cerrado) y ADR-026; paso de publicación de la migración 202611001601 con `supabase-deploy` antes del merge |
 | 0.8 | 2026-11-06 | B21 (calendario-profesor) | CAL-13, CAL-14, CA-77, CA-78, CA-79, CA-87, ADR-026, INV-01, SEC-36 | Sección del arrastre en escritorio, adenda B21 de ADR-026 (B-1, B-2) y reparto de módulos |
 | 0.9 | 2026-11-06 | B22 (calendario-profesor) | NFR-11, NFR-12, CA-86, CA-89, CA-90, A11Y-37, H-T22-01, H-B22-Q01..Q03 | Sección B22: contrato de `tecladoGrilla.ts`, cambios de CC-05..CC-08 y CC-11, celular y abiertos para G3 |
+| 0.10 | 2026-11-09 | B23 (calendario-profesor) | NFR-10, CA-88, INV-02, PREG-002, H-B23-01, H-B23-02, H-B23-S01 | Sección B23: precarga del Panel y cuándo se descarta, resultado de rendimiento (Día cumple, Semana 43 ms por encima con excepción aceptada) y abiertos para G3 |
