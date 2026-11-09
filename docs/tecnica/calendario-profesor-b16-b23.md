@@ -1,6 +1,6 @@
 ---
 titulo: Técnica · Calendario del profesor (RPC y decisiones ADR-023..026)
-version: 0.10
+version: 0.12
 fecha: 2026-11-09
 publico: equipo técnico
 ---
@@ -138,6 +138,38 @@ El plan de bolts incorpora los hallazgos de SecDevOps, ya corregidos, sin sumar 
 ## Plan de pruebas (planificado)
 71 casos en `.aidlc/calendario-profesor/calidad/casos/` (`CA.md`, 52 casos T-CA-67-01..T-CA-90-01; `INV.md`, 19 casos). Rendimiento (T-CA-88-01) solo en B23. Riesgo conocido: NFR-10 (Semana en menos de 2 s p95 con 4G) se mide recién en B23; en B16 una llamada de 7 días por encima de 500 ms en local es un hallazgo (ADR-023).
 
+## Operación: despliegue, verificación y qué vigilar (tramo 5 `prod-calendario`)
+
+Fuentes: `.aidlc/calendario-profesor/operacion/runbook.md` e `informe-despliegue.md`; plantilla del cliente `despliegue/otro/tramos-prod.md` (tramo 5) y paso 7 de `despliegue/otro/README.md`. Lo que no cambió (arranque, respaldos, secretos, tramos 1 a 4) sigue en el runbook de reservatuclase. El despliegue a producción lo ejecuta el humano después de G4; hasta hoy solo se desplegó en local.
+
+**Qué cambia.** Una migración más (53 en total): `202611001601_agenda_profesor_dias.sql`, solo funciones (`privado.agenda_profesor_dias(uuid, date, date)` sin acceso para `public`, `anon` ni `authenticated`, y `public.agenda_profesor_dias(date, date)` con `execute` solo para `authenticated`). Sin tablas, vistas, RLS ni datos. Sin variables, secretos, Edge Functions, Auth ni cron nuevos. La web no agrega rutas (`#/panel?v=dia|semana&d=AAAA-MM-DD`) y la precarga vive en memoria.
+
+**Orden: base primero, web después.**
+1. Respaldo previo fuera del repositorio.
+2. Etiquetar el commit del tramo (`prod-calendario`, el árbol final de B23 `4a51053` o posterior; lo crea el equipo del proyecto).
+3. Dry-run: debe listar exactamente `202611001601`; si lista más o menos, no lanzar.
+4. `supabase-deploy` lanzado desde la etiqueta, con aprobación del revisor del environment.
+5. Solo con la migración aplicada y verificada (SQL de abajo), publicar la web: integrar el PR a `main` es lo que la publica (`web.yml`), por eso no se integra antes. Si la web sale antes, el calendario muestra el error con «Reintentar» hasta aplicar la migración.
+6. Con `qa` configurado, el tramo va primero a `qa` y después a `prod`.
+
+**Vuelta atrás.** Primero la web (`web.yml` sobre el commit anterior, que no usa la RPC); después, si hace falta, `drop function public.agenda_profesor_dias(date, date); drop function privado.agenda_profesor_dias(uuid, date, date);` y `supabase migration repair --status reverted 202611001601`. No hay datos que perder; el dump previo es el último recurso. En local, `npx supabase db reset`.
+
+**Verificación posterior.**
+- SQL: 53 migraciones y máxima `202611001601`; `has_function_privilege('anon', 'public.agenda_profesor_dias(date,date)', 'execute')` da `false` y para `authenticated` da `true`.
+- Sin sesión, `POST /rest/v1/rpc/agenda_profesor_dias` responde 401 `42501` (esperado).
+- Con sesión de profesor: `#/panel` abre el calendario Día de hoy; `#/panel?v=semana` abre Semana (siete columnas en escritorio, tres días en 360 px); las clases coinciden con la Lista; una solicitud pendiente se confirma o rechaza desde el calendario y el alumno recibe el mismo mail que desde la Lista; cada profesor ve solo su agenda (INV-02).
+- Resultado local (informe de despliegue, 2026-11-09): migraciones desde cero, `npm run build` y `escanear-dist` limpios, y dos E2E de humo (T-CA-67-01, T-CA-76-01) pasan.
+
+**Qué vigilar.**
+- p95 de Semana (NFR-10, CA-88): 2043 ms contra 2000 ms en local con 4G estrangulado (Día 1985 ms); excepción aceptada (PREG-002, opción b). En producción medir contra Supabase Free con `perf/medir-agenda.mjs`; si pasa de ~2,5 s o sube la tasa de errores, avisar al equipo (salida prevista: adelantar las lecturas de `profesor` y `grilla_tramo`). La RPC de 7 días tarda ~15 ms: el costo es de red.
+- Plan Free: pausa por inactividad y límites de llamadas; Semana hace una lectura por semana.
+- Deuda aceptada: Semana en celular sin medir (H-V-01), filas precargadas en memoria hasta recargar (H-B23-S01), H-UX-A01..A03.
+- Pendientes de G4: H-B22-S02 (`rate_limit_email_sent` real), H-481 (gitleaks y CodeQL), H-482 (build con la clave del proyecto).
+
+**Fallos frecuentes.** Calendario en error con «Reintentar»: falta aplicar el tramo 5 o la API está caída (buscar la función en `pg_proc`). 401 `42501` con sesión de profesor: falta el `grant`; reaplicar la migración desde su etiqueta, no editar a mano.
+
+**Línea base.** La ficha `web-panel` (`.aidlc/_linea-base/componentes/web-panel.md`) ya describe el Panel como calendario Día/Semana con lista, respuesta de solicitudes, arrastre, deslizamiento, enlace del día y precarga (ADR-023..026), y `bd-agenda` suma la RPC `agenda_profesor_dias(p_desde, p_hasta)` de 1 a 7 días (migración `202611001601`); `agenda_profesor(p_dia)` sigue para el día destino de «Mover».
+
 ## Bitácora de versiones
 
 | Versión | Fecha | Bolt | IDs | Cambio |
@@ -152,3 +184,5 @@ El plan de bolts incorpora los hallazgos de SecDevOps, ya corregidos, sin sumar 
 | 0.8 | 2026-11-06 | B21 (calendario-profesor) | CAL-13, CAL-14, CA-77, CA-78, CA-79, CA-87, ADR-026, INV-01, SEC-36 | Sección del arrastre en escritorio, adenda B21 de ADR-026 (B-1, B-2) y reparto de módulos |
 | 0.9 | 2026-11-06 | B22 (calendario-profesor) | NFR-11, NFR-12, CA-86, CA-89, CA-90, A11Y-37, H-T22-01, H-B22-Q01..Q03 | Sección B22: contrato de `tecladoGrilla.ts`, cambios de CC-05..CC-08 y CC-11, celular y abiertos para G3 |
 | 0.10 | 2026-11-09 | B23 (calendario-profesor) | NFR-10, CA-88, INV-02, PREG-002, H-B23-01, H-B23-02, H-B23-S01 | Sección B23: precarga del Panel y cuándo se descarta, resultado de rendimiento (Día cumple, Semana 43 ms por encima con excepción aceptada) y abiertos para G3 |
+| 0.11 | 2026-11-09 | operación (calendario-profesor) | CAL-07..09, NFR-10, CA-88, INV-02, PREG-002, H-V-01, H-B23-S01 | Sección de operación: tramo 5, orden base y web, vuelta atrás, verificación posterior, qué vigilar y línea base |
+| 0.12 | 2026-11-09 | operación (calendario-profesor) | H-OP-01 | Integrar el PR a `main` publica la web: no se integra hasta aplicar y verificar el tramo 5 |

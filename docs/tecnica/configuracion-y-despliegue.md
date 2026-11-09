@@ -1,7 +1,7 @@
 ---
 titulo: Técnica · Configuración, despliegue y operación local
-version: 0.5
-fecha: 2026-10-26
+version: 0.7
+fecha: 2026-11-09
 publico: equipo técnico, operación
 ---
 # Configuración, despliegue y operación local
@@ -52,10 +52,11 @@ Pasos: `supabase link`, `db push`, despliegue de la función, `config push` (env
 
 - **Función sin Docker:** `supabase functions deploy enviar-mail --project-ref <ref> --no-verify-jwt --use-api`. El workflow no carga secretos de la función: hace `secrets list` y falla si falta `GMAIL_USER`, `GMAIL_APP_PASSWORD` o `MAIL_SECRETO`.
 - **Conexión a la base del proyecto:** por el pooler de sesión `aws-1-sa-east-1.pooler.supabase.com:5432`, usuario `postgres.<ref>`. El host directo es solo IPv6 y el pooler `aws-0` no conoce el proyecto (S01). El host va como variable del environment.
-- **Guardia de `config push`** (S02, H-005, H-022): la CLI 2.121 manda la sección entera y cambia todo lo que `config.toml` no declare igual que el proyecto; una variable `env()` sin definir se empuja como el literal `env(...)`. Por eso el workflow define `RTC_SITE_URL`, `RTC_REDIRECT_URL` y `RTC_GOOGLE_CLIENT_ID` (variables del environment) y deja `RTC_GOOGLE_SECRET` vacía. Antes del push corre `scripts/seguridad/guardia-config.mjs`, que ejecuta `config diff -o json` y falla si la salida contiene `127.0.0.1` o `env(`, o si trae un `update` de un campo fuera de `scripts/seguridad/config-permitida.json`; el diff queda en el resumen del job para el revisor.
+- **Guardia de `config push`** (S02, H-005, H-022): la CLI 2.121 manda la sección entera y cambia todo lo que `config.toml` no declare igual que el proyecto; una variable `env()` sin definir se empuja como el literal `env(...)`. Por eso el workflow define `RTC_SITE_URL`, `RTC_REDIRECT_URL` y `RTC_GOOGLE_CLIENT_ID` (variables del environment) y deja `RTC_GOOGLE_SECRET` vacía. La guardia corre justo después de `link` y antes del dry-run y de `db push` (así un cambio de configuración bloqueado no deja la base ya migrada), y repite el diff final antes de `config push`; es `scripts/seguridad/guardia-config.mjs`, que ejecuta `config diff -o json` y falla si la salida contiene `127.0.0.1` o `env(`, o si trae un `update` de un campo fuera de `scripts/seguridad/config-permitida.json`; el diff queda en el resumen del job para el revisor.
 - `config.toml` iguala a los valores del proyecto los campos que no son de la app (pooler, `storage.vector`, MFA TOTP). `[auth.captcha]` ya está declarado (CR-001). El guardia usa `config diff --output-format json`. Resto de la plataforma: `plataforma.md`.
 - **Guía para el equipo del cliente (B07, H-024):** `despliegue/otro/README.md` explica el despliegue en GitHub Pages y Supabase Free para un ambiente propio, con `PLACEHOLDERS.md` (lo que depende de su ambiente) y `tramos-prod.md`; no contiene secretos.
 - Los jobs `recordatorios` y `retencion` de pg_cron se programan con la migración `202611001107` y se revisan cada semana según `ops/operacion.md` (ver `solicitudes-gestion-y-retencion-b07-b11.md` §5).
+- **Tramo 5 `prod-calendario` (calendario del profesor):** una migración aditiva (`202611001601`, solo la RPC `agenda_profesor_dias`) que se aplica con `supabase-deploy` **antes** de publicar la web; vuelta atrás: primero la web, después quitar las dos funciones. **Integrar el PR a `main` publica la web** en Pages (`web.yml`): no se integra hasta aplicar y verificar el tramo 5. La CLI del workflow es la 2.121.0; el dry-run humano debe usar esa versión (la local puede ser otra, p. ej. 2.122.0). Pasos, verificación y qué vigilar en `calendario-profesor-b16-b23.md` (sección Operación) y en `despliegue/otro/tramos-prod.md`.
 - El workflow no escribe `supabase/.env` ni ningún `.env*`; `npm run build` en CI corre sin `.env.local`.
 
 ## 6. Ingreso (S02)
@@ -79,3 +80,5 @@ La agenda pública se lee con `@supabase/postgrest-js` (clave anon, sin sesión)
 | 0.3 | 2026-10-23 | B15 | ADM-02 | Secreto opcional `url_sitio` |
 | 0.4 | 2026-10-23 | B07, B11 | NFR-09, ADR-008, SEC-28 | Enlace a la guía de despliegue del cliente; jobs de retención y recordatorios |
 | 0.5 | 2026-10-26 | B03 | H-130, ADR-005 | Firma HMAC del disparo y despliegue conjunto de migración y función |
+| 0.6 | 2026-11-09 | operación (calendario-profesor) | CAL-07..09, ADR-023 | Tramo 5 `prod-calendario`: orden migración y web |
+| 0.7 | 2026-11-09 | operación (calendario-profesor) | H-OP-01, H-OP-02, I-OP-05 | Guardia de configuración antes de `db push`; integrar a `main` publica la web; CLI 2.121.0 del workflow |
