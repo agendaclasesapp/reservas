@@ -10,7 +10,8 @@ equipo del proyecto; este documento no las crea.
 | 1 | B14 (expansión) | `prod-b14` | `202611000510`, `0511`, `0512`, `0513`, `0520` a `0525` (10) | humo con el slug provisional (§4 de la guía) |
 | 2 | B15 sin contracción | `prod-b15a` | `202611000526`, `0530`, `0531` (3) | alta del profesor actual y humo de §5.1 |
 | 3 | Contracción | `prod-b15b` | `202611000539` (1) | humo posterior a la contracción |
-| 4 | B06 en adelante | `prod-b06` | `202611000601` a `0604` y las que sigan | humo propio de B06 |
+| 4 | B06 en adelante | `prod-b06` | `202611000601` a `0604` y las que sigan hasta `1150` | humo propio de B06 |
+| 5 | Calendario del profesor (B16 a B23) | `prod-calendario` | `202611001601` (1; solo la función `agenda_profesor_dias`, sin tablas ni RLS) | humo de Día y Semana (§ abajo) |
 
 Reglas:
 
@@ -30,3 +31,17 @@ Reglas:
   etiqueta ese commit; la secuencia de comandos está en `.aidlc/<proyecto>/operacion/runbook-despliegue-prod.md` §3.
 - `supabase-deploy.yml` despliega el árbol del ref desde el que se lanza: se lanza con "Use workflow from" la etiqueta
   del tramo (`${TRAMO_ETIQUETA}`), no desde `main` si `main` ya trae tramos posteriores.
+
+## Tramo 5 · calendario del profesor (una migración, solo funciones)
+
+- Es aditivo: no toca tablas, vistas ni políticas RLS. Sale después del tramo 4 y **antes** de publicar la web nueva
+  (la web de Día y Semana llama a `agenda_profesor_dias`; sin la función falla con 404). Si la web ya salió, el calendario
+  muestra el error con «Reintentar» hasta aplicar la migración.
+- **Integrar el PR a `main` es lo que publica la web en Pages:** el PR `feature/calendario-profesor` no se integra hasta que este
+  tramo esté aplicado y verificado con el SQL de `runbook.md` §4.
+- Vuelta atrás: primero la web (`web.yml` sobre el commit anterior), después, si hace falta, quitar las dos funciones
+  (`drop function public.agenda_profesor_dias(date, date); drop function privado.agenda_profesor_dias(uuid, date, date);`).
+  No hay datos que perder. El dump previo sigue siendo el último recurso.
+- Humo: con sesión de profesor, abrir `${PROD_SITIO_URL}#/panel` (calendario Día) y `#/panel?v=semana`; deben verse los
+  bloques de la agenda y responder una solicitud pendiente. Detalle y verificaciones SQL en
+  `.aidlc/<proyecto>/operacion/runbook.md` (calendario-profesor).

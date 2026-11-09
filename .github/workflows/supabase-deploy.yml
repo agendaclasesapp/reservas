@@ -1,6 +1,6 @@
 # Despliegue a producción (ADR-012, H-005, H-022, SEC-12, SEC-13, SEC-22, SEC-25). Solo manual, sin inputs;
-# el environment `produccion` exige revisor. Orden: link, db push (dry-run + dump), función, secretos,
-# guardia de config, config push, re-diff y verificación de Auth.
+# el environment `produccion` exige revisor. Orden: link, guardia de config (falla antes de tocar nada), db push
+# (dry-run + dump), función, secretos, config push, re-diff y verificación de Auth.
 name: supabase-deploy
 
 on:
@@ -60,6 +60,11 @@ jobs:
       - name: Enlazar el proyecto
         run: npx --yes "$SUPABASE_CLI" link --project-ref "$PROJECT_REF"
 
+      - name: Diff de configuración y guardia (antes de tocar nada, H-OP-02)
+        run: |
+          npx --yes "$SUPABASE_CLI" config diff --project-ref "$PROJECT_REF" --output-format json > "$RUNNER_TEMP/config-diff.json"
+          node scripts/seguridad/guardia-config.mjs "$RUNNER_TEMP/config-diff.json" --ref "$PROJECT_REF"
+
       - name: Migraciones pendientes (dry-run)
         run: npx --yes "$SUPABASE_CLI" db push --dry-run | tee "$RUNNER_TEMP/db-push-dry-run.txt"
 
@@ -94,11 +99,6 @@ jobs:
             if ! printf '%s\n' "$lista" | grep -qw "$n"; then echo "::error::falta el secreto ${n} (ops/mails.md)"; faltan=1; fi
           done
           exit "$faltan"
-
-      - name: Diff de configuración y guardia
-        run: |
-          npx --yes "$SUPABASE_CLI" config diff --project-ref "$PROJECT_REF" --output-format json > "$RUNNER_TEMP/config-diff.json"
-          node scripts/seguridad/guardia-config.mjs "$RUNNER_TEMP/config-diff.json" --ref "$PROJECT_REF"
 
       - name: Empujar la configuración
         run: npx --yes "$SUPABASE_CLI" config push --project-ref "$PROJECT_REF" --yes
