@@ -1,10 +1,12 @@
 // B17 · T17.1 · Lectura de la agenda del rango visible del calendario (ADR-023: una lectura por vista).
 // ux/web/flujos.md §4: `cargando | error | listo`; «releyendo» es `cargando` con `previo`. INV-02: el profesor sale de
 // la sesión en la base; acá solo viaja el rango. SEC-17, SEC-35: el error es el texto del catálogo, sin `details`
-// ni filas, y no se escribe en la consola.
+// ni filas, y no se escribe en la consola. B23 · T23.2 (NFR-10, CA-88): la lectura toma la precarga del mismo rango
+// si la hay (`precarga.ts`); si no coincide, se descarta sin mostrarse.
 import { useMemo } from 'react';
 import { MENSAJE_GENERICO } from '../../../lib/errores';
 import type { Dia } from '../../../lib/fechas';
+import { tomarPrecargaPanel } from './precarga';
 import type { FilaAgendaDias } from './tipos';
 import { useLecturaPanel, type EstadoLecturaPanel } from './usePanel';
 
@@ -36,7 +38,8 @@ export function lecturaAgendaDias(lectura: EstadoLecturaPanel<AgendaDiasLeida>):
 /**
  * Lee `[desde, hasta]` (en Día, `desde = hasta`) con `lector`; vuelve a leer al cambiar el rango y en `recargar()`
  * (después de una acción o con «Reintentar»). Una respuesta vieja no pisa a la nueva (`useLecturaPanel`).
- * `lector` debe ser una referencia estable.
+ * La primera lectura usa la precarga del mismo rango y lector si la hay (NFR-10); su error se muestra como el de una
+ * lectura propia. `lector` debe ser una referencia estable.
  */
 export function useAgendaDiasConLector(
   lector: LectorAgendaDias,
@@ -44,7 +47,11 @@ export function useAgendaDiasConLector(
   hasta: Dia,
 ): { lectura: LecturaAgendaDias; recargar: () => void } {
   const leer = useMemo(
-    () => async (): Promise<AgendaDiasLeida> => ({ desde, hasta, filas: await lector(desde, hasta) }),
+    () => async (): Promise<AgendaDiasLeida> => ({
+      desde,
+      hasta,
+      filas: await (tomarPrecargaPanel(lector, desde, hasta) ?? lector(desde, hasta)),
+    }),
     [lector, desde, hasta],
   );
   const { lectura, recargar } = useLecturaPanel(leer);

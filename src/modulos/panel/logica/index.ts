@@ -75,12 +75,17 @@
 //   origen.elegirAlcance → «solo esta clase» / «de acá en adelante»; alcanceDeArrastre(origen, alcance) el que viaja
 //   const r = await moverPorArrastre(origen, destino, alcance);    // = moverClase: mismos códigos y mensajes (CA-87)
 //   r.ok ? mensaje de «Mover» : r.mensaje; con fallo, recargar() y la clase vuelve a su lugar
+//
+// B23 · T23.2 · Precarga del Panel (NFR-10, CA-88, INV-02; el patrón de la agenda pública, B13 · T13.2):
+//   precargarPanelDesdeHash(window.location.hash)                   // src/main.tsx, antes de la sesión y del router
+//   useAgendaDias(nav.desde, nav.hasta)                              // toma la precarga solo si el rango y el usuario coinciden
 import { cargarSupabase } from '../../../lib/supabase';
 import type { Dia } from '../../../lib/fechas';
 import * as agendaDias from './agendaDias';
 import * as arrastre from './arrastre';
 import * as bloqueos from './bloqueos';
 import * as panel from './panel';
+import * as precarga from './precarga';
 import type {
   Alcance,
   Contadores,
@@ -260,6 +265,20 @@ export type {
   TipoElementoCalendario,
 } from './elementosCalendario';
 export { lecturaAgendaDias, useAgendaDiasConLector } from './useAgendaDias';
+export {
+  precargarAgendaDias,
+  precargarDesdeDireccion,
+  rangoSupuesto,
+  reiniciarPrecargaPanel,
+  tomarPrecargaPanel,
+  VIGENCIA_PRECARGA_PANEL_MS,
+} from './precarga';
+export type {
+  DependenciasPrecargaPanel,
+  OpcionesPrecargaPanel,
+  OpcionesRangoSupuesto,
+  UsuarioDeSesion,
+} from './precarga';
 export type { AgendaDiasLeida, LecturaAgendaDias, LectorAgendaDias } from './useAgendaDias';
 export {
   accionesRespuesta,
@@ -391,6 +410,21 @@ export function useAgendaProfesor(dia: Dia): {
 }
 
 const LECTOR_AGENDA_DIAS_REAL = (desde: Dia, hasta: Dia) => agendaDias.leerAgendaDias(desde, hasta, dependenciasPanel());
+
+/** Usuario de la sesión guardada por supabase-js (`getSession`: no va al servidor salvo para renovar el token). */
+async function usuarioDeLaSesion(): Promise<string | null> {
+  const cliente = await cargarSupabase();
+  const { data } = await cliente.auth.getSession();
+  return data.session?.user.id ?? null;
+}
+
+/**
+ * B23 (NFR-10, CA-88): si la dirección inicial es `#/panel…` y hay sesión guardada, pide ya la agenda del rango que se
+ * supone desde `v=` y `d=` con el mismo lector que `useAgendaDias`, que la toma si el rango y el usuario coinciden.
+ */
+export function precargarPanelDesdeHash(hash: string): void {
+  precarga.precargarDesdeDireccion(hash, { lector: LECTOR_AGENDA_DIAS_REAL, usuarioActual: usuarioDeLaSesion });
+}
 
 /**
  * B17 (ADR-023): agenda del rango visible del calendario (en Día, `desde = hasta`); vuelve a leer al cambiar el
